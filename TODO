@@ -1,0 +1,7 @@
+- gather all HOWFs into prelude
+- ignore patter
+- infix compose operator ">>", so that "o (f (i ()))" can be written "() >> i >> f >> o" 
+- ... or even better, with a specialized op "|>" : "i |> f >> o"
+- user defined infix ops (ex: net [(>>) x f = f x]) ?
+- network level constants (esp. when describing [foldl]-based nets) 
+  (could be further translated to input-less constant gen actors or parameters)

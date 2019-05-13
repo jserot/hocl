@@ -1,0 +1,14 @@
+/CHANGES.html
+lib/etc/config
+_build/
+src/parser.output
+src/version.ml
+*.o
+*~
+*.dot
+hocl.output
+bin/
+src/old/
+src/obsolete/
+examples/tofix/
+examples/tosee/

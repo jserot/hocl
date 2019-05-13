@@ -1,0 +1,5 @@
+SRCS=../../howf/foldl/foldl.hcl ../../howf/miter/miter.hcl main.hcl
+MAIN=main
+DOT_OPTS=-dump_typed
+
+include ../../../Makefile.app
