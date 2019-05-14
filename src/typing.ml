@@ -46,9 +46,9 @@ let rec type_pattern tenv p =
       ty, { tenv with te_values = (id, trivial_scheme ty) :: tenv.te_values }
   | NPat_unit ->
      type_unit, tenv
-  (* | NPat_ignore ->
-   *     let ty = new_type_var() in
-   *     ty, tenv *)
+  | NPat_ignore ->
+      let ty = new_type_var() in
+      ty, tenv
   | NPat_tuple ps ->
       let tenv', tys =
         List.fold_left 
@@ -166,8 +166,8 @@ and extract_type_bindings tenv loc pat ty = match (pat.np_desc, Types.real_type 
           ps)
   | NPat_nil, TyConstr("list", _) ->
       []
-  (* | NPat_ignore, _ ->
-   *     [] *)
+  | NPat_ignore, _ ->
+      []
   | NPat_unit, TyConstr("unit",[]) ->
       []
   | _, _ -> Misc.fatal_error "extract_type_bindings"

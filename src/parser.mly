@@ -21,7 +21,7 @@
 (* %token LBRACK         (\* "<"*\)
  * %token RBRACK         (\* ">"*\) *)
 %token BAR            (* "|"*)
-(* %token UNDERSCORE     (\* "_"*\) *)
+%token UNDERSCORE     (* "_"*)
 %token TYPE           (* "type"*)
 %token TY_NAT         (* "nat"*)
 %token TY_BOOL        (* "bool"*)
@@ -293,8 +293,8 @@ net_pattern:
 simple_net_pattern:
       | id=IDENT
           { mk_net_pat $loc (NPat_var (id)) }
-      (* | UNDERSCORE
-       *     { mk_net_pat $loc (NPat_ignore) } *)
+      | UNDERSCORE
+          { mk_net_pat $loc (NPat_ignore) }
       | LPAREN net_pattern RPAREN
           { $2 }
       | LBRACKET RBRACKET

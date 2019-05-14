@@ -13,4 +13,4 @@ net main x =
   let rec (y,z) = f (x,h (g z)) in
   y;
  
-net () = o (main (i ()));
+net _ = i |> main >> o;

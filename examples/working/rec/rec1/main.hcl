@@ -10,4 +10,4 @@ net main x =
   let rec (y,z) = f (x,z) in
   y;
  
-net () = o (main (i ()));
+net () = i |> main >> o;

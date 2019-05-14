@@ -9,4 +9,4 @@ actor h : t * t -> t;
 actor o : t -> unit;
 
 net m (x,y) = h (g x, g y);
-net () = i |> f >> m >> o;
+net _ = i |> f >> m >> o;

@@ -8,10 +8,8 @@ actor g : t -> t;
 actor h : t * t -> t;
 actor o : t -> unit;
 
-net io f i o = o (f (i ()));
-
 net diamond top middle bottom v = 
   let (x,y) = top v in
   bottom (middle x, middle y);
 
-net () = io (diamond f (diamond f (diamond f g h) h) h) i o;
+net _ = i |> diamond f (diamond f (diamond f g h) h) h >> o;

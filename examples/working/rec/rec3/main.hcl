@@ -16,4 +16,4 @@ net main (x1,x2) =
     g (z1, x2) in
   o1, o2;
 
-net () = o (main (i ()));
+net _ = i |> main >> o;

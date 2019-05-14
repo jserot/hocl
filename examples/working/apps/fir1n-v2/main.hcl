@@ -12,4 +12,4 @@ net fir n z x =
   let xs = miter n d x in
   foldl m z (x::xs);
 
-net () = o (fir 3 (z()) (i()));
+net _ = i |> fir 3 (z()) >> o;

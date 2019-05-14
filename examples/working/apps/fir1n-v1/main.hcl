@@ -13,4 +13,4 @@ net fir n x =
   let xs = miter n d x in
   foldl m x xs;
 
-net () = o (fir 3 (i()));
+net _ = i |> fir 3 >> o;

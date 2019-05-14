@@ -60,7 +60,7 @@ and net_pattern_desc =
   | NPat_cons of net_pattern * net_pattern
   | NPat_list of net_pattern list
   | NPat_unit
-  (* | NPat_ignore *)
+  | NPat_ignore
 
 and net_expr =
   { ne_desc: net_expr_desc;
@@ -151,7 +151,7 @@ and string_of_net_pat = function
   | NPat_cons (p1,p2) -> string_of_net_pattern p1 ^ "::" ^ string_of_net_pattern p2
   | NPat_list ps -> "[" ^ Misc.string_of_list string_of_net_pattern "," ps ^ "]"
   | NPat_unit -> "()"
-  (* | NPat_ignore -> "_" *)
+  | NPat_ignore -> "_"
 
 let string_of_actor_decl d =
   let a = d.ad_desc in

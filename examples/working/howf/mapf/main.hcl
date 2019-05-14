@@ -10,7 +10,7 @@ actor o1 : t' -> unit;
 actor o2 : t' -> unit;
 actor o3 : t' -> unit;
 
-net xs = mapf [f1,f2,f3] (i ());
-net () = o1 (xs[0]);
-net () = o2 (xs[1]);
-net () = o3 (xs[2]);
+net xs = i |> mapf [f1,f2,f3];
+net _ = o1 (xs[0]);
+net _ = o2 (xs[1]);
+net _ = o3 (xs[2]);

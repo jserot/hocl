@@ -16,4 +16,4 @@ net rec chain n f g z x =
     let x' = f (x,z') in
     chain (n-1) f g z x';
 
-net () = o (chain 3 f g (i2 ()) (i1 ()));
+net () = i1 |> chain 3 f g (i2()) >> o;

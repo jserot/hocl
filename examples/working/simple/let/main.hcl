@@ -9,10 +9,8 @@ actor g : int -> int;
 actor h : int * int -> int;
 actor o : int -> unit;
 
-net io f i o = o (f (i ()));
-
 net main x =
   let (y,z) = f x in
   h (g y, g z);
 
-net () = io main i o;
+net _ = i |> main >> o;

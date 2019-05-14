@@ -6,5 +6,4 @@ actor i : unit -> t;
 actor z : unit -> t;
 actor o : t -> unit;
 
-net xs = repl 3 (i ());
-net () = o (foldr g xs (z ()));
+net _ = i |> repl 3 >> foldr g (z()) >> o;

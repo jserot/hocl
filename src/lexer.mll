@@ -91,7 +91,7 @@ rule main = parse
             IDENT s }
   | ['0'-'9']+
       { INT (int_of_string(Lexing.lexeme lexbuf)) }
-  (* | "_" { UNDERSCORE } *)
+  | "_" { UNDERSCORE }
   | "|" { BAR }
   | "[" { LBRACKET }
   | "]" { RBRACKET }

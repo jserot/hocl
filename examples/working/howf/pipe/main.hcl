@@ -6,4 +6,4 @@ actor f3 : t -> t;
 actor i : unit -> t;
 actor o : t -> unit;
 
-net () = o (pipe [f1,f2,f3] (i ()));
+net _ = i |> pipe [f1,f2,f3] >> o;

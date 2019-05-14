@@ -104,6 +104,7 @@ let rec net_matching toplevel nenv npat r = match npat.np_desc, r with
   | NPat_list ps, SVCons _ ->
       net_matching toplevel nenv npat (list_of_cons r)
   | NPat_unit, _ -> [], []
+  | NPat_ignore, _ -> [], []
   | _, _ -> raise Matching_fail
 
 (* TODO : unify [net_matching] and [matching] *)
