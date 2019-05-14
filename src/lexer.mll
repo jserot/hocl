@@ -106,9 +106,11 @@ rule main = parse
   | "::" { COLONCOLON }
   (* | "<" { LBRACK }
    * | ">" { RBRACK } *)
-  | "!="    { INFIX0 "!=" }
+  | "|>"    { INFIX0 "|>" }
+  | ">>"    { INFIX0 ">>" }
+  | "!="    { INFIX1 "!=" }
   | [ '=' '<' '>' ]
-            { INFIX0(Lexing.lexeme lexbuf) }
+            { INFIX1(Lexing.lexeme lexbuf) }
   | [ '+' '-' ] 
             { INFIX2(Lexing.lexeme lexbuf) }
   | [ '*' '/' '%' ]

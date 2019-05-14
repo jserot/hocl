@@ -8,5 +8,7 @@ actor g : t -> t;
 actor h : t * t -> t;
 actor o : t -> unit;
 
-net (x,y) = f (i ());
-net () = o (h (g x, g y));
+-- net (x,y) = f (i ());
+-- net () = o (h (g x, g y));
+net (x,y) = i |> f;
+net () = (x,y) >> h (g x, g y) >> o;

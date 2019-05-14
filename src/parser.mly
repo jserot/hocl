@@ -1,6 +1,7 @@
 %token <string> IDENT
 (* %token <string> PREFIX *)
 %token <string> INFIX0
+%token <string> INFIX1
 %token <string> INFIX2
 %token <string> INFIX3
 %token <int> INT
@@ -44,17 +45,20 @@
 
 (* Precedences and associativities. Lower precedences first.*)
 
+(* %nonassoc IN *)
 %right prec_let
 (* %right prec_define *)
 %right ARROW
 (* %left  BAR *)
 %left  COMMA
-%left  INFIX0 EQUAL                     (* comparisons*)
+%left  INFIX0                           (* rev app operators (|>, >>) *)
+%left  INFIX1 EQUAL                     (* comparisons*)
 %left  INFIX2                           (* additives, subtractives*)
-%left  STAR INFIX3                      (* multiplicatives*)
 %right COLONCOLON
+%left  STAR INFIX3                      (* multiplicatives*)
 (* %right prec_app *)
 (* %right PREFIX                           (\* prefix operators, e.g. !*\) *)
+(* %nonassoc prec_uminus  *)
 
 (* Entry points*)
 
@@ -84,11 +88,11 @@ let rec mk_fun l pats e = match pats with
   | [p] -> mk_net_expr l (NFun (p,e))
   | p::ps -> mk_net_expr l (NFun (p, mk_fun l ps e)) (* TO FIX: location *)
 let mk_binop l (op,l') e1 e2 = mk_net_expr l (NApp (mk_net_expr l' (NVar op), mk_net_expr l (NTuple [e1;e2])))
-let mk_unop l (op,l') e = mk_net_expr l (NApp (mk_net_expr l' (NVar op),e))
-
-(* let negate_expr l s e = match s, e with
- *   | "-", {e_desc = EConst(Const.CInt n)} -> mk_expr l (EConst(Const.CInt(-n)))
- *   | s, e -> mk_unop l ("~" ^ s) e *)
+(* let mk_unop l (op,l') e = mk_net_expr l (NApp (mk_net_expr l' (NVar op),e)) *)
+(* let mk_uminus l l' e = match e.ne_desc with
+ *   | NInt n -> { e with ne_desc = NInt (-n) }
+ *   | _ -> mk_unop l ("~-",l') e *)
+let mk_infix l (op,l') e1 e2 = mk_apply l (mk_net_expr l' (NVar op)) [e1; e2]
 
 type decl =
   | TyDecl of Syntax.type_decl
@@ -203,8 +207,12 @@ net_defn:
 net_binding:
       p=net_pattern EQUAL e=net_expr  (*%prec prec_define*)
           { mk_net_binding $loc (p, e) }
-    | id=IDENT ps=my_nonempty_list(simple_net_pattern) EQUAL e=net_expr  (*%prec prec_define*)
+    | id=net_binding_name ps=my_nonempty_list(simple_net_pattern) EQUAL e=net_expr  (*%prec prec_define*)
           { mk_net_binding $loc (mk_net_pat $loc(id) (NPat_var id), mk_fun $loc ps e) }
+
+net_binding_name:
+      id=IDENT { id }
+    | LPAREN op=INFIX0 RPAREN { op }
 
 net_expr:
         e=simple_net_expr
@@ -232,11 +240,15 @@ net_expr:
       | e1=net_expr op=INFIX2 e2=net_expr
           { mk_binop $loc (op,$loc(op)) e1 e2 }
       | e1=net_expr op=INFIX0 e2=net_expr
+          { mk_infix $loc (op,$loc(op)) e1 e2 }
+      | e1=net_expr op=INFIX1 e2=net_expr
           { mk_binop $loc (op,$loc(op)) e1 e2 }
       | e1=net_expr op=STAR e2=net_expr
           { mk_binop $loc ("*",$loc(op)) e1 e2 }
       | e1=net_expr op=EQUAL e2=net_expr
           { mk_binop $loc ("=",$loc(op)) e1 e2 }
+      (* | u=MINUS e=net_expr %prec prec_uminus
+       *     { mk_uminus $loc $loc(u) e } *)
 
 simple_net_expr:
       | id=IDENT

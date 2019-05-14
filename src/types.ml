@@ -20,6 +20,7 @@ exception TypeConflict of typ * typ;;
 exception TypeCircularity of typ * typ;;
 
 let type_arrow t1 t2 = TyArrow (t1,t2)
+let type_arrow2 t1 t2 t3 = TyArrow (t1,TyArrow (t2,t3))
 let type_constr c ts = TyConstr(c, ts)
 let type_pair t1 t2 = TyProduct [t1;t2]
 let type_list t n = TyConstr("list", [t])
