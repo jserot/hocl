@@ -1,10 +1,11 @@
 HOCL=/Users/jserot/Dev/ml/hocl/src/main.byte
+HOCL_OPTS=-prelude /Users/jserot/Dev/ml/hocl/lib/hocl/prelude.hcl
 DOTVIEWER=graphviz
 
 all: dot.show
 
 dot: $(SRCS)
-	$(HOCL) -dot $(DOT_OPTS) $(SRCS)
+	$(HOCL) $(HOCL_OPTS) -dot $(DOT_OPTS) $(SRCS)
 
 dot.show: dot
 	$(DOTVIEWER) $(MAIN).dot

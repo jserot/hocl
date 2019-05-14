@@ -1,4 +1,3 @@
-- gather all HOWFs into prelude
 - ignore pattern
 - network level constants (esp. when describing [foldl]-based nets) 
   (could be further translated to input-less constant gen actors or parameters)

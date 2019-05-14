@@ -1,5 +1,5 @@
-SRCS=../repl/repl.hcl map2f.hcl main.hcl
+SRCS=main.hcl
 MAIN=main
 DOT_OPTS=-dump_typed
 
-include ../../../Makefile.app
+include ../../../../lib/etc/Makefile.app

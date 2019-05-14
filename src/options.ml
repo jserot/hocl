@@ -1,6 +1,7 @@
 type output_format = NoOutput | Dot (* | Xdf | Dif | Systemc | Vhdl *)
 
 type cfg = {
+    mutable prelude: string;
     mutable output_fmt: output_format;
     mutable output_prefix: string;
     mutable prefix: string;
@@ -13,6 +14,7 @@ type cfg = {
   }
 
 let cfg = {
+  prelude = "";
   output_fmt = NoOutput;
   output_prefix = "";
   prefix = "";
@@ -24,6 +26,7 @@ let cfg = {
   target_dir = ".";
   }
 
+let set_prelude name = cfg.prelude <- name
 let set_output_prefix name = cfg.output_prefix <- name
 (* let add_include_path path = Lexer.include_path <- !Lexer.include_path @ [path] *)
 let set_prefix p = cfg.prefix <- p
@@ -47,6 +50,7 @@ let do_phantom_types () = () (* Pr_type.print_type_repr := true  *)
 (* let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p *)
 
 let options_spec = [
+"-prelude", Arg.String (set_prelude), "set location of the standard prelude file";
 "-prefix", Arg.String (set_output_prefix), "set prefix output file names (default is main source file basename)";
 (* "-I", Arg.String (add_include_path), "add path to the list of dirs to search for include"; *)
 "-target_dir", Arg.String (set_target_dir), "set target directory for generated files (default is current directory)";

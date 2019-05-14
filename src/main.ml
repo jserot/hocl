@@ -52,6 +52,7 @@ try
   if Options.cfg.output_prefix = "" then
     Options.cfg.output_prefix <- Misc.file_prefix (List.hd (List.rev !source_files));
   Logfile.start ();
+  if Options.cfg.prelude <> "" then source_files := Options.cfg.prelude :: !source_files;
   let p =
     List.fold_left
       (fun p f -> Syntax.add_program p (parse f))

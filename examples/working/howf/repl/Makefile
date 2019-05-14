@@ -1,4 +1,4 @@
-SRCS=repl.hcl main.hcl
+SRCS=main.hcl
 MAIN=main
 
-include ../../../Makefile.app
+include ../../../../lib/etc/Makefile.app
