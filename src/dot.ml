@@ -58,21 +58,30 @@ let output_box ch (i,b) =
       else
         fprintf ch "n%d [shape=box,style=rounded,label=\"%s\"];\n" i  bid
   | ParamB -> 
-        fprintf ch "n%d [shape=%s,label=\"%s\"];\n" i  cfg.param_box_shape bid
+     fprintf ch "n%d [shape=%s,label=\"%s\n(%s)\"];\n"
+       i
+       cfg.param_box_shape
+       bid
+       (string_of_ssval b.b_val)
   | DummyB ->  (* Should not occur *)
       fprintf ch "n%d [shape=box,style=dotted,label=\"%s\"];\n" i "dummy"
 
 let string_of_wtype ty = ":" ^ Pr_type.string_of_type ty
 
-let output_wire ch (wid,(((s,ss),(d,ds)),ty))=
+let output_wire ch (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
   let wire_annot wid =
     (* try Interm.string_of_wire_annot (List.assoc wid wire_annots)
     with Not_found -> *) "" in
+  let style = if is_param_dep then "dashed" else "plain" in
   match cfg.labeled_edges, cfg.show_indexes, cfg.show_wire_annots with
-  | true, _, true -> fprintf ch "n%d:s%d -> n%d:e%d [label=\" w%d:%s\"];\n" s ss d ds wid (wire_annot wid)
-  | true, true, false -> fprintf ch "n%d:s%d -> n%d:e%d [label=\" %s\"];\n" s ss d ds ("w" ^ string_of_int wid ^ string_of_wtype ty)
-  | true, false, false -> fprintf ch "n%d:s%d -> n%d:e%d [label=\" %s\"];\n" s ss d ds (string_of_wtype ty)
-  | false, _, _ -> fprintf ch "n%d:s%d -> n%d:e%d;\n" s ss d ds
+  | true, _, true ->
+     fprintf ch "n%d:s%d -> n%d:e%d [label=\" w%d:%s\"; style=%s];\n" s ss d ds wid (wire_annot wid) style
+  | true, true, false ->
+     fprintf ch "n%d:s%d -> n%d:e%d [label=\" %s\"; style=%s];\n" s ss d ds ("w" ^ string_of_int wid ^ string_of_wtype ty) style
+  | true, false, false ->
+     fprintf ch "n%d:s%d -> n%d:e%d [label=\" %s\"; style=%s];\n" s ss d ds (string_of_wtype ty) style
+  | false, _, _ ->
+     fprintf ch "n%d:s%d -> n%d:e%d [style=%s];\n" s ss d ds style
 
 let output ch boxes wires = 
   fprintf ch "digraph g {\n";

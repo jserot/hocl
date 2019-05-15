@@ -115,6 +115,10 @@ let invalid_actor_param id loc =
   eprintf "%a** Error: invalid parameter value for actor %s.\n." output_location loc id;
   raise Error
 
+let invalid_param_expr loc =
+  eprintf "%a** Error: invalid expression for parameter value.\n." output_location loc;
+  raise Error
+
 let initial_value_mismatch v v' =
   eprintf "Error: initial values %s and %s mismatch\n" v v';
   raise Error

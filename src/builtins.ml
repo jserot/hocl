@@ -14,11 +14,13 @@ let encode_nat n =
     SVNat n
 let rec decode_nat = function
   | SVNat n -> n
+  | SVLoc (_,_,_,SVNat n) -> n (* Special case for parameters *)
   | _ -> fatal_error "Builtins.decode_nat" (* should not happen *)
 let encode_bool b =
     SVBool b
 let rec decode_bool = function
   | SVBool b -> b
+  | SVLoc (_,_,_,SVBool b) -> b (* Special case for parameters *)
   | _ -> fatal_error "Builtins.decode bool" (* should not happen *)
 
 let prim1 encode op decode =

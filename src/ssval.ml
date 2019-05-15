@@ -14,7 +14,7 @@ type ss_val =
   | SVList of ss_val list
   | SVNil
   | SVAct of sv_act
-  | SVLoc of idx * sel * typ * bool (* node index, output selector, type, is_output *)
+  | SVLoc of idx * sel * typ * ss_val (* node index, output selector, type, parameter value (when applicable) *)
 
 and sv_clos =
   { cl_pat: Syntax.net_pattern;
@@ -70,7 +70,7 @@ and  string_of_ssval v = match v with
   | SVUnit -> "()"
   | SVNil -> "[]"
   | SVCons (v1,v2) -> string_of_ssval v1 ^ "::" ^ string_of_ssval v2
-  | SVLoc (l,s,ty,_) -> "Loc(" ^ (string_of_int l) ^ "," ^ (string_of_int s) ^ ")"
+  | SVLoc (l,s,ty,v) -> "Loc(" ^ string_of_int l ^ "," ^ string_of_int s ^ string_of_ssval v ^ ")"
   | SVPrim p -> "Prim(...)"
   | SVAct a -> "Act(...)"
   | SVClos _ -> "Clos(...)"

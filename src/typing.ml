@@ -275,8 +275,13 @@ type typed_program = {
 let rec type_program tenv p = 
   let typed_types = List.map (type_type_decl tenv) p.types in
   let tenv' = { tenv with te_types = tenv.te_types @ typed_types } in 
-  let typed_params = List.map (type_param_decl tenv') p.params in
-  let tenv'' = { tenv' with te_values = tenv.te_values @ List.map (fun (id,t) -> id, generalize [] t) typed_params } in 
+  let typed_params, tenv'' =
+    List.fold_left
+      (fun (tps,tenv) p ->
+        let id, ty = type_param_decl tenv p in
+        (id,ty)::tps, { tenv with te_values = tenv.te_values @ [id, generalize [] ty] })
+      ([], tenv')
+      p.params in
   let typed_actors =  List.map (type_actor_decl tenv'') p.actors in
   let tenv''' = { tenv'' with te_values = List.map (function (id,a) -> id,a.at_sig) typed_actors @ tenv.te_values } in
   let typed_defns =

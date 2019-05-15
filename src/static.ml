@@ -18,10 +18,10 @@ type box_tag =
 and ss_box = {
     b_id: int;
     b_tag: box_tag;
-    b_name: string;                     (* For regular (resp. param) boxes, name of the instanciated actor (resp. param) *)
-    b_typ: typ;                         (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
-    (* b_tysig: typ;                             (\* "Signature" type, i.e. [t_params * t_ins * t_vars * t_outs] *\) *)
-    (* b_tvbs: typ var_bind list;                (\* Type var instantiations (when the box derives from a polymorphic actor) *\) *)
+    b_name: string;                  (* For regular (resp. param) boxes, name of the instanciated actor (resp. param) *)
+    b_typ: typ;                      (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
+    (* b_tysig: typ;                 (\* "Signature" type, i.e. [t_params * t_ins * t_vars * t_outs] *\) *)
+    (* b_tvbs: typ var_bind list;    (\* Type var instantiations (when the box derives from a polymorphic actor) *\) *)
     b_ins: (string * (wid * typ)) list;
     b_outs: (string * (wid list * typ)) list;
     b_val: ss_val;                             (* For parameter boxes *)
@@ -31,7 +31,7 @@ and ss_box = {
 and wid = int
 and bid = int
 
-type ss_wire = (sv_loc * sv_loc) * typ 
+type ss_wire = (sv_loc * sv_loc) * typ * bool   (* src, dest, type, is parameter dependency *)
 
 (* The result of the static analysis *)
 
@@ -77,7 +77,7 @@ let new_dummy_box name ty =
   let bid = new_bid () in
   bid, { b_id=bid; b_tag=DummyB; b_name=name; b_ins=[]; b_outs=["r",([0],ty)]; b_typ=ty; b_val=SVUnit }
 
-let boxes_of_wire boxes (((s,ss),(d,ds)),ty) = 
+let boxes_of_wire boxes (((s,ss),(d,ds)),ty,_) = 
   try
     List.assoc s boxes, List.assoc d boxes
   with Not_found -> 
@@ -92,19 +92,20 @@ let dst_box_of_wire boxes (w:ss_wire) = snd (boxes_of_wire boxes w)
 
 exception Matching_fail
 
-let is_output nenv id =
-  try match List.assoc id nenv with
-      SVLoc(_,_,_,true) as loc -> Some loc
-    | _ -> None
-    with Not_found -> None
+(* let is_output nenv id =
+ *   try match List.assoc id nenv with
+ *       SVLoc(_,_,_,true) as loc -> Some loc
+ *     | _ -> None
+ *     with Not_found -> None *)
 
 let rec net_matching toplevel nenv npat r = match npat.np_desc, r with
   | NPat_var id, r' ->
-      begin match toplevel, is_output nenv id, r' with
-      | false, _, _ -> [id, r], []
-      | true, None, _ -> [id, r], []
-      | true, Some (SVLoc(l',_,ty',_)), SVLoc(l,s,ty,_) -> [], [new_wid(),(((l,s),(l',0)),ty')]
-      | true, _, _ -> fatal_error "matching: cannot bind output" end
+     [id, r], []
+      (* begin match toplevel, is_output nenv id, r' with
+       * | false, _, _ -> [id, r], []
+       * | true, None, _ -> [id, r], []
+       * | true, Some (SVLoc(l',_,ty',_)), SVLoc(l,s,ty,_) -> [], [new_wid(),(((l,s),(l',0)),ty')]
+       * | true, _, _ -> fatal_error "matching: cannot bind output" end *)
   | NPat_tuple ps, SVTuple rs when List.length ps = List.length rs ->
       let nenvs, ws = List.split (List.map2 (net_matching toplevel nenv) ps rs) in
       List.concat nenvs, List.concat ws
@@ -322,17 +323,20 @@ and eval_list_access loc v1 v2 =
 and create_rec_bindings toplevel nenv npat =
   match npat.np_desc with
     | NPat_var id ->
-        begin match toplevel, is_output nenv id with
-          false, _
-        | true, None ->
-            let ty = type_copy npat.np_typ in
-            let l, b = new_dummy_box id ty in
-            [id, SVLoc(l,0,ty,false)], [(l,b)]
-        | true, Some l ->
-            (* Note 2013-04-12, JS
-               Outputs are _not_ added to the recursive environment *)
-            [], []
-        end
+       let ty = type_copy npat.np_typ in
+       let l, b = new_dummy_box id ty in
+       [id, SVLoc(l,0,ty,SVUnit)], [(l,b)]
+        (* begin match toplevel, is_output nenv id with
+         *   false, _
+         * | true, None ->
+         *     let ty = type_copy npat.np_typ in
+         *     let l, b = new_dummy_box id ty in
+         *     [id, SVLoc(l,0,ty,false)], [(l,b)]
+         * | true, Some l ->
+         *     (\* Note 2013-04-12, JS
+         *        Outputs are _not_ added to the recursive environment *\)
+         *     [], []
+         * end *)
     | NPat_tuple ps ->
         List.fold_left
           (fun (ne,bs) p ->
@@ -348,15 +352,14 @@ and mk_subst loc nenv (rid,rv) =
     SVLoc(l,s,_,_), SVLoc(l',s',_,_) -> (l,s),(l',s')
   | _, _ -> illegal_rec_definition loc
 
-and apply_subst ((i,s),(i',s')) (wid,((src,dst),ty)) =
+and apply_subst ((i,s),(i',s')) (wid,((src,dst),ty,b)) =
   let sub (k,l) =
     if k=i then (i',s') else (k,l) in
-  (wid, ((sub src, sub dst), ty))
+  (wid, ((sub src, sub dst), ty, b))
 
 
 (* Auxilliaries *)
 
-          
 and instanciate_actor tp nenv loc a args =
   (* let senv = List.fold_left (fun acc (id,v) -> match v with SVVal v' -> (id,v')::acc | _ -> acc) [] nenv in *)
   let tyins, tyouts, typarams, tyact = instanciate_actor_ios loc a args in
@@ -365,16 +368,14 @@ and instanciate_actor tp nenv loc a args =
     @ List.map (fun (id,ty) -> (id,(0,ty))) a.sa_ins in
   let bouts = List.map (fun (id,ty) -> (id,([0],ty))) a.sa_outs in
   let l, b = new_box a.sa_id tyact bins bouts in
-  (* let actual_type = type_product [typarams;tyins;tyvars;tyouts] in *)
-  (* add_actor_instance globals a.sa_id (actual_type,actual_fn_params) b l; *)
-  let mk_wire l v = match v with
-    SVLoc(i,j,ty,_) -> new_wid(), (((i,j),l),ty)
+  let mk_wire b l v = match v with
+    SVLoc(i,j,ty,_) -> new_wid(), (((i,j),l),ty,b)
   | _ -> illegal_application loc in
   let tyins' = list_of_types tyins in
   let tyouts' = list_of_types tyouts in
   let wps =
     List.mapi
-      (fun i p -> match p with (id,ty,Some v) -> mk_wire (l,i) v | _ -> illegal_application loc)
+      (fun i p -> match p with (id,ty,Some v) -> mk_wire true (l,i) v | _ -> illegal_application loc)
       a.sa_params in
   let np = List.length a.sa_params in
   match tyins', a.sa_ins, tyouts', a.sa_outs, args with
@@ -382,77 +383,46 @@ and instanciate_actor tp nenv loc a args =
      SVUnit,
      [l,b],
      wps
-  | [t], [_], [], [_], SVLoc(l1,s1,ty,false) ->                                 (* APP_1_0 *)
-     let w = ((l1,s1),(l,np)), t in
+  | [t], [_], [], [_], SVLoc(l1,s1,ty,SVUnit) ->                                 (* APP_1_0 *)
+     let w = ((l1,s1),(l,np)), t, false in
      SVUnit,
      [l,b],
      wps @ [new_wid(),w]
   | ts, _, [], [_], SVTuple vs when List.length ts > 1 ->                       (* APP_m_0 *)
-     let ws'' = Misc.list_map_index (fun i v -> mk_wire (l,np+i) v) vs in
+     let ws'' = Misc.list_map_index (fun i v -> mk_wire false (l,np+i) v) vs in
      SVUnit,
      [l,b],
      wps @ ws''
   | [], [_], [t], [_], SVUnit ->                                                (* APP_0_1 *)
-      SVLoc (l,0,t,false),
+      SVLoc (l,0,t,SVUnit),
       [l,b],
       []
   | [], [_], ts, _, SVUnit when List.length ts > 1 ->                           (* APP_0_n *)
-      SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,false)) ts),
+      SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,SVUnit)) ts),
       [l,b],
       wps
-  | [t], _, [t'], _, SVLoc(l1,s1,ty,false) ->                                   (* APP_1_1 *)
-      let w = ((l1,s1),(l,np)), t in
-      SVLoc (l,0,t',false),
+  | [t], _, [t'], _, SVLoc(l1,s1,ty,SVUnit) ->                                   (* APP_1_1 *)
+      let w = ((l1,s1),(l,np)), t, false in
+      SVLoc (l,0,t',SVUnit),
       [l,b],
       wps @ [new_wid(),w]
-  | [t], _, ts', _, SVLoc(l1,s1,ty,false) when List.length ts' > 1 ->           (* APP_1_n *)
-      let w = ((l1,s1),(l,0)), t in
-      SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,false)) ts'),
+  | [t], _, ts', _, SVLoc(l1,s1,ty,SVUnit) when List.length ts' > 1 ->           (* APP_1_n *)
+      let w = ((l1,s1),(l,0)), t, false in
+      SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,SVUnit)) ts'),
       [l,b],
       wps @ [new_wid(),w]
   | ts, _, [t'], _, SVTuple vs when List.length ts > 1 ->                       (* APP_m_1 *)
-      let ws'' = Misc.list_map_index (fun i v -> mk_wire (l,np+i) v) vs in
-      SVLoc (l,0,t',false),
+      let ws'' = Misc.list_map_index (fun i v -> mk_wire false (l,np+i) v) vs in
+      SVLoc (l,0,t',SVUnit),
       [l,b],
       wps @ ws''
   | ts, _, ts', _, SVTuple vs when List.length ts > 1 && List.length ts' > 1 -> (* APP_m_n *)
-      let ws'' = Misc.list_map_index (fun i v -> mk_wire (l,np+i) v) vs in
-      SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,false)) ts'),
+      let ws'' = Misc.list_map_index (fun i v -> mk_wire false (l,np+i) v) vs in
+      SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,SVUnit)) ts'),
       [l,b],
       wps @ ws''
   | _ ->
       illegal_application loc
-  (* match List.length a.sa_ins, List.length a.sa_outs, args with
-   * | 1, 1, SVUnit ->                                                  (\* APP_0_1 *\)
-   *     SVLoc (l,0,List.nth tyouts' 0,false),
-   *     [l,b],
-   *     []
-   * | 1, n, SVUnit ->                                                  (\* APP_0_n *\)
-   *     SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,false)) tyouts'),
-   *     [l,b],
-   *     []
-   * | 1, 1, SVLoc(l1,s1,ty,false) ->                                    (\* APP_1_1 *\)
-   *     let w = ((l1,s1),(l,0)), List.nth tyins' 0 in
-   *     SVLoc (l,0,List.nth tyouts' 0,false),
-   *     [l,b],
-   *     [new_wid(),w]
-   * | 1, n, SVLoc(l1,s1,ty,false) ->                                    (\* APP_1_n *\)
-   *     let w = ((l1,s1),(l,0)), List.nth tyins' 0 in
-   *     SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,false)) tyouts'),
-   *     [l,b],
-   *     [new_wid(),w]
-   * | m, 1, SVTuple vs ->                                               (\* APP_m_1 *\)
-   *     let ws'' = Misc.list_map_index (fun i v -> mk_wire (l,i) v) vs in
-   *     SVLoc (l,0,List.nth tyouts' 0,false),
-   *     [l,b],
-   *     ws''
-   * | m, n, SVTuple vs ->                                               (\* APP_m_n *\)
-   *     let ws'' = Misc.list_map_index (fun i v -> mk_wire (l,i) v) vs in
-   *     SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,false)) tyouts'),
-   *     [l,b],
-   *     ws''
-   * | _ ->
-   *     illegal_application loc *)
 
 and instanciate_actor_ios loc a args =
   let ty_param = match a.sa_params with
@@ -461,12 +431,12 @@ and instanciate_actor_ios loc a args =
   | ps -> type_product (List.map (function (_,ty,_) -> ty) ps) in
   let rec type_of v = match v with
     (* TODO : handle the case of actors with NO arg ? *)
-    SVLoc(l,s,ty,false) -> ty
+    SVLoc(_,_,ty,_) -> ty
   | SVTuple vs ->
       type_product
         (List.map
            (function
-               SVLoc(l,s,ty,false) -> ty
+               SVLoc(_,_,ty,_) -> ty
              | _ -> illegal_application loc)
            vs)
   | SVCons (v', _) -> 
@@ -526,14 +496,36 @@ let eval_net_decl tp (nenv,boxes,wires) { nd_desc = isrec, defns; nd_loc=loc } =
 
 (* RULE |- IoDecl => NE,B *)
 
-let rec eval_param_decl tp nenv (ne,bs) { pd_desc=id,_,e; pd_loc=loc } =
-  match eval_net_expr tp nenv e with
-  | v, _, _ when is_valid_param_value v -> 
+let rec eval_param_decl tp nenv (ne,bs,ws) { pd_desc=id,_,e; pd_loc=loc } =
+  match eval_net_expr tp (nenv @ ne) e with
+  | v, _, _' when is_valid_param_value v -> 
      let ty = List.assoc id tp.tp_params in
      let l, b = new_param_box id ty v in
-     (id,SVLoc (l,0,ty,false)) :: ne, (l,b) :: bs
+     let dep_params = extract_dep_params tp ne e in 
+     let ws' =
+       List.map 
+         (function
+          | id, SVLoc (l',s',ty,_) -> new_wid (), (((l',s'),(l,0)),ty,true)
+          | _, _ -> invalid_param_value id loc)
+         dep_params in
+     (id,SVLoc (l,0,ty,v)) :: ne, (l,b) :: bs, ws'@ws
   | _ -> invalid_param_value id loc
 
+and extract_dep_params tp env e =
+  let rec extract e = match e.ne_desc with
+  | NNat n -> []
+  | NBool b -> []
+  | NApp (fn, arg) -> extract fn @ extract arg
+  | NVar v ->
+     if List.mem_assoc v tp.tp_params then
+       try [v, List.assoc v env]
+       with Not_found -> fatal_error "Static.extract_dep_params" (* should not happen *)
+     else
+       []
+  | NTuple es -> List.concat (List.map extract es)
+  | _ -> invalid_param_expr e.ne_loc in
+  extract e
+    
 (* RULE W |- B => B' *)
 
 exception BoxWiring of string * bid * wid
@@ -551,14 +543,14 @@ let rec update_wids wires (bid,b) =
     BoxWiring (where,bid,sel) -> unwired_box where b.b_name sel
 
 and find_src_wire wires bid sel =
-  let find wids (wid, ((_,(d,ds)),_)) = if d=bid && ds=sel then wid::wids else wids in
+  let find wids (wid, ((_,(d,ds)),_,_)) = if d=bid && ds=sel then wid::wids else wids in
   match List.fold_left find [] wires with
     [] -> raise (BoxWiring ("input",bid,sel))
   | [w] -> w
   | ws -> fatal_error "find_src_wire: more than one source wire" (* should not happen ! *)
 
 and find_dst_wire wires bid sel =
-  let find wids (wid, (((s,ss),_),_)) = if s=bid && ss=sel then wid::wids else wids in
+  let find wids (wid, (((s,ss),_),_,_)) = if s=bid && ss=sel then wid::wids else wids in
   match List.fold_left find [] wires with
     [] ->  raise (BoxWiring ("output",bid,sel))
   | ws -> ws
@@ -566,7 +558,7 @@ and find_dst_wire wires bid sel =
 (* RULE NE |- Program => NE,B,W *)
 
 let build_static tp senv p =
-  let senv_p, bs_p = List.fold_left (eval_param_decl tp senv) ([],[]) p.params in
+  let senv_p, bs_p, ws_p = List.fold_left (eval_param_decl tp senv) ([],[],[]) p.params in
   let actors  = List.map (build_actor_desc tp) p.actors in
   let senv_a = List.map (fun (id,a) -> id, SVAct a) actors in
   let ne', bs', ws' =
@@ -577,7 +569,7 @@ let build_static tp senv p =
   let bs'' = List.map (update_wids ws') bs' in
   { nvals = ne';
     boxes = bs_p @ bs'';
-    wires = ws';
+    wires = ws_p @ ws';
     gacts = List.map (fun (id,a) -> id, { sa_desc=a }) actors }
 
 (* Printing *)
@@ -624,10 +616,10 @@ let print_box (i,b) =
         b.b_name
         (Misc.string_of_list string_of_typed_bin ","  b.b_ins)
         (Misc.string_of_list string_of_typed_bout ","  b.b_outs)
-        (match b.b_tag with ParamB -> string_of_ssval b.b_val | _ -> "")
+        (match b.b_tag with ParamB -> "val=" ^ string_of_ssval b.b_val | _ -> "")
 
-let print_wire (i,(((s,ss),(d,ds)),ty)) =
-  Printf.printf "W%d: %s: (B%d,%d) -> (B%d,%d)\n" i (string_of_type ty) s ss d ds
+let print_wire (i,(((s,ss),(d,ds)),ty,b)) =
+  Printf.printf "W*%d: %s: (B%d,%d) -> (B%d,%d)\n" i (string_of_type ty) s ss d ds
 
 (* let print_value tp (name,v) =
  *   let type_of name = 

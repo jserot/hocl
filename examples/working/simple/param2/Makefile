@@ -1,5 +1,5 @@
 SRCS=main.hcl
 MAIN=main
-DOT_OPTS=-dump_typed -dump_static
+DOT_OPTS=
 
 include ../../../../lib/etc/Makefile.app
