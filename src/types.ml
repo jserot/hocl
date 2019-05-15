@@ -13,8 +13,8 @@ and 'a value =
   | Known of 'a
 
 type typ_scheme =
-  { params: (typ var) list;
-    body: typ }
+  { ts_params: (typ var) list;
+    ts_body: typ }
 
 exception TypeConflict of typ * typ;;
 exception TypeCircularity of typ * typ;;
@@ -24,6 +24,7 @@ let type_arrow2 t1 t2 t3 = TyArrow (t1,TyArrow (t2,t3))
 let type_constr c ts = TyConstr(c, ts)
 let type_pair t1 t2 = TyProduct [t1;t2]
 let type_list t n = TyConstr("list", [t])
+let type_param t = TyConstr("param", [t])
 let type_nat = type_constr "nat" []
 let type_bool = type_constr "bool" []
 let type_unit = type_constr "unit" []
@@ -121,14 +122,14 @@ let generalize env ty =
   let free_tvars = 
     List.fold_left
       (fun tvs (_,ts) -> 
-        let tvs' = vars_of ts.params ts.body in
+        let tvs' = vars_of ts.ts_params ts.ts_body in
         tvs @ tvs')
       []
       env in
   let gen_tvars = vars_of free_tvars ty in
-  {params = List.rev gen_tvars; body = ty}
+  {ts_params = List.rev gen_tvars; ts_body = ty}
 
-let trivial_scheme ty = {params = []; body = ty}
+let trivial_scheme ty = {ts_params = []; ts_body = ty}
 
 (* Type instanciation *)
 
@@ -150,11 +151,11 @@ let rec copy_type tvbs ty =
   copy ty
 
 let full_type_instance ty_sch =
-  match ty_sch.params with
-  | [] -> ty_sch.body, []
+  match ty_sch.ts_params with
+  | [] -> ty_sch.ts_body, []
   | tparams ->
       let unknown_ts = List.map (fun var -> (var, new_type_var())) tparams in
-      copy_type unknown_ts ty_sch.body,
+      copy_type unknown_ts ty_sch.ts_body,
       unknown_ts
 
 let type_instance ty_sch = fst (full_type_instance ty_sch)

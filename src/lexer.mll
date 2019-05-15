@@ -18,11 +18,14 @@ let keyword_table = [
   "bool", TY_BOOL;
   "unit", TY_UNIT;
   "actor", ACTOR;
+  "parameter", PARAMETER;
+  "param", PARAM;
   "fun", FUN;
   "net", NET;
   "let", LET;
   "and", AND;
   "in", IN;
+  "out", OUT;
   "rec", REC;
   (* "list", LIST; *)
   "match", MATCH;

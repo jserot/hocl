@@ -3,10 +3,10 @@
 type t;
 type t';
 
-actor f : t*t' -> t*t'; 
-actor g : t'*t -> t'*t; 
-actor i : unit -> t*t;
-actor o : t*t -> unit;
+actor f in (i1: t, i2: t') out (o1: t, o2: t'); 
+actor g in (i1: t', i2: t) out (o1: t', o2: t); 
+actor i in () out (o1: t, o2: t);
+actor o in (i1: t, i2: t) out ();
 
 net io f i o = o (f (i ()));
 

@@ -1,11 +1,11 @@
 type t;
 type t';
 
-actor f : t * t' -> t;
-actor g : t' -> t';
-actor i1 : unit -> t;
-actor i2 : unit -> t';
-actor o : t -> unit;
+actor f in (i1: t, i2: t') out (o: t);
+actor g in (i: t') out (o: t');
+actor i1 in () out (o: t);
+actor i2 in () out (o: t');
+actor o in (i: t) out ();
 
 net double n =  n*2;
 

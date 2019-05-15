@@ -12,18 +12,19 @@ type static_env = (string * ss_val) list
 
 type box_tag = 
     ActorB
-  (* | ParamB of io_kind *)
+  | ParamB 
   | DummyB  (* Temporary boxes used for handling recursive defns *)
 
 and ss_box = {
     b_id: int;
     b_tag: box_tag;
-    b_name: string;                           (* For regular boxes, name of the instanciated actor *)
-    b_typ: typ;                               (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
+    b_name: string;                     (* For regular (resp. param) boxes, name of the instanciated actor (resp. param) *)
+    b_typ: typ;                         (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
     (* b_tysig: typ;                             (\* "Signature" type, i.e. [t_params * t_ins * t_vars * t_outs] *\) *)
     (* b_tvbs: typ var_bind list;                (\* Type var instantiations (when the box derives from a polymorphic actor) *\) *)
     b_ins: (string * (wid * typ)) list;
     b_outs: (string * (wid list * typ)) list;
+    b_val: ss_val;                             (* For parameter boxes *)
     (* b_params: (string * (Expr.e_val * typ)) list;      (\* Parameters, with their actual values *\) *)
 }
 
@@ -37,6 +38,7 @@ type ss_wire = (sv_loc * sv_loc) * typ
 type static_program = { 
     (* e_vals: (string * Expr.e_val) list; *)
     nvals: (string * ss_val) list;
+    (* gparams: (string * ss_val) list; *)
     gacts: (string * sa_desc) list;
     boxes: (bid * ss_box) list;
     wires: (wid * ss_wire) list;
@@ -48,6 +50,10 @@ and sa_desc = {                                                     (* Actors *)
     sa_desc: Ssval.sv_act;                                          (* Definition *)
     (* mutable ac_insts: (ss_box, bid) ActInsts.t;                     (\* Instances *\) *)
   }
+
+let is_valid_param_value = function
+  | SVNat _ | SVBool _ -> true  (* MAY BE ADJUSTED  *)
+  | _ -> false
 
 (* Box creation *)
 
@@ -61,11 +67,15 @@ let new_wid =
 
 let new_box name ty ins outs =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=ActorB; b_name=name; b_ins=ins; b_outs=outs; b_typ=ty }
+  bid, { b_id=bid; b_tag=ActorB; b_name=name; b_ins=ins; b_outs=outs; b_typ=ty; b_val=SVUnit }
+
+let new_param_box name ty v =
+  let bid = new_bid () in
+  bid, { b_id=bid; b_tag=ParamB; b_name=name; b_ins=[]; b_outs=[]; b_typ=ty; b_val=v }
 
 let new_dummy_box name ty =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=DummyB; b_name=name; b_ins=[]; b_outs=["r",([0],ty)]; b_typ=ty }
+  bid, { b_id=bid; b_tag=DummyB; b_name=name; b_ins=[]; b_outs=["r",([0],ty)]; b_typ=ty; b_val=SVUnit }
 
 let boxes_of_wire boxes (((s,ss),(d,ds)),ty) = 
   try
@@ -199,27 +209,36 @@ and eval_net_application tp (bs,ws) nenv loc val_fn val_arg ty_arg =
         end in
       eval_net_expr tp (nenv'' @ nenv') nexp
   | SVAct a ->
-      (* if List.length a.sa_params > 0                     (\* RULE NAPP ACT 2 *\)
-       * && List.for_all (function _,_,None -> true | _,_,Some _ -> false) a.sa_params then
-       *   let actual_params =
-       *     begin
-       *       match val_arg, ty_arg with
-       *       | SVVal v, ty ->
-       *           [v,ty]
-       *       | SVTuple vs, Tproduct ts ->
-       *           begin try
-       *             List.map2 (fun v t -> match v with SVVal v' -> v',t | _ -> raise (Invalid_argument "")) vs ts
-       *           with
-       *             Invalid_argument _ -> failwith "Static.eval_net_application" (\* should not happen *\)
-       *           end
-       *       | _, _ ->
-       *           illegal_parameters a.sa_id loc "must be int(s) or bool(s)"
-       *     end in
-       *   instanciate_actor_desc a actual_params, [], []
-       * else                                               (\* Rule NAPP ACT 1 *\) *)
+     begin match a.sa_params with
+     | [] ->
+        (* Actor with all parameter values set *)
         instanciate_actor tp nenv loc a val_arg
+     | vs when List.for_all (function _,_,None -> false | _,_,Some _ -> true) vs ->
+        (* Parameter-less actor *)
+        instanciate_actor tp nenv loc a val_arg
+     | vs when List.for_all (function _,_,None -> true | _,_,Some _ -> false) vs ->
+        (* The actor accepts parameters but they have not been set yet *)
+        begin
+          try 
+            let actual_params =
+              begin
+                let is_valid_param = function SVLoc _ -> true | _ -> false in (* Crude approx. *)
+                match val_arg, ty_arg with
+                | SVTuple vs, TyProduct ts when List.for_all is_valid_param vs -> List.combine vs ts
+                |  v, ty when is_valid_param v -> [v,ty]
+                | _, _ -> invalid_actor_param a.sa_id loc 
+              end in
+            SVAct { a with sa_params = List.map2 (fun (id,ty,_) (v,ty') -> (id,ty,Some v)) a.sa_params actual_params },
+            [],
+            []
+          with
+            Invalid_argument _ -> failwith "Static.eval_net_application" (* should not happen *)
+        end
+     | _ ->
+        illegal_application loc
+     end
   | _ ->
-          illegal_application loc
+     illegal_application loc
 
 (* Rule TE,EE,NE |- let/net [rec] npat1=nexp1 ... npatn=nexpn => NE', B, W *)
 
@@ -337,36 +356,14 @@ and apply_subst ((i,s),(i',s')) (wid,((src,dst),ty)) =
 
 (* Auxilliaries *)
 
-(* and instanciate_actor_desc a actual_params = 
- *   let renv =
- *     Misc.foldl_index
- *       (fun i r (v,_) -> match v with
- *       | Expr.Val_int (n,_) -> (i+1,n)::r
- *       | _ -> r)
- *       []
- *      actual_params in
- *   SVAct
- *     { sa_id = a.sa_id;
- *       sa_params = List.map2
- *         (fun (id,formal_ty,_) (v,actual_ty) -> (id,actual_ty,Some v))
- *         a.sa_params
- *         actual_params;
- *       sa_typ = { a.sa_typ with ts_body = Types.deref renv a.sa_typ.ts_body };
- *       sa_fulltyp = { a.sa_fulltyp with ts_body = Types.deref renv a.sa_fulltyp.ts_body };
- *       sa_ins = List.map (function (id,ty) -> (id, Types.deref renv ty)) a.sa_ins;
- *       sa_outs = List.map (function (id,ty) -> (id, Types.deref renv ty)) a.sa_outs;
- *       sa_vars = List.map (function (id,(v,ty),loc) -> (id, (apply_option (deref_exp renv) v,Types.deref renv ty), loc)) a.sa_vars;
- *       sa_rules = List.map (function (rule,ty,rsig,loc) -> (deref_rule renv rule, Types.deref renv ty, rsig, loc)) a.sa_rules;
- *       sa_impl = a.sa_impl;
- *       sa_types = a.sa_types } *)
           
 and instanciate_actor tp nenv loc a args =
   (* let senv = List.fold_left (fun acc (id,v) -> match v with SVVal v' -> (id,v')::acc | _ -> acc) [] nenv in *)
-  let tyins, tyouts, (*typarams,*) tyact = instanciate_actor_ios loc a args in
-  let bins = List.map (fun (id,ty) -> (id,(0,ty))) a.sa_ins in
+  let tyins, tyouts, typarams, tyact = instanciate_actor_ios loc a args in
+  let bins =
+      List.map (fun (id,ty,_) -> (id,(0,ty))) a.sa_params 
+    @ List.map (fun (id,ty) -> (id,(0,ty))) a.sa_ins in
   let bouts = List.map (fun (id,ty) -> (id,([0],ty))) a.sa_outs in
-  (* let bins = List.map2 (fun (id,_) ty -> (id,(0,ty))) a.sa_ins (list_of_types tyins) in
-   * let bouts = List.map2 (fun (id,_) ty -> (id,([0],ty))) a.sa_outs (list_of_types tyouts) in *)
   let l, b = new_box a.sa_id tyact bins bouts in
   (* let actual_type = type_product [typarams;tyins;tyvars;tyouts] in *)
   (* add_actor_instance globals a.sa_id (actual_type,actual_fn_params) b l; *)
@@ -375,21 +372,26 @@ and instanciate_actor tp nenv loc a args =
   | _ -> illegal_application loc in
   let tyins' = list_of_types tyins in
   let tyouts' = list_of_types tyouts in
+  let wps =
+    List.mapi
+      (fun i p -> match p with (id,ty,Some v) -> mk_wire (l,i) v | _ -> illegal_application loc)
+      a.sa_params in
+  let np = List.length a.sa_params in
   match tyins', a.sa_ins, tyouts', a.sa_outs, args with
   | [], [_], [], [_], SVUnit ->                                                 (* APP_0_0 *)
      SVUnit,
      [l,b],
-     []
+     wps
   | [t], [_], [], [_], SVLoc(l1,s1,ty,false) ->                                 (* APP_1_0 *)
-     let w = ((l1,s1),(l,0)), t in
+     let w = ((l1,s1),(l,np)), t in
      SVUnit,
      [l,b],
-     [new_wid(),w]
+     wps @ [new_wid(),w]
   | ts, _, [], [_], SVTuple vs when List.length ts > 1 ->                       (* APP_m_0 *)
-     let ws'' = Misc.list_map_index (fun i v -> mk_wire (l,i) v) vs in
+     let ws'' = Misc.list_map_index (fun i v -> mk_wire (l,np+i) v) vs in
      SVUnit,
      [l,b],
-     ws''
+     wps @ ws''
   | [], [_], [t], [_], SVUnit ->                                                (* APP_0_1 *)
       SVLoc (l,0,t,false),
       [l,b],
@@ -397,27 +399,27 @@ and instanciate_actor tp nenv loc a args =
   | [], [_], ts, _, SVUnit when List.length ts > 1 ->                           (* APP_0_n *)
       SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,false)) ts),
       [l,b],
-      []
+      wps
   | [t], _, [t'], _, SVLoc(l1,s1,ty,false) ->                                   (* APP_1_1 *)
-      let w = ((l1,s1),(l,0)), t in
+      let w = ((l1,s1),(l,np)), t in
       SVLoc (l,0,t',false),
       [l,b],
-      [new_wid(),w]
+      wps @ [new_wid(),w]
   | [t], _, ts', _, SVLoc(l1,s1,ty,false) when List.length ts' > 1 ->           (* APP_1_n *)
       let w = ((l1,s1),(l,0)), t in
       SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,false)) ts'),
       [l,b],
-      [new_wid(),w]
+      wps @ [new_wid(),w]
   | ts, _, [t'], _, SVTuple vs when List.length ts > 1 ->                       (* APP_m_1 *)
-      let ws'' = Misc.list_map_index (fun i v -> mk_wire (l,i) v) vs in
+      let ws'' = Misc.list_map_index (fun i v -> mk_wire (l,np+i) v) vs in
       SVLoc (l,0,t',false),
       [l,b],
-      ws''
+      wps @ ws''
   | ts, _, ts', _, SVTuple vs when List.length ts > 1 && List.length ts' > 1 -> (* APP_m_n *)
-      let ws'' = Misc.list_map_index (fun i v -> mk_wire (l,i) v) vs in
+      let ws'' = Misc.list_map_index (fun i v -> mk_wire (l,np+i) v) vs in
       SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,false)) ts'),
       [l,b],
-      ws''
+      wps @ ws''
   | _ ->
       illegal_application loc
   (* match List.length a.sa_ins, List.length a.sa_outs, args with
@@ -453,10 +455,10 @@ and instanciate_actor tp nenv loc a args =
    *     illegal_application loc *)
 
 and instanciate_actor_ios loc a args =
-  (* let ty_param = match a.sa_params with
-   * | [] -> type_unit
-   * | [_,ty,_] -> type_copy ty
-   * | ps -> type_product (List.map (function (_,ty,_) -> type_copy ty) ps) in *)
+  let ty_param = match a.sa_params with
+  | [] -> type_unit
+  | [_,ty,_] -> ty
+  | ps -> type_product (List.map (function (_,ty,_) -> ty) ps) in
   let rec type_of v = match v with
     (* TODO : handle the case of actors with NO arg ? *)
     SVLoc(l,s,ty,false) -> ty
@@ -472,23 +474,23 @@ and instanciate_actor_ios loc a args =
   | SVUnit -> type_unit
   | _ -> illegal_application loc in
   let ty_arg = type_of args in
-  (* match a.sa_params (\* ,a.sa_vars *\) with
-   *   [] -> *)
+  match a.sa_params with
+    [] ->
       let ty_fn, ty_res, _ = type_application loc a.sa_typ ty_arg in
-      ty_arg, ty_res, (*type_unit,*) ty_fn
-  (* | _ ->
-   *     let ty_fn, ty_res, tv_bindings, sv_bindings = type_application2 (ELoc loc) a.sa_typ ty_param ty_arg in
-   *     ty_arg, ty_res, ty_param, ty_fn, tv_bindings, sv_bindings *)
+      ty_arg, ty_res, type_unit, ty_fn
+  | _ ->
+      let ty_fn, ty_res, _ = type_application2 loc a.sa_typ ty_param ty_arg in
+      ty_arg, ty_res, ty_param, ty_fn
 
 (* RULE |- ActDecl => NE *)
 
 let rec build_actor_desc tp { ad_desc = a } =
   let ta = List.assoc a.a_id tp.tp_actors in
-  let index n i t = n ^ string_of_int (i+1), t in
   a.a_id,
   { sa_id = a.a_id;
-    sa_ins = List.mapi (index "i") ta.at_ins;
-    sa_outs = List.mapi (index "o") ta.at_outs;
+    sa_params = List.map (fun (id,ty) -> id,ty,None) ta.at_params;
+    sa_ins = ta.at_ins;
+    sa_outs = ta.at_outs;
     sa_typ = ta.at_sig }
 
 (* RULE NE,B,W |- NetDecl => NE',B',W *)
@@ -522,6 +524,16 @@ let eval_net_decl tp (nenv,boxes,wires) { nd_desc = isrec, defns; nd_loc=loc } =
   boxes @ boxes',
   wires @ wires'
 
+(* RULE |- IoDecl => NE,B *)
+
+let rec eval_param_decl tp nenv (ne,bs) { pd_desc=id,_,e; pd_loc=loc } =
+  match eval_net_expr tp nenv e with
+  | v, _, _ when is_valid_param_value v -> 
+     let ty = List.assoc id tp.tp_params in
+     let l, b = new_param_box id ty v in
+     (id,SVLoc (l,0,ty,false)) :: ne, (l,b) :: bs
+  | _ -> invalid_param_value id loc
+
 (* RULE W |- B => B' *)
 
 exception BoxWiring of string * bid * wid
@@ -554,15 +566,17 @@ and find_dst_wire wires bid sel =
 (* RULE NE |- Program => NE,B,W *)
 
 let build_static tp senv p =
+  let senv_p, bs_p = List.fold_left (eval_param_decl tp senv) ([],[]) p.params in
   let actors  = List.map (build_actor_desc tp) p.actors in
+  let senv_a = List.map (fun (id,a) -> id, SVAct a) actors in
   let ne', bs', ws' =
     List.fold_left
       (eval_net_decl tp)
-      (List.map (fun (id,a) -> id, SVAct a) actors @ senv, [], [])
+      (senv_p @ senv_a @ senv, [], [])
       p.defns in
   let bs'' = List.map (update_wids ws') bs' in
   { nvals = ne';
-    boxes = bs'';
+    boxes = bs_p @ bs'';
     wires = ws';
     gacts = List.map (fun (id,a) -> id, { sa_desc=a }) actors }
 
@@ -589,25 +603,28 @@ let string_of_typed_bout (id,(wids,ty)) =
   ^ (Misc.string_of_list (function wid -> "W" ^ string_of_int wid) "," wids) ^ "])"
 
 let string_of_typed_io (id,ty) = id ^ ":" ^ string_of_type ty
+let string_of_opt_value = function None -> "?" | Some v -> string_of_ssval v
+let string_of_typed_param (id,ty,v) = id ^ ":" ^ string_of_type ty ^ " = " ^ string_of_opt_value v
 
 let print_actor (id,ac) = 
   Pr_type.reset_type_var_names ();
   let a = ac.sa_desc in 
-  Printf.printf "%s: %s : ins=[%s] outs=[%s]\n"
+  Printf.printf "%s: %s : params=[%s] ins=[%s] outs=[%s]\n"
     a.sa_id
     (string_of_type_scheme a.sa_typ)
-    (* (Misc.string_of_list string_of_typed_param ","  a.sa_params) *)
+    (Misc.string_of_list string_of_typed_param ","  a.sa_params)
     (Misc.string_of_list string_of_typed_io ","  a.sa_ins)
     (Misc.string_of_list string_of_typed_io ","  a.sa_outs)
 
 let print_box (i,b) =
   Pr_type.reset_type_var_names ();
-  Printf.printf "%s%d: %s (ins=[%s] outs=[%s])\n"
-        (match b.b_tag with ActorB -> "B" | DummyB -> "D")
+  Printf.printf "%s%d: %s (ins=[%s] outs=[%s] %s)\n"
+        (match b.b_tag with ActorB -> "B" | DummyB -> "D" | ParamB -> "P")
         i
         b.b_name
         (Misc.string_of_list string_of_typed_bin ","  b.b_ins)
         (Misc.string_of_list string_of_typed_bout ","  b.b_outs)
+        (match b.b_tag with ParamB -> string_of_ssval b.b_val | _ -> "")
 
 let print_wire (i,(((s,ss),(d,ds)),ty)) =
   Printf.printf "W%d: %s: (B%d,%d) -> (B%d,%d)\n" i (string_of_type ty) s ss d ds

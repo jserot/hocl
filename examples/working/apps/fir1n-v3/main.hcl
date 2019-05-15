@@ -3,10 +3,10 @@
 
 type float;
 
-actor tap: float * float -> float * float;
-actor i : unit -> float;
-actor z : unit -> float;
-actor o : float -> unit;
+actor tap in (x: float, z: float) out (y: float, zz:float);
+actor i in () out (o: float);
+actor z in () out (o: float);
+actor o in (i: float) out ();
 
 net fir n z x = iter n tap (x,z);
 

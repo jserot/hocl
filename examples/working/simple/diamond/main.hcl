@@ -2,11 +2,11 @@
 
 type t;
 
-actor i : unit -> t;
-actor o : t -> unit;
-actor f : t -> t * t;
-actor g : t -> t;
-actor h : t * t -> t;
+actor i in () out (o: t);
+actor o in (i: t) out ();
+actor f in (i: t) out (o1: t, o2: t);
+actor g in (i: t) out (o: t);
+actor h in (i1: t, i2: t) out (o: t);
 
 net diamond top middle bottom v = 
   let (x,y) = top v in

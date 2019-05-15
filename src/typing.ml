@@ -185,6 +185,12 @@ let type_application loc ty_fn ty_arg =
   try_unify "application" ty_fn' (type_arrow ty_arg ty_result) loc;
   ty_fn', ty_result, tvs
 
+let type_application2 loc ty_fn ty_param ty_arg = 
+  let ty_fn', tvs = full_type_instance ty_fn in
+  let ty_result = new_type_var () in
+  try_unify "application" ty_fn' (type_arrow2 ty_param ty_arg ty_result) loc;
+  ty_fn', ty_result, tvs
+
 (* and type_definitions tenv is_rec bindings =
  *   let ty_pats, aug_envs =
  *     List.split
@@ -218,18 +224,38 @@ let type_type_decl tenv { td_desc=t } = match t with
 (* Typing actor decls *)
 
 type typed_actor = {
-   at_ins: typ list;           (* inputs *)
-   at_outs: typ list;          (* outputs *)
-   at_sig: typ_scheme;         (* external type signature: [t_ins -> t_outs] *)
+   at_params: (string * typ) list;        (* params *)
+   at_ins: (string * typ) list;           (* inputs *)
+   at_outs: (string * typ) list;          (* outputs *)
+   at_sig: typ_scheme;         (* external type signature: [t_ins -> t_outs] or [t_params -> t_ins -> t_outs] *)
   }
 
 let type_actor_decl tenv { ad_desc=a } =
-  let ty_ins = List.map (type_of_type_expression tenv) a.a_ins in
-  let ty_outs = List.map (type_of_type_expression tenv) a.a_outs in
+  let type_io = function
+      [] -> ["_", type_unit]
+    | ios -> List.map (fun (id,te) -> id, type_of_type_expression tenv te) ios in
+  let ty_ins = type_io a.a_ins in
+  let ty_outs = type_io a.a_outs in
+  let ty_params = List.map (fun (id,te) -> id, type_of_type_expression tenv te) a.a_params in
+  let ty = match ty_params with
+    | [] -> type_arrow
+              (type_product (List.map snd ty_ins))
+              (type_product (List.map snd ty_outs))
+    | _ -> type_arrow2
+             (type_product (List.map snd ty_params))
+             (type_product (List.map snd ty_ins))
+             (type_product (List.map snd ty_outs)) in
   a.a_id,
-  { at_ins = ty_ins;
+  { at_params = ty_params;
+    at_ins = ty_ins;
     at_outs = ty_outs;
-    at_sig = trivial_scheme (type_arrow (type_product ty_ins) (type_product ty_outs)) }
+    at_sig = trivial_scheme ty }
+
+let type_param_decl tenv { pd_desc=(id,te,e); pd_loc=loc } =
+  let ty = type_of_type_expression tenv te in
+  let ty' = type_expression tenv e in
+  try_unify "parameter" ty ty' loc;
+  (id, (* type_param *) ty)
 
 (* Typing top-level net defns *)
   
@@ -240,8 +266,8 @@ let type_net_defn tenv { nd_desc=d } = match d with
 (* Typing programs *)
 
 type typed_program = {
-  (* tp_types: (string * type_desc) list;     (\* Type constructors *\)
-   * tp_params: (string * typ) list;        (\* Parameters *\) *)
+  (* tp_types: (string * type_desc) list;     (\* Type constructors *\) *)
+  tp_params: (string * typ) list;
   tp_actors: (string * typed_actor) list;
   tp_defns: (string * typ_scheme) list;
   }
@@ -249,16 +275,19 @@ type typed_program = {
 let rec type_program tenv p = 
   let typed_types = List.map (type_type_decl tenv) p.types in
   let tenv' = { tenv with te_types = tenv.te_types @ typed_types } in 
-  let typed_actors =  List.map (type_actor_decl tenv') p.actors in
-  let tenv'' = { tenv' with te_values = List.map (function (id,a) -> id,a.at_sig) typed_actors @ tenv.te_values } in
+  let typed_params = List.map (type_param_decl tenv') p.params in
+  let tenv'' = { tenv' with te_values = tenv.te_values @ List.map (fun (id,t) -> id, generalize [] t) typed_params } in 
+  let typed_actors =  List.map (type_actor_decl tenv'') p.actors in
+  let tenv''' = { tenv'' with te_values = List.map (function (id,a) -> id,a.at_sig) typed_actors @ tenv.te_values } in
   let typed_defns =
     List.fold_left
       (fun env d ->
         let env' = type_net_defn { tenv'' with te_values = tenv''.te_values @ env } d in
         env @ env')
-      tenv''.te_values
+      tenv'''.te_values
       p.defns in
-  { tp_actors = typed_actors;
+  { tp_params = typed_params;
+    tp_actors = typed_actors;
     tp_defns = typed_defns }
 
 (* Printing *)
@@ -266,8 +295,13 @@ let rec type_program tenv p =
 let rec dump_typed_program builtins tp =
   Printf.printf "Typed program ---------------\n";
   List.iter dump_typed_actor tp.tp_actors;
+  List.iter dump_typed_param tp.tp_params;
   List.iter (dump_typed_value builtins) tp.tp_defns;
   Printf.printf "----------------------------------\n"
+
+and dump_typed_param (name, ty) =
+  Printf.printf "parameter %s : %s\n" name (Pr_type.string_of_type ty);
+  flush stdout
 
 and dump_typed_actor (name, a) =
   Pr_type.reset_type_var_names ();

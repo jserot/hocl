@@ -7,17 +7,19 @@ open Static
 type dot_config = {
     mutable labeled_edges: bool;
     mutable show_indexes: bool;
-    (* mutable param_box_shape: string; *)
+    mutable param_box_shape: string;
     mutable slotted_boxes: bool;
-    mutable show_wire_annots: bool
+    mutable show_wire_annots: bool;
+    mutable rank_dir: string
   }
 
 let cfg = {
   labeled_edges = true;
   show_indexes = false;
-  (* param_box_shape = "hexagon"; *)
+  param_box_shape = "hexagon";
   slotted_boxes = true;
-  show_wire_annots = false
+  show_wire_annots = false;
+  rank_dir = "LR"
 }
 
 (* and string_of_val v =
@@ -55,7 +57,9 @@ let output_box ch (i,b) =
           (ioslots "s" (List.length b.b_outs))
       else
         fprintf ch "n%d [shape=box,style=rounded,label=\"%s\"];\n" i  bid
-  | DummyB ->
+  | ParamB -> 
+        fprintf ch "n%d [shape=%s,label=\"%s\"];\n" i  cfg.param_box_shape bid
+  | DummyB ->  (* Should not occur *)
       fprintf ch "n%d [shape=box,style=dotted,label=\"%s\"];\n" i "dummy"
 
 let string_of_wtype ty = ":" ^ Pr_type.string_of_type ty
@@ -72,7 +76,7 @@ let output_wire ch (wid,(((s,ss),(d,ds)),ty))=
 
 let output ch boxes wires = 
   fprintf ch "digraph g {\n";
-(*   fprintf ch "node [shape=record]\n"; *)
+  fprintf ch "rankdir=%s;\n" cfg.rank_dir;
   List.iter (output_box ch) boxes;
   List.iter (output_wire ch) wires;
   fprintf ch "}\n"

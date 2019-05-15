@@ -3,11 +3,11 @@
 
 type int;
 
-actor i : unit -> int;
-actor f : int -> int * int;
-actor g : int -> int;
-actor h : int * int -> int;
-actor o : int -> unit;
+actor i in () out (o: int);
+actor f in (i: int) out (o1: int, o2: int);
+actor g in (i: int) out (o: int);
+actor h in (i1: int, i2: int) out (o: int);
+actor o in (i: int) out ();
 
 net main x =
   let (y,z) = f x in

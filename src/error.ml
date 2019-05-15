@@ -107,6 +107,14 @@ let invalid_list_index idx loc =
   eprintf "%a** Error: invalid list index (%d).\n." output_location loc idx;
   raise Error
 
+let invalid_param_value id loc =
+  eprintf "%a** Error: invalid value for parameter %s.\n." output_location loc id;
+  raise Error
+
+let invalid_actor_param id loc =
+  eprintf "%a** Error: invalid parameter value for actor %s.\n." output_location loc id;
+  raise Error
+
 let initial_value_mismatch v v' =
   eprintf "Error: initial values %s and %s mismatch\n" v v';
   raise Error

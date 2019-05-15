@@ -1,4 +1,4 @@
-SRCS=../howfs/mapf/mapf.hcl shuffle.hcl main.hcl
+SRCS=shuffle.hcl main.hcl
 MAIN=main
 
-include ../../Makefile.app
+include ../../../lib/etc/Makefile.app

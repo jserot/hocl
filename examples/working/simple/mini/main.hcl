@@ -2,8 +2,8 @@
 
 type int;
 
-actor i : unit -> int;
-actor f : int -> int;
-actor o : int -> unit;
+actor inp in () out(o: int);
+actor f in (i: int) out (o: int);
+actor outp in (i: int) out ();
 
-net _ = i |> f >> o;
+net _ = inp |> f >> outp;

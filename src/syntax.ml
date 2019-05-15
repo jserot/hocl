@@ -17,6 +17,7 @@ and type_expression_desc =
                 
 type program =
   { types: type_decl list;
+    params: param_decl list ;
     actors: actor_decl list ;
     defns: net_defn list }
 
@@ -26,14 +27,21 @@ and type_decl =
 and tdecl_desc =
   | Opaque_type_decl of string                                   (* name *)
 
+and param_decl =
+  { pd_desc: pdecl_desc;
+    pd_loc: location }
+and pdecl_desc = string * type_expression * net_expr             (* Name, type, initial value *)
+  (* Note: ideally, parameter expressions should be a strict subset of network expression *)
+
 and actor_decl = 
   { ad_desc: actor_desc;
     ad_loc: location }
 
 and actor_desc = {
     a_id: string;
-    a_ins: type_expression list;
-    a_outs: type_expression list;
+    a_params: (string * type_expression) list;
+    a_ins: (string * type_expression) list;
+    a_outs: (string * type_expression) list;
   }
 
 and net_defn =
@@ -93,10 +101,11 @@ let is_fun_definition = function
 
 (* Program manipulation *)
 
-let empty_program = { types=[]; actors=[]; defns=[]; }
+let empty_program = { types=[]; params=[]; actors=[]; defns=[]; }
 
 let add_program p1 p2 = { (* TODO : Flag redefinitions ? *)
     types= p1.types @ p2.types;
+    params= p1.params @ p2.params;
     actors= p1.actors @ p2.actors;
     defns= p1.defns @ p2.defns;
   }
@@ -153,14 +162,19 @@ and string_of_net_pat = function
   | NPat_unit -> "()"
   | NPat_ignore -> "_"
 
+let string_of_actor_io (id,ty) = id ^ ": " ^ string_of_ty_expr ty
+                               
 let string_of_actor_decl d =
   let a = d.ad_desc in
-  a.a_id ^ ": "
-  ^ Misc.string_of_list string_of_ty_expr " * " a.a_ins ^ " -> "
-  ^ Misc.string_of_list string_of_ty_expr " * " a.a_outs 
+  a.a_id
+    ^ " in (" ^ Misc.string_of_list string_of_actor_io ", " a.a_ins ^ ")"
+    ^ " out (" ^ Misc.string_of_list string_of_actor_io ", " a.a_outs ^ ")"
 
 let string_of_type_decl d = match d.td_desc with
   | Opaque_type_decl id -> id
+
+let string_of_param_decl d = match d.pd_desc with
+  | name, ty, e -> name ^ ": " ^ string_of_ty_expr ty ^ " = " ^ string_of_net_expr e
 
 let rec string_of_net_defn d = match d.nd_desc with
     r, bs -> string_of_rec r ^ Misc.string_of_list string_of_net_binding " and " bs
@@ -168,12 +182,15 @@ let rec string_of_net_defn d = match d.nd_desc with
 and string_of_rec = function true -> " rec " | false -> ""
 
 let dump_type d = Printf.printf "type %s\n" (string_of_type_decl d)
+let dump_param d = Printf.printf "parameter %s\n" (string_of_param_decl d)
 let dump_actor d = Printf.printf "actor %s\n" (string_of_actor_decl d)
 let dump_defn d = Printf.printf "net %s\n" (string_of_net_defn d)
 
 let rec dump_program p =
   Printf.printf "Types ---------------\n";
   List.iter dump_type p.types;
+  Printf.printf "Parameters ---------------\n";
+  List.iter dump_param p.params;
   Printf.printf "Actors ---------------\n";
   List.iter dump_actor p.actors;
   Printf.printf "Actors ---------------\n";

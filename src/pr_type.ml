@@ -74,6 +74,6 @@ let string_of_type ty =
 let string_of_type_scheme sch =
   reset_type_var_names ();
   let b = Buffer.create 16 in
-  output_typ b true 0 sch.body;
+  output_typ b true 0 sch.ts_body;
   Buffer.contents b
 

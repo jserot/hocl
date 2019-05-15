@@ -3,11 +3,11 @@
 
 type float;
 
-actor d: float -> float;
-actor m : float * float -> float;
-actor i : unit -> float;
-actor z : unit -> float;
-actor o : float -> unit;
+actor d in (i: float) out (o: float);
+actor m in (i1: float, i2: float) out (o: float);
+actor i in () out (o: float);
+actor z in () out (o: float);
+actor o in (i: float) out ();
 
 net fir n x = 
   let xs = miter n d x in

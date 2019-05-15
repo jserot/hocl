@@ -45,6 +45,7 @@ let do_dot_unlabeled_edges () = Dot.cfg.Dot.labeled_edges <- false
 let do_dot_show_indexes () = Dot.cfg.Dot.show_indexes <- true
 let do_dot_wire_annots () = Dot.cfg.Dot.show_wire_annots <- true
 let do_dot_simple_boxes () = Dot.cfg.Dot.slotted_boxes <- false
+let set_dot_rank_dir s = Dot.cfg.Dot.rank_dir <- s
 let do_phantom_types () = () (* Pr_type.print_type_repr := true  *)
 (* XDF related options *)
 (* let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p *)
@@ -67,6 +68,7 @@ let options_spec = [
  * "-vhdl", Arg.Unit (do_vhdl), "activate the VHDL backend"; *)
 (* "-version", Arg.Unit (print_version), "print version of the compiler";
  * "--v", Arg.Unit (print_version), "print version of the compiler"; *)
+"-dot_rank_dir", Arg.String (set_dot_rank_dir), "set rank direction for DOT output graph (default: LR)";
 "-dot_unlabeled_edges", Arg.Unit (do_dot_unlabeled_edges), "do not annotate graph edges";
 "-dot_wire_annots", Arg.Unit (do_dot_wire_annots), "print wire annotations (phase/fifo_size) when available (implies [-dot_show_indexes])";
 "-dot_show_indexes", Arg.Unit (do_dot_show_indexes), "print box and wire indexes";
