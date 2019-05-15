@@ -3,6 +3,7 @@ lib/etc/config
 _build/
 src/parser.output
 src/version.ml
+src/grammar.html
 *.o
 *~
 *.dot

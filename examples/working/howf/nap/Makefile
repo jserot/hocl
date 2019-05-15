@@ -1,5 +1,5 @@
-SRCS=nap.hcl main.hcl
+SRCS= main.hcl
 MAIN=main
-DOT_OPTS=-dump_typed
+DOT_OPTS=
 
 include ../../../../lib/etc/Makefile.app

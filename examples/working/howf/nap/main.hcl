@@ -1,9 +1,11 @@
 type t;
 
-actor f : t -> t;
-actor i1 : unit -> t;
-actor i2 : unit -> t;
-actor o : t -> unit;
+actor i1 in () out (o: t);
+actor i2 in () out (o: t);
+actor f in (i: t) out (o: t);
+actor o in (i: t) out ();
+
+net nap n f x = mapf (repl n f) x;
 
 net [x1,x2,x3] = i1 |> nap 3 f; -- Parallel binding - first formulation
 

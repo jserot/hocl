@@ -1,9 +1,9 @@
 type t;
 
-actor f1 : t -> t;
-actor f2 : t -> t;
-actor f3 : t -> t;
-actor i : unit -> t;
-actor o : t -> unit;
+actor i in () out (o: t);
+actor f1 in (i: t) out (o: t);
+actor f2 in (i: t) out (o: t);
+actor f3 in (i: t) out (o: t);
+actor o in (i: t) out ();
 
 net _ = i |> pipe [f1,f2,f3] >> o;

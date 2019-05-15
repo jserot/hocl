@@ -1,8 +1,8 @@
 type t;
 
-actor f : t -> unit;
-actor i : unit -> t;
-actor o : t -> unit;
+actor i in () out (o: t);
+actor f in (i: t) out ();
+actor o in (i: t) out ();
 
 net xs = i |> repl 3;
 
