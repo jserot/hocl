@@ -8,5 +8,4 @@ actor inp in () out(o: int);
 actor f param (w: nat) in (i: int) out (o: int);
 actor outp in (i: int) out ();
 
--- net _ = inp |> f width >> outp;
-net _ = outp (f width (inp ()));
+net _ = inp |> f width >> outp;
