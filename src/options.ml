@@ -1,4 +1,4 @@
-type output_format = NoOutput | Dot (* | Xdf | Dif | Systemc | Vhdl *)
+type output_format = NoOutput | Dot | Preesm (* | Xdf | Dif | Systemc | Vhdl *)
 
 type cfg = {
     mutable prelude: string;
@@ -37,6 +37,7 @@ let do_dump_typed () = cfg.dump_typed <- true
 let do_dump_static () = cfg.dump_static <- true
 let do_dump_boxes () = cfg.dump_boxes <- true
 let do_dot () = cfg.output_fmt <- Dot
+let do_preesm () = cfg.output_fmt <- Preesm
 (* let do_xdf () = output_fmt := Xdf
  * let do_dif () = output_fmt := Dif
  * let do_systemc () = output_fmt := Systemc
@@ -47,6 +48,8 @@ let do_dot_wire_annots () = Dot.cfg.Dot.show_wire_annots <- true
 let do_dot_simple_boxes () = Dot.cfg.Dot.slotted_boxes <- false
 let set_dot_rank_dir s = Dot.cfg.Dot.rank_dir <- s
 let do_phantom_types () = () (* Pr_type.print_type_repr := true  *)
+(* PREESM related options *)
+let set_preesm_name n = Preesm.cfg.Preesm.top_name <- n
 (* XDF related options *)
 (* let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p *)
 
@@ -62,6 +65,7 @@ let options_spec = [
 "-phantom_types", Arg.Unit (do_phantom_types), "print sized types using underlying representation (not for the casual user)";
 "-dump_boxes", Arg.Unit (do_dump_boxes), "dump static representation of boxes";
 "-dot", Arg.Unit (do_dot), "generate .dot representation of the program";
+"-preesm", Arg.Unit (do_preesm), "generate Preesm (.pi) representation of the network";
 (* "-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network and .cal descriptions of the actors";
  * "-dif", Arg.Unit (do_dif), "generate .dif representation of the program";
  * "-systemc", Arg.Unit (do_systemc), "activate the SystemC backend";
@@ -73,5 +77,6 @@ let options_spec = [
 "-dot_wire_annots", Arg.Unit (do_dot_wire_annots), "print wire annotations (phase/fifo_size) when available (implies [-dot_show_indexes])";
 "-dot_show_indexes", Arg.Unit (do_dot_show_indexes), "print box and wire indexes";
 "-dot_simple_boxes", Arg.Unit (do_dot_simple_boxes), "print boxes without i/o slots";
+"-preesm_top_name", Arg.String (set_preesm_name), "set top level name for Preesm graph (default: base name of input file";
 (* "-xdf_package", Arg.String (set_xdf_package), "set package name for the generated XDF code"; *)
 ];

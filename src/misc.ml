@@ -3,6 +3,8 @@ exception Error
 
 let fatal_error msg = raise (Internal msg)
 
+let snd3 (_,x,_) = x
+                 
 let not_implemented what = 
   Printf.eprintf "Not implemented: %s.\n" what;
   raise Error

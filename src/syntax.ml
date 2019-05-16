@@ -19,7 +19,8 @@ type program =
   { types: type_decl list;
     params: param_decl list ;
     actors: actor_decl list ;
-    defns: net_defn list }
+    defns: net_defn list;
+    pragmas: pragma_decl list }
 
 and type_decl =
   { td_desc: tdecl_desc;
@@ -40,10 +41,13 @@ and actor_decl =
 and actor_desc = {
     a_id: string;
     a_params: (string * type_expression) list;
-    a_ins: (string * type_expression) list;
-    a_outs: (string * type_expression) list;
+    a_ins: (string * type_expression * io_annot) list;
+    a_outs: (string * type_expression * io_annot) list;
   }
 
+(* and io_annot = net_expr *)
+and io_annot = string
+             
 and net_defn =
   { nd_desc: net_defn_desc;
     nd_loc: location }
@@ -91,23 +95,30 @@ and net_expr_desc =
    | NNat of int
    | NUnit
 
+and pragma_decl =
+  { pr_desc: pragma_desc;
+    pr_loc: location }
+and pragma_desc = string * string list (* name, args *)
+
 (* Aux fns *)
 
-(* let is_op p id = List.exists (function {op_desc=id',_,_,_,_} when id=id' -> true | _ -> false) p.ops *)
 let is_fun_definition = function
-
   { nb_desc={np_desc=NPat_var _}, {ne_desc=NFun (_,_)} } -> true
 | _ -> false
 
+(* let no_annot = { ne_desc=NUnit; ne_loc=Location.no_location; ne_typ=Types.no_type } *)
+let no_annot = ""
+
 (* Program manipulation *)
 
-let empty_program = { types=[]; params=[]; actors=[]; defns=[]; }
+let empty_program = { types=[]; params=[]; actors=[]; defns=[]; pragmas=[] }
 
 let add_program p1 p2 = { (* TODO : Flag redefinitions ? *)
     types= p1.types @ p2.types;
     params= p1.params @ p2.params;
     actors= p1.actors @ p2.actors;
     defns= p1.defns @ p2.defns;
+    pragmas= p1.pragmas @ p2.pragmas;
   }
 
 (* Printing *)
@@ -162,7 +173,13 @@ and string_of_net_pat = function
   | NPat_unit -> "()"
   | NPat_ignore -> "_"
 
-let string_of_actor_io (id,ty) = id ^ ": " ^ string_of_ty_expr ty
+let string_of_io_annot s = s
+       
+(* let string_of_io_annot = function
+ *     { ne_desc=NUnit } -> ""
+ *   | e -> "{" ^ string_of_net_expr e ^ "}" *)
+
+let string_of_actor_io (id,ty,ann) = id ^ ": " ^ string_of_ty_expr ty ^ string_of_io_annot ann
                                
 let string_of_actor_decl d =
   let a = d.ad_desc in
@@ -181,10 +198,14 @@ let rec string_of_net_defn d = match d.nd_desc with
 
 and string_of_rec = function true -> " rec " | false -> ""
 
+let string_of_pragma_decl d = match d.pr_desc with
+    name, args -> name ^ "(" ^ Misc.string_of_list (function s->"\""^s^"\"") "," args ^")"
+
 let dump_type d = Printf.printf "type %s\n" (string_of_type_decl d)
 let dump_param d = Printf.printf "parameter %s\n" (string_of_param_decl d)
 let dump_actor d = Printf.printf "actor %s\n" (string_of_actor_decl d)
 let dump_defn d = Printf.printf "net %s\n" (string_of_net_defn d)
+let dump_pragma d = Printf.printf "pragma %s\n" (string_of_pragma_decl d)
 
 let rec dump_program p =
   Printf.printf "Types ---------------\n";
@@ -194,4 +215,6 @@ let rec dump_program p =
   Printf.printf "Actors ---------------\n";
   List.iter dump_actor p.actors;
   Printf.printf "Actors ---------------\n";
-  List.iter dump_defn p.defns
+  List.iter dump_defn p.defns;
+  Printf.printf "Pragmas --------------\n";
+  List.iter dump_pragma p.pragmas

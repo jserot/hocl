@@ -47,6 +47,10 @@ let output_box ch (i,b) =
     if cfg.show_indexes
     then string_of_int i ^ ":" ^ b.b_name
     else b.b_name in
+  let bval = 
+    let s1 = Syntax.string_of_net_expr (fst b.b_val) in
+    let s2 = string_of_ssval (snd b.b_val) in
+    if s1 = s2 then s1 else s1 ^ "=" ^ s2 in
   match b.b_tag with
   | ActorB ->
       if cfg.slotted_boxes then
@@ -62,7 +66,7 @@ let output_box ch (i,b) =
        i
        cfg.param_box_shape
        bid
-       (string_of_ssval b.b_val)
+       bval
   | DummyB ->  (* Should not occur *)
       fprintf ch "n%d [shape=box,style=dotted,label=\"%s\"];\n" i "dummy"
 

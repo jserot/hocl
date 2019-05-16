@@ -1,43 +1,49 @@
-type pixel;
+type uchar;
 
 parameter width: nat = 352;
 parameter height: nat = 288;
 parameter index: nat = 0;
-parameter nbslice: nat = 8;
-parameter sliceheight: nat = height/nbslice+2;
+parameter nbSlice: nat = 8;
+parameter sliceHeight: nat = (height/nbSlice)+2;
 
-actor readyuv
+#pragma preesm("Read_YUV", "include/yuvRead.h", "readYUV", "initReadYUV")
+#pragma preesm("Merge", "include/splitMerge.h", "merge")
+#pragma preesm("Sobel", "include/sobel.h", "sobel")
+#pragma preesm("Split", "include/splitMerge.h", "split")
+#pragma preesm("display", "include/yuvDisplay.h", "yuvDisplay", "yuvDisplayInit")
+
+actor Read_YUV
   param (width: nat, height: nat)
   in ()
-  out (y: pixel, u: pixel, v: pixel)
+  out (y: uchar "height*width", u: uchar "height/2*width/2", v: uchar "height/2*width/2")
 ;
 
-actor split param (nbslice: nat, width: nat, height: nat)
-  in (input: pixel)
-  out ( output: pixel)
+actor Split param (nbSlice: nat, width: nat, height: nat)
+  in (input: uchar "height*width")
+  out (output: uchar "nbSlice*width*(height/nbSlice+2)")
 ;
 
-actor sobel
+actor Sobel
   param (width: nat, height: nat)
-  in (input: pixel)
-  out (output: pixel)
+  in (input: uchar "height*width")
+  out (output: uchar "height*width")
 ;
 
-actor merge
-  param (nbslice: nat, width: nat, height: nat)
-  in (input: pixel)
-  out (output: pixel)
+actor Merge
+  param (nbSlice: nat, width: nat, height: nat)
+  in (input: uchar "nbSlice*width*(height/nbSlice+2)")
+  out (output: uchar "height*width")
 ;
 
 actor display
   param (id: nat, width: nat, height: nat)
-  in (y: pixel, u: pixel, v: pixel)
+  in (y: uchar "height*width", u: uchar "height/2*width/2", v: uchar "height/2*width/2")
   out ()
 ;
 
-net (yi,u,v) = readyuv(width, height) ();
+net (yi,u,v) = Read_YUV(width, height) ();
 net yo = yi
-       >> split (nbslice, width, height)
-       >> sobel (width, height)
-       >> merge (nbslice, width, height);
+       >> Split (nbSlice, width, height)
+       >> Sobel (width, sliceHeight)
+       >> Merge (nbSlice, width, height);
 net () = display (index, width, height) (yo,u,v);

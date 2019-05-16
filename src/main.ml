@@ -34,12 +34,19 @@ let compile p =
   if Options.cfg.dump_typed then dump_typed_program builtin_typing_env tp;
   let sp = build_static tp builtin_static_env p in
   if Options.cfg.dump_static then dump_static sp;
+  sp
+
+let output  sp = 
   begin match Options.cfg.output_fmt with
   | NoOutput -> ()
   | Dot ->
      check_dir Options.cfg.target_dir;
      let fname = Options.cfg.target_dir ^ "/" ^ Options.cfg.output_prefix ^ ".dot" in
      Dot.dump fname sp
+  | Preesm ->
+     check_dir Options.cfg.target_dir;
+     let fname = Options.cfg.target_dir ^ "/" ^ Options.cfg.output_prefix ^ ".pi" in
+     Preesm.dump fname sp
     end
 
 let main () =
@@ -59,7 +66,8 @@ try
       Syntax.empty_program
       !source_files in
   (* Syntax.dump_program p; *)
-  compile p;
+  let sp = compile p in
+  output sp;
   Logfile.stop ()
 with
   Parser.Error ->
@@ -78,6 +86,9 @@ with
         eprintf "%aUnterminated comment.\n" output_location l
     end;
     flush stderr; exit 2
+| Preesm.Error msg ->
+    eprintf "Error in the Preesm backend: %s.\n" msg;
+    flush stderr; exit 4
 | End_of_file -> exit 0
 | Misc.Error -> exit 1
 | Sys.Break -> flush stderr; exit 5

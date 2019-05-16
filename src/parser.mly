@@ -5,11 +5,13 @@
 %token <string> INFIX2
 %token <string> INFIX3
 %token <int> INT
-(* %token <string> STRING *)
+%token <string> STRING
 %token EOF
 %token EQUAL          (* "="*)
 %token LPAREN         (* "("*)
 %token RPAREN         (* ")"*)
+(* %token LBRACE         (\* "{"*\)
+ * %token RBRACE         (\* "}"*\) *)
 %token STAR           (* "*"*)
 %token COMMA          (* ","*)
 %token ARROW   (* "->"*)
@@ -18,8 +20,6 @@
 %token COLON          (* ":"*)
 %token LBRACKET       (* "["*)
 %token RBRACKET       (* "]"*)
-(* %token LBRACK         (\* "<"*\)
- * %token RBRACK         (\* ">"*\) *)
 %token BAR            (* "|"*)
 %token UNDERSCORE     (* "_"*)
 %token TYPE           (* "type"*)
@@ -45,6 +45,7 @@
 %token TRUE           (* "true"*)
 %token FALSE          (* "false"*)
 (* %token INITIALLY      (\* "initially"*\) *)
+%token PRAGMA         /* "#pragma" */
 
 (* Precedences and associativities. Lower precedences first.*)
 
@@ -77,6 +78,7 @@ let mk_location (p1,p2) =
   Loc (!input_name, p1.pos_bol+p1.pos_cnum, p2.pos_bol+p2.pos_cnum)
 
 let mk_type_decl l desc = { td_desc = desc; td_loc = mk_location l }
+let mk_pragma_decl l desc = { pr_desc = desc; pr_loc = mk_location l }
 let mk_param_decl l desc = { pd_desc = desc; pd_loc = mk_location l }
 let mk_actor_decl l desc = { ad_desc = desc; ad_loc = mk_location l }
 let mk_type_expr l desc = { te_desc = desc; te_loc = mk_location l; te_typ = Types.no_type}
@@ -103,16 +105,19 @@ type decl =
   | ParamDecl of Syntax.param_decl
   | ActorDecl of Syntax.actor_decl
   | NetDefn of Syntax.net_defn
+  | PragmaDecl of Syntax.pragma_decl
 
 let is_type_decl = function TyDecl _ -> true | _ -> false             
 let is_param_decl = function ParamDecl _ -> true | _ -> false             
 let is_actor_decl = function ActorDecl _ -> true | _ -> false             
 let is_net_defn  = function NetDefn _ -> true | _ -> false             
+let is_pragma_decl = function PragmaDecl _ -> true | _ -> false             
 
 let type_decl_of = function TyDecl d -> d | _ -> Misc.fatal_error "Parser.type_decl_of"             
 let param_decl_of = function ParamDecl d -> d | _ -> Misc.fatal_error "Parser.param_decl_of"             
 let actor_decl_of = function ActorDecl d -> d | _ -> Misc.fatal_error "Parser.actor_decl_of"             
 let net_defn_of  = function NetDefn d -> d | _ -> Misc.fatal_error "Parser.net_defn_of"             
+let pragma_decl_of = function PragmaDecl d -> d | _ -> Misc.fatal_error "Parser.pragma_decl_of"             
 %}
 
 %%
@@ -152,7 +157,8 @@ program:
       { { Syntax.types = decls |> List.filter is_type_decl |> List.map type_decl_of;
           Syntax.params = decls |> List.filter is_param_decl |> List.map param_decl_of;
           Syntax.actors = decls |> List.filter is_actor_decl |> List.map actor_decl_of;
-          Syntax.defns = decls |> List.filter is_net_defn |> List.map net_defn_of } 
+          Syntax.defns = decls |> List.filter is_net_defn |> List.map net_defn_of;
+          Syntax.pragmas = decls |> List.filter is_pragma_decl |> List.map pragma_decl_of } 
       }
 
 (* DECLARATIONS *)
@@ -162,6 +168,7 @@ decl:
   | d = param_decl SEMI { ParamDecl d }
   | d = actor_decl SEMI { ActorDecl d }
   | d = net_defn SEMI { NetDefn d }
+  | d = pragma { PragmaDecl d }
           
 (* TYPE DECLARATION *)
 
@@ -184,12 +191,24 @@ actor_decl:
 
 actor_params:
   | (* Nothing *) { [] }
-  | PARAM LPAREN ps=my_separated_list(COMMA, actor_io) RPAREN { ps }
-    
-actor_io:
+  | PARAM LPAREN ps=my_separated_list(COMMA, actor_param) RPAREN { ps }
+
+actor_param:
    id=IDENT COLON t=simple_type_expr
     { (id, t) }
+
+actor_io:
+   id=IDENT COLON t=simple_type_expr ann=io_annot
+    { (id, t, ann) }
      
+io_annot:
+  | (* Nothing *)
+      { "" }
+  | s=STRING
+      { s }
+  (* | LBRACE e=net_expr RBRACE
+   *     { e } *)
+    
 (* TYPE EXPRESSIONS *)
 
 (* type_expr:
@@ -330,4 +349,16 @@ net_pattern_comma_list:
           { p :: ps }
       | p1=net_pattern COMMA p2=net_pattern
           { [p2; p1] }
+
+(* PRAGMAs *)
+
+pragma:
+  | PRAGMA id=IDENT LPAREN ps=my_separated_list(COMMA,pragma_param) RPAREN
+     { mk_pragma_decl $loc (id,ps) } 
+;
+
+pragma_param:
+  | s=STRING 
+      { s }
+;
 %%

@@ -29,8 +29,8 @@ and sv_loc = idx * sel
 and sv_act = {
     sa_id: string;
     sa_params: (string * typ * ss_val option) list;
-    sa_ins: (string * typ) list;
-    sa_outs: (string * typ) list;
+    sa_ins: (string * typ * Syntax.io_annot) list;
+    sa_outs: (string * typ * Syntax.io_annot) list;
     sa_typ: typ_scheme;
     (* sa_states: (string * typ) list; *)
 }

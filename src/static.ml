@@ -22,9 +22,9 @@ and ss_box = {
     b_typ: typ;                      (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
     (* b_tysig: typ;                 (\* "Signature" type, i.e. [t_params * t_ins * t_vars * t_outs] *\) *)
     (* b_tvbs: typ var_bind list;    (\* Type var instantiations (when the box derives from a polymorphic actor) *\) *)
-    b_ins: (string * (wid * typ)) list;
-    b_outs: (string * (wid list * typ)) list;
-    b_val: ss_val;                             (* For parameter boxes *)
+    b_ins: (string * (wid * typ * Syntax.io_annot)) list;
+    b_outs: (string * (wid list * typ * Syntax.io_annot)) list;
+    b_val: net_expr * ss_val;   (* For parameter boxes *)
     (* b_params: (string * (Expr.e_val * typ)) list;      (\* Parameters, with their actual values *\) *)
 }
 
@@ -44,10 +44,12 @@ type static_program = {
     wires: (wid * ss_wire) list;
     (* gcsts: (string * gc_desc) list;             (\* Global constants *\)
      * gtyps: (string * Typing.tc_desc) list;      (\* Globally defined types *\) *)
+    pragmas: Syntax.pragma_desc list
   }
 
 and sa_desc = {                                                     (* Actors *)
     sa_desc: Ssval.sv_act;                                          (* Definition *)
+    sa_insts: bid list                                              (* Instances *)
     (* mutable ac_insts: (ss_box, bid) ActInsts.t;                     (\* Instances *\) *)
   }
 
@@ -65,9 +67,11 @@ let new_wid =
   let cnt = ref 0 in
   function () -> incr cnt; !cnt
 
+let no_bval = { ne_desc=NUnit; ne_loc=Location.no_location; ne_typ=no_type }, SVUnit
+
 let new_box name ty ins outs =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=ActorB; b_name=name; b_ins=ins; b_outs=outs; b_typ=ty; b_val=SVUnit }
+  bid, { b_id=bid; b_tag=ActorB; b_name=name; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
 
 let new_param_box name ty v =
   let bid = new_bid () in
@@ -75,7 +79,7 @@ let new_param_box name ty v =
 
 let new_dummy_box name ty =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=DummyB; b_name=name; b_ins=[]; b_outs=["r",([0],ty)]; b_typ=ty; b_val=SVUnit }
+  bid, { b_id=bid; b_tag=DummyB; b_name=name; b_ins=[]; b_outs=["r",([0],ty,no_annot)]; b_typ=ty; b_val=no_bval }
 
 let boxes_of_wire boxes (((s,ss),(d,ds)),ty,_) = 
   try
@@ -364,9 +368,9 @@ and instanciate_actor tp nenv loc a args =
   (* let senv = List.fold_left (fun acc (id,v) -> match v with SVVal v' -> (id,v')::acc | _ -> acc) [] nenv in *)
   let tyins, tyouts, typarams, tyact = instanciate_actor_ios loc a args in
   let bins =
-      List.map (fun (id,ty,_) -> (id,(0,ty))) a.sa_params 
-    @ List.map (fun (id,ty) -> (id,(0,ty))) a.sa_ins in
-  let bouts = List.map (fun (id,ty) -> (id,([0],ty))) a.sa_outs in
+      List.map (fun (id,ty,_) -> (id,(0,ty,no_annot))) a.sa_params 
+    @ List.map (fun (id,ty,ann) -> (id,(0,ty,ann))) a.sa_ins in
+  let bouts = List.map (fun (id,ty,ann) -> (id,([0],ty,ann))) a.sa_outs in
   let l, b = new_box a.sa_id tyact bins bouts in
   let mk_wire b l v = match v with
     SVLoc(i,j,ty,_) -> new_wid(), (((i,j),l),ty,b)
@@ -500,7 +504,7 @@ let rec eval_param_decl tp nenv (ne,bs,ws) { pd_desc=id,_,e; pd_loc=loc } =
   match eval_net_expr tp (nenv @ ne) e with
   | v, _, _' when is_valid_param_value v -> 
      let ty = List.assoc id tp.tp_params in
-     let l, b = new_param_box id ty v in
+     let l, b = new_param_box id ty (e,v) in
      let dep_params = extract_dep_params tp ne e in 
      let ws' =
        List.map 
@@ -534,11 +538,11 @@ let rec update_wids wires (bid,b) =
   try
     bid, { b with
            b_ins = List.mapi
-                     (fun sel (id,(_,ty)) -> id, (find_src_wire wires bid sel, ty))
-                     (List.filter (fun (id,(_,ty)) -> not (is_unit_type ty)) b.b_ins);
+                     (fun sel (id,(_,ty,ann)) -> id, (find_src_wire wires bid sel, ty, ann))
+                     (List.filter (fun (id,(_,ty,_)) -> not (is_unit_type ty)) b.b_ins);
            b_outs = List.mapi
-                      (fun sel (id,(_,ty)) -> id, (find_dst_wire wires bid sel, ty))
-                     (List.filter (fun (id,(_,ty)) -> not (is_unit_type ty)) b.b_outs) }
+                      (fun sel (id,(_,ty,ann)) -> id, (find_dst_wire wires bid sel, ty, ann))
+                     (List.filter (fun (id,(_,ty,_)) -> not (is_unit_type ty)) b.b_outs) }
   with
     BoxWiring (where,bid,sel) -> unwired_box where b.b_name sel
 
@@ -557,6 +561,12 @@ and find_dst_wire wires bid sel =
 
 (* RULE NE |- Program => NE,B,W *)
 
+let collect_actor_insts name boxes =
+  List.fold_left
+    (fun acc (id,b) -> if b.b_name = name then id::acc else acc)
+    []
+    boxes
+  
 let build_static tp senv p =
   let senv_p, bs_p, ws_p = List.fold_left (eval_param_decl tp senv) ([],[],[]) p.params in
   let actors  = List.map (build_actor_desc tp) p.actors in
@@ -570,7 +580,11 @@ let build_static tp senv p =
   { nvals = ne';
     boxes = bs_p @ bs'';
     wires = ws_p @ ws';
-    gacts = List.map (fun (id,a) -> id, { sa_desc=a }) actors }
+    gacts =
+      List.map
+        (fun (id,a) -> id, { sa_desc=a; sa_insts=collect_actor_insts id bs'})
+        actors;
+    pragmas = List.map (fun d -> d.Syntax.pr_desc) p.pragmas }
 
 (* Printing *)
 
@@ -589,24 +603,25 @@ let build_static tp senv p =
  *   printf "%sval %s : %s = %a\n" pfx name (type_of name) output_ss_value r;
  *   flush stdout *)
 
-let string_of_typed_bin (id,(wid,ty)) = id ^ ":" ^ string_of_type ty ^ "(<-W" ^ string_of_int wid ^ ")"
-let string_of_typed_bout (id,(wids,ty)) = 
+let string_of_typed_bin (id,(wid,ty,_)) = id ^ ":" ^ string_of_type ty ^ "(<-W" ^ string_of_int wid ^ ")"
+let string_of_typed_bout (id,(wids,ty,_)) = 
     id ^ ":" ^ string_of_type ty ^ "(->["
   ^ (Misc.string_of_list (function wid -> "W" ^ string_of_int wid) "," wids) ^ "])"
 
-let string_of_typed_io (id,ty) = id ^ ":" ^ string_of_type ty
+let string_of_typed_io (id,ty,ann) = id ^ ":" ^ string_of_type ty ^ Syntax.string_of_io_annot ann
 let string_of_opt_value = function None -> "?" | Some v -> string_of_ssval v
 let string_of_typed_param (id,ty,v) = id ^ ":" ^ string_of_type ty ^ " = " ^ string_of_opt_value v
 
 let print_actor (id,ac) = 
   Pr_type.reset_type_var_names ();
   let a = ac.sa_desc in 
-  Printf.printf "%s: %s : params=[%s] ins=[%s] outs=[%s]\n"
+  Printf.printf "%s: %s : params=[%s] ins=[%s] outs=[%s] (->%s)\n"
     a.sa_id
     (string_of_type_scheme a.sa_typ)
     (Misc.string_of_list string_of_typed_param ","  a.sa_params)
     (Misc.string_of_list string_of_typed_io ","  a.sa_ins)
     (Misc.string_of_list string_of_typed_io ","  a.sa_outs)
+    (Misc.string_of_list (function bid -> "B" ^ string_of_int bid) "," ac.sa_insts)
 
 let print_box (i,b) =
   Pr_type.reset_type_var_names ();
@@ -616,7 +631,7 @@ let print_box (i,b) =
         b.b_name
         (Misc.string_of_list string_of_typed_bin ","  b.b_ins)
         (Misc.string_of_list string_of_typed_bout ","  b.b_outs)
-        (match b.b_tag with ParamB -> "val=" ^ string_of_ssval b.b_val | _ -> "")
+        (match b.b_tag with ParamB -> "val=" ^ string_of_net_expr (fst b.b_val) | _ -> "")
 
 let print_wire (i,(((s,ss),(d,ds)),ty,b)) =
   Printf.printf "W*%d: %s: (B%d,%d) -> (B%d,%d)\n" i (string_of_type ty) s ss d ds
