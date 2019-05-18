@@ -17,6 +17,7 @@ tags:
 
 install:
 			$(CP) main.byte ../bin/hoclc
+			$(CP) grammar.html ../doc
 
 clean:
 			$(OCB) -clean
@@ -29,6 +30,8 @@ profile:
 
 debug: 
 			$(OCB) -tag debug main.byte
+
+doc: grammar.html
 
 grammar.tex: parser.mly lexer.mll
 	$(OBELISK) latex -i -prefix c2pi -o grammar.tex -package grammar-defns parser.mly

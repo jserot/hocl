@@ -1,0 +1,41 @@
+HoCL 
+====
+
+**HoCL** (Higher Order dataflow Coordination Language) is a language for describing dataflow networks
+and generating tool-specific descriptions.
+
+**HoCL** comes with :
+
+- a higher-order functional language for describing programs built from dataflow actors 
+- automatic _type inference_ and type-checking
+- the possibility to define _higher order wiring functions_ for describing and encapsulating _graph
+  patterns_
+- a [DOT][graphviz] backend for visualisation of the generated networks
+- a [PREESM][preesm] backend for implementing the described dataflow applications on many/multi-core
+  embedded platforms
+- a [SystemC][systemc] backend for code simulation
+
+**HoCL** is a joint project between the [Dream][dream] and [Vaader][vaader] research groups.
+
+[graphviz]: http://www.graphviz.org
+[preesm]: https://preesm.github.io
+[systemc]: https://www.accellera.org/downloads/standards/systemc
+[dream]: https://dream.ispr-ip.fr
+[vaader]: https://www.ietr.fr/spip.php?article1604
+
+INSTALLATION
+------------
+
+Pre-requisites :
+
+* [Ocaml](http://ocaml.org/docs/install.html) version >= 4.06.0 with the following packages
+    - [ocamlbuild](https://opam.ocaml.org/packages/ocamlbuild)
+    - [ocamlfind](https://opam.ocaml.org/packages/ocamlfind)
+
+Download the source tree (`git clone https://github.com/jserot/hocl`).
+
+From the root of the source tree :
+
+1. `./configure [options]`  (`./configure --help` for the list of options)
+2. `make`
+3. `make install`

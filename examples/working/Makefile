@@ -1,4 +1,11 @@
-SRCS=simple.hcl
-MAIN=simple
+include ../../config
 
-include ../../Makefile.app
+clean:
+	for i in [a-z]*/[a-z0-9_]*; do (cd $$i; if [ -e Makefile ]; then make -s clean; fi) done
+
+clobber:
+	for i in [a-z]*/[a-z0-9_]*; do (cd $$i; if [ -e Makefile ]; then make -s clobber; fi; rm -f ./caph.output; rm -f ./*~; rm -f *_mocs.dat) done
+
+# install: 
+# 	$(INSTALL) -d $(EXAMPLEDIR)
+# 	@for i in [a-z]*; do cp -r $$i $(EXAMPLEDIR); done
