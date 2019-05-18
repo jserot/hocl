@@ -1,3 +1,15 @@
+(**********************************************************************)
+(*                                                                    *)
+(*              This file is part of the HOCL package                 *)
+(*                                                                    *)
+(*  Copyright (c) 2019-present, Jocelyn SEROT (jocelyn.serot@uca.fr). *)
+(*                     All rights reserved.                           *)
+(*                                                                    *)
+(*  This source code is licensed under the license found in the       *)
+(*  LICENSE file in the root directory of this source tree.           *)
+(*                                                                    *)
+(**********************************************************************)
+
 open Syntax
 open Error
 open Misc
@@ -842,8 +854,6 @@ let print_wire (i,(((s,ss),(d,ds)),ty,b)) =
 
 let dump_static sp =
   printf "Static environment ---------------\n";
-  (* printf "- Values --------\n";
-   * List.iter (print_value tp) sp.e_vals; *)
   printf "- Parameters ----------------------\n";
   List.iter print_param sp.gparams;
   printf "- Actors --------------------------\n";

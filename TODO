@@ -1,5 +1,3 @@
-- add configure script
-- add license and banners
 - dynamic parameters
 - sub-graphs
 - use Dune 
