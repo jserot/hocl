@@ -11,8 +11,6 @@ exception Toplevel
  
 let usage = "usage: hoclc [options...] file"
 
-let source_files = ref ([] : string list)
-
 let anonymous fname = source_files := !source_files @ [fname]
 
 let print_banner () = 
@@ -32,21 +30,36 @@ let parse fname =
 let compile p = 
   let tp = type_program builtin_typing_env p in
   if Options.cfg.dump_typed then dump_typed_program builtin_typing_env tp;
+  if Options.cfg.output_fmt = Systemc then begin
+      Static.cfg.Static.insert_bcasts <- true;
+      (* Static.cfg.Static.insert_fifos <- true *)
+      end;
   let sp = build_static tp builtin_static_env p in
   if Options.cfg.dump_static then dump_static sp;
   sp
 
-let output  sp = 
+let mk_fname suff = Options.cfg.target_dir ^ "/" ^ Options.cfg.output_prefix ^ suff
+
+let output sp = 
   begin match Options.cfg.output_fmt with
   | NoOutput -> ()
   | Dot ->
      check_dir Options.cfg.target_dir;
-     let fname = Options.cfg.target_dir ^ "/" ^ Options.cfg.output_prefix ^ ".dot" in
+     let fname = mk_fname ".dot" in
      Dot.dump fname sp
   | Preesm ->
      check_dir Options.cfg.target_dir;
-     let fname = Options.cfg.target_dir ^ "/" ^ Options.cfg.output_prefix ^ ".pi" in
+     let fname = mk_fname ".pi" in
      Preesm.dump fname sp
+  | Systemc ->
+     check_dir Options.cfg.target_dir;
+     let top_fname = mk_fname "_top.cpp" in
+     Systemc.dump_top_module Options.cfg.output_prefix top_fname sp;
+     List.iter (Systemc.dump_actor Options.cfg.target_dir Options.cfg.output_prefix sp) sp.gacts;
+     List.iter (Systemc.dump_param Options.cfg.target_dir Options.cfg.output_prefix sp) sp.gparams
+     (* if has_splitters sp then 
+      *   Systemc.dump_split_actors sp; *)
+     (* if !Misc.generate_makefiles then Genmake.dump_systemc_makefile () *)
     end
 
 let main () =
@@ -88,6 +101,9 @@ with
     flush stderr; exit 2
 | Preesm.Error msg ->
     eprintf "Error in the Preesm backend: %s.\n" msg;
+    flush stderr; exit 4
+| Systemc.Error msg ->
+    eprintf "Error in the SystemC backend: %s.\n" msg;
     flush stderr; exit 4
 | End_of_file -> exit 0
 | Misc.Error -> exit 1

@@ -10,10 +10,13 @@ dot: $(SRCS)
 dot.show: dot
 	$(DOTVIEWER) $(MAIN).dot
 
-.PHONY: preesm
+.PHONY: preesm systemc
 
 preesm: $(SRCS)
 	$(HOCL) $(HOCL_OPTS) -preesm $(PREESM_OPTS) $(SRCS)
+
+systemc: $(SRCS)
+	$(HOCL) $(HOCL_OPTS) -systemc $(SYSTEMC_OPTS) $(SRCS)
 
 clean:
 	@\rm -f *.dot

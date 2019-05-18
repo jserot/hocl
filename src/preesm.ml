@@ -81,18 +81,6 @@ and is_simple_expr e = match e.Syntax.ne_desc with
   | Syntax.NVar v -> true
   | _ -> false
 
-let box_name sp (i,b) =
-  match b.b_tag with
-  | ActorB ->
-     let a =
-       try List.assoc b.b_name sp.gacts
-       with Not_found -> Misc.fatal_error "Preesm.box_name" (* should not happen *) in
-     if List.length a.sa_insts > 1
-     then b.b_name ^ "_" ^ string_of_int i
-     else b.b_name
-  | _ ->
-     b.b_name
-
 let lookup_box boxes bid = 
       try List.assoc bid boxes
       with Not_found -> Misc.fatal_error "Preesm.lookup_box"
@@ -123,20 +111,13 @@ let output_actor_box_port oc dir is_param (id, (wid,ty,ann)) =
     fprintf oc "      <port kind=\"%s\" name=\"%s\" expr=\"%s\" annotation=\"NONE\"/>\n"
       dir id ann
 
-let get_pragma_desc pragmas b =
-  let rec find = function
-    | [] -> []
-    | ("preesm", name::args) :: _ when name = b.b_name -> args
-    | _::rest -> find rest in
-  find pragmas
-
 let output_actor_box oc sp (i,b) =
   match b.b_tag with
   | ActorB ->
      let open Syntax in
      let id = box_name sp (i,b) in 
      let incl_file, loop_fn, init_fn, period = 
-       begin match get_pragma_desc sp.pragmas b with 
+       begin match get_pragma_desc "code" b.b_name sp with 
        | [incl_file; loop_fn] -> incl_file, loop_fn, "", "0"
        | [incl_file; loop_fn; init_fn] -> incl_file, loop_fn, init_fn, "0"
        | _ -> raise (Error ("cannot find valid #pragma description for actor " ^ b.b_name))
@@ -167,7 +148,7 @@ let output_actor_box oc sp (i,b) =
 let output_parameter oc (i,b) =
   match b.b_tag, b.b_val with
   | ParamB, v ->
-     fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (string_of_expr (fst v)) b.b_name 
+     fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (string_of_expr v.bv_lit) b.b_name 
   | _ -> ()
 
 let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,is_param_dep))=

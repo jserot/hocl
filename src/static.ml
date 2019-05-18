@@ -8,6 +8,20 @@ open Pr_type
 open Ssval
 open Location
 
+type cfg = {
+  mutable insert_bcasts: bool;
+  (* mutable insert_fifos: bool; *)
+  bcast_name: string;
+  fifo_name: string;
+  }
+
+let cfg = {
+  insert_bcasts = false;
+  (* insert_fifos = false; *)
+  bcast_name = "bcast";
+  fifo_name = "fifo";
+  }
+         
 type static_env = (string * ss_val) list
 
 type box_tag = 
@@ -24,24 +38,29 @@ and ss_box = {
     (* b_tvbs: typ var_bind list;    (\* Type var instantiations (when the box derives from a polymorphic actor) *\) *)
     b_ins: (string * (wid * typ * Syntax.io_annot)) list;
     b_outs: (string * (wid list * typ * Syntax.io_annot)) list;
-    b_val: net_expr * ss_val;   (* For parameter boxes *)
+    mutable b_val: b_val;            (* For parameter boxes *)
     (* b_params: (string * (Expr.e_val * typ)) list;      (\* Parameters, with their actual values *\) *)
 }
 
 and wid = int
 and bid = int
 
+and b_val = { 
+    bv_lit: net_expr;     (* Original expression *)
+    bv_sub: net_expr;     (* After dependency binding *)
+    bv_val: ss_val        (* Statically computed value - SVUnit if N/A *)
+  }
+
 type ss_wire = (sv_loc * sv_loc) * typ * bool   (* src, dest, type, is parameter dependency *)
 
 (* The result of the static analysis *)
 
 type static_program = { 
-    (* e_vals: (string * Expr.e_val) list; *)
-    nvals: (string * ss_val) list;
-    (* gparams: (string * ss_val) list; *)
+    gparams: (string * ss_box) list;
     gacts: (string * sa_desc) list;
     boxes: (bid * ss_box) list;
     wires: (wid * ss_wire) list;
+    nvals: (string * ss_val) list;
     (* gcsts: (string * gc_desc) list;             (\* Global constants *\)
      * gtyps: (string * Typing.tc_desc) list;      (\* Globally defined types *\) *)
     pragmas: Syntax.pragma_desc list
@@ -57,6 +76,18 @@ let is_valid_param_value = function
   | SVNat _ | SVBool _ -> true  (* MAY BE ADJUSTED  *)
   | _ -> false
 
+let box_name sp (i,b) =
+  match b.b_tag with
+  | ActorB ->
+     let a =
+       try List.assoc b.b_name sp.gacts
+       with Not_found -> Misc.fatal_error "Static.box_name" (* should not happen *) in
+     if List.length a.sa_insts > 1
+     then b.b_name ^ "_" ^ string_of_int i
+     else b.b_name
+  | _ ->
+     b.b_name
+
 (* Box creation *)
 
 let new_bid = 
@@ -67,8 +98,10 @@ let new_wid =
   let cnt = ref 0 in
   function () -> incr cnt; !cnt
 
-let no_bval = { ne_desc=NUnit; ne_loc=Location.no_location; ne_typ=no_type }, SVUnit
-
+let no_bval =
+  let no_expr = {ne_desc=NUnit; ne_loc=Location.no_location; ne_typ=no_type } in
+  { bv_lit=no_expr; bv_sub=no_expr; bv_val=SVUnit }
+          
 let new_box name ty ins outs =
   let bid = new_bid () in
   bid, { b_id=bid; b_tag=ActorB; b_name=name; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
@@ -500,12 +533,30 @@ let eval_net_decl tp (nenv,boxes,wires) { nd_desc = isrec, defns; nd_loc=loc } =
 
 (* RULE |- IoDecl => NE,B *)
 
+let subst_deps names e =
+  let rec subst e = match e.ne_desc with
+  | NVar v ->
+     begin match Misc.list_pos v names with
+     | None -> e
+     | Some k -> { e with ne_desc = NVar ("i" ^ string_of_int (k+1)) }
+     end
+  | NNat _ | NBool _ | NUnit -> e
+  | NTuple es -> { e with ne_desc = NTuple (List.map subst es) }
+  | NApp (fn, arg) -> { e with ne_desc = NApp (subst fn, subst arg) }
+  | _ -> Misc.fatal_error "Static.subst_deps" 
+  in
+  subst e
+  
 let rec eval_param_decl tp nenv (ne,bs,ws) { pd_desc=id,_,e; pd_loc=loc } =
   match eval_net_expr tp (nenv @ ne) e with
   | v, _, _' when is_valid_param_value v -> 
      let ty = List.assoc id tp.tp_params in
-     let l, b = new_param_box id ty (e,v) in
      let dep_params = extract_dep_params tp ne e in 
+     let bv = {
+         bv_lit = e;
+         bv_sub = subst_deps (List.map fst dep_params) e;
+         bv_val = v } in
+     let l, b = new_param_box id ty bv in
      let ws' =
        List.map 
          (function
@@ -532,19 +583,161 @@ and extract_dep_params tp env e =
     
 (* RULE W |- B => B' *)
 
+(* Network transformations *)
+
+(* Insert BCASTers 
+ * 
+ *        +--------+         +--------+          +--------+         +---------+          +--------+
+ *        |        |         |        |          |        |         |         |    w1'   |        |
+ *        |        |    w1   |        |          |        |    w'   |        0|--------->|        |
+ *        |   A1 k1|-------->|k2 A2   |    ===>  |   A1 k1|-------->|0 Bcast  |          |k2 A2   |
+ *        |        |\        |        |          |        |         |        1|----+     |        |
+ *        |        | |       |        |          |        |         |         |    |     |        |
+ *        +--------+ |       +--------+          +--------+         +---------+    |     +--------+
+ *                   |                                                             |
+ *                   |       +--------+                                            |     +--------+
+ *                   |       |        |                                        w2' |     |        |
+ *                   |  w2   |        |                                            |     |        |
+ *                   +------>|k3 A3   |                                            +---->|k3 A3   |
+ *                           |        |                                                  |        |
+ *                           |        |                                                  |        |
+ *                           +--------+                                                  +--------+
+*)
+
+let new_bcast_box ty wid wids =
+  let bid = new_bid () in
+  let bos = Misc.list_map_index (fun i wid -> "o_" ^ string_of_int (i+1), ([wid],ty,no_annot)) wids in 
+  bid, { b_id=bid; b_tag=ActorB; b_name=cfg.bcast_name; b_ins=["i",(wid,ty,no_annot)]; b_outs=bos; b_typ=ty; b_val=no_bval }
+
+let rec is_bcast_box boxes bid = (find_box boxes bid).b_name = cfg.bcast_name
+
+and find_box boxes bid = 
+    try List.assoc bid boxes
+    with Not_found -> Misc.fatal_error "Static.find_box: cannot find box from id" (* should not happen *)
+
+let rec insert_bcast bid oidx (boxes,wires,box) bout = 
+  match bout with
+  | (id, ([],_,_)) -> boxes, wires, box       (* should not happen ? *)
+  | (id, ([wid],_,_)) -> boxes, wires, box    (* no need to insert here *)
+  | (id, (wids,ty,ann)) ->                    (* the relevant case : a box output connected to several wires *)
+      let wid' = new_wid () in
+      let m, mb = new_bcast_box ty wid' wids in
+      let box' = { box with b_outs = Misc.assoc_replace id (function _ -> [wid'],ty,ann) box.b_outs } in
+      let wires' = Misc.foldl_index (update_wires m) wires wids in
+      let boxes' = Misc.assoc_replace bid (function b -> box') boxes in
+      (m,mb) :: boxes', (wid',(((bid,oidx),(m,0)),ty,false)) :: wires', box'
+
+and update_wires s' j wires wid = 
+  Misc.assoc_replace wid (function ((s,ss),(d,ds)),ty,b -> ((s',j),(d,ds)),ty,b) wires 
+
+let insert_bcast_after (boxes,wires) (bid,box) = 
+  match box.b_tag with
+    ParamB ->
+      (* Do not insert bcasts after parameters (?) *)
+      boxes, wires
+  | _ ->
+      let boxes', wires', box' = Misc.foldl_index (insert_bcast bid) (boxes,wires,box) box.b_outs in
+      boxes', wires'
+
+let insert_bcasters sp = 
+  let boxes', wires' = List.fold_left insert_bcast_after (sp.boxes,sp.wires) sp.boxes in
+  { sp with boxes = boxes'; wires = wires' }
+
+(* Insert FIFOs - not used here 
+ * 
+ *        +-------+         +-------+          +-------+         +--------+          +--------+
+ *        |       |    w    |       |          |       |    w'   |        |    w''   |        |
+ *        |  A1  k|-------->|k' A2  |    ===>  |  A1  k|-------->|0 FIFO 0|--------->|k' A2   |
+ *        |       |         |       |          |       |         |        |          |        |
+ *        +-------+         +-------+          +-------+         +--------+          +--------+
+ *
+*)
+
+(* let new_fifo_box ty w wid' wid'' =
+ *   let bid = new_bid () in
+ *   bid, { b_id=bid; b_tag=ActorB; b_name=cfg.fifo_name; b_ins=["i",(wid',ty,no_annot)]; b_outs=["o",([wid''],ty,no_annot)];
+ *          b_typ=ty; b_val=no_bval }
+ * 
+ * let rec insert_fifo (boxes,wires') (wid,wire) =
+ *   match wire with
+ *   | ((s,ss),(d,ds)), _, _ when is_bcast_box boxes d  ->
+ *       boxes, (wid,wire) :: wires'
+ *         (\* Do not insert anything between a box output and a bcaster.
+ *            This is useless since buffering will be done in the FIFOs _after_ the splitter. TBC *\)
+ *   | ((s,ss),(d,ds)), ty, true ->
+ *       boxes, (wid,wire) :: wires'
+ *         (\* Do not insert anything on wires representing a parameter dependency *\)
+ *   | ((s,ss),(d,ds)), ty, false ->
+ *       let wid' = new_wid () in
+ *       let wid'' = new_wid () in
+ *       let f, fb = new_fifo_box ty wid wid' wid'' in
+ *       let w' = ((s,ss),(f,0)), ty, false in
+ *       let w'' = ((f,0),(d,ds)), ty, false in
+ *       let boxes' = update_bouts wid wid' s boxes in
+ *       let boxes'' = update_bins wid wid'' d boxes' in
+ *       (f,fb) :: boxes'', (wid',w') :: (wid'',w'') :: wires'
+ * 
+ * and update_bouts wid wid' s boxes = 
+ *   let replace_wire b_outs =
+ *     List.map (function
+ *         id,([w],ty,b) when w = wid -> id,([wid'],ty,b)   (\* TODO : handle case when an output is bound to several wires ? *\)
+ *                                                      (\* Maybe not necessary if splitters have been inserted *\)
+ *       | o -> o) b_outs  in
+ *   Misc.assoc_replace s (function b -> { b with b_outs = replace_wire b.b_outs }) boxes 
+ * 
+ * and update_bins wid wid' s boxes = 
+ *   let replace_wire b_ins =
+ *     List.map (function
+ *         id,(w,ty,b) when w = wid -> id,(wid',ty,b)
+ *       | i -> i) b_ins  in
+ *   Misc.assoc_replace s (function b -> { b with b_ins = replace_wire b.b_ins }) boxes 
+ * 
+ * let is_fifo_wire boxes (wid,(_,_,is_dep_wire)) = not is_dep_wire
+ * 
+ * let insert_fifos sp =
+ *   let boxes', wires' = List.fold_left insert_fifo (sp.boxes, []) sp.wires in
+ *   { sp with boxes = boxes'; wires = wires' } *)
+
+(* RULE NE |- Program => NE,B,W *)
+
 exception BoxWiring of string * bid * wid
 
-let rec update_wids wires (bid,b) =
+let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * bool)) list) (bid,b) =
   try
-    bid, { b with
-           b_ins = List.mapi
-                     (fun sel (id,(_,ty,ann)) -> id, (find_src_wire wires bid sel, ty, ann))
-                     (List.filter (fun (id,(_,ty,_)) -> not (is_unit_type ty)) b.b_ins);
-           b_outs = List.mapi
+    bid,
+    (match b.b_tag with
+     | ActorB ->
+        { b with
+          b_ins = List.mapi
+                        (fun sel (id,(_,ty,ann)) -> id, (find_src_wire wires bid sel, ty, ann))
+                        (List.filter (fun (id,(_,ty,_)) -> not (is_unit_type ty)) b.b_ins);
+          b_outs = List.mapi
                       (fun sel (id,(_,ty,ann)) -> id, (find_dst_wire wires bid sel, ty, ann))
-                     (List.filter (fun (id,(_,ty,_)) -> not (is_unit_type ty)) b.b_outs) }
+                      (List.filter (fun (id,(_,ty,_)) -> not (is_unit_type ty)) b.b_outs) }
+     | ParamB -> 
+        { b with
+          b_ins = add_param_inputs wires bid;
+          b_outs = add_param_outputs wires bid }
+     | DummyB ->
+        Misc.fatal_error "Static.update_wids" (* should not happen *))
   with
     BoxWiring (where,bid,sel) -> unwired_box where b.b_name sel
+
+and add_param_inputs wires bid =
+  let ws =
+    List.filter
+      (function (wid, (((s,ss),(d,ds)), ty, is_dep_wire)) -> d=bid && ds=0 && is_dep_wire)
+      wires in
+  List.mapi (fun i (wid,(_,ty,_)) -> "i" ^ string_of_int (i+1), (wid, ty, no_annot)) ws
+
+and add_param_outputs wires bid =
+  let ws =
+    List.filter
+      (function (wid, (((s,ss),(d,ds)), ty, is_dep_wire)) -> s=bid && ss=0 && is_dep_wire)
+      wires in
+  match ws with
+    [] -> []
+  | (_,(_,ty,_))::_ -> ["o", (List.map fst ws, ty, no_annot)]
 
 and find_src_wire wires bid sel =
   let find wids (wid, ((_,(d,ds)),_,_)) = if d=bid && ds=sel then wid::wids else wids in
@@ -558,8 +751,6 @@ and find_dst_wire wires bid sel =
   match List.fold_left find [] wires with
     [] ->  raise (BoxWiring ("output",bid,sel))
   | ws -> ws
-
-(* RULE NE |- Program => NE,B,W *)
 
 let collect_actor_insts name boxes =
   List.fold_left
@@ -576,32 +767,37 @@ let build_static tp senv p =
       (eval_net_decl tp)
       (senv_p @ senv_a @ senv, [], [])
       p.defns in
-  let bs'' = List.map (update_wids ws') bs' in
+  let ws'' = ws' @ ws_p in
+  let bs'' = List.map (update_wids ws'') (bs' @ bs_p) in
   { nvals = ne';
-    boxes = bs_p @ bs'';
-    wires = ws_p @ ws';
+    boxes = bs'';
+    wires = ws'';
     gacts =
       List.map
         (fun (id,a) -> id, { sa_desc=a; sa_insts=collect_actor_insts id bs'})
         actors;
+    gparams = List.map (fun (_,b) -> b.b_name, b) (List.filter (fun (_,b) -> b.b_tag=ParamB) bs'');
     pragmas = List.map (fun d -> d.Syntax.pr_desc) p.pragmas }
+  |> (if cfg.insert_bcasts then insert_bcasters else Misc.id)
+  (* |> (if cfg.insert_fifos then insert_fifos else Misc.id) *)
+  
+let extract_special_boxes name sp =
+  List.fold_left
+    (fun acc (id,b) -> if b.b_name = name then (id,b)::acc else acc)
+    []
+    sp.boxes
+
+let extract_bcast_boxes sp = extract_special_boxes cfg.bcast_name sp
+let extract_fifo_boxes sp = extract_special_boxes cfg.fifo_name sp
+
+let get_pragma_desc cat name sp =
+  let rec find = function
+    | [] -> []
+    | (cat', name'::args) :: _ when cat'=cat && name'=name -> args
+    | _::rest -> find rest in
+  find sp.pragmas
 
 (* Printing *)
-
-(* let print_net_value pfx tp (name,r) =
- *   let type_of name = 
- *     try
- *       string_of_type_scheme
- *         (List.assoc
- *            name
- *            ((List.map (function (id,t) -> id,trivial_scheme t) tp.tp_ios)))
- *     with Not_found -> 
- *       begin try
- *         string_of_type_scheme
- *           ((List.assoc name (tp.tp_actors)).at_sig)
- *       with Not_found -> "?" end in
- *   printf "%sval %s : %s = %a\n" pfx name (type_of name) output_ss_value r;
- *   flush stdout *)
 
 let string_of_typed_bin (id,(wid,ty,_)) = id ^ ":" ^ string_of_type ty ^ "(<-W" ^ string_of_int wid ^ ")"
 let string_of_typed_bout (id,(wids,ty,_)) = 
@@ -611,6 +807,14 @@ let string_of_typed_bout (id,(wids,ty,_)) =
 let string_of_typed_io (id,ty,ann) = id ^ ":" ^ string_of_type ty ^ Syntax.string_of_io_annot ann
 let string_of_opt_value = function None -> "?" | Some v -> string_of_ssval v
 let string_of_typed_param (id,ty,v) = id ^ ":" ^ string_of_type ty ^ " = " ^ string_of_opt_value v
+
+let print_param (n,b) =
+  Printf.printf "%s: val=\"%s\"=%s ins=[%s] outs=[%s]\n"
+        n
+        (string_of_net_expr (b.b_val.bv_lit))
+        (string_of_ssval (b.b_val.bv_val))
+        (Misc.string_of_list string_of_typed_bin ","  b.b_ins)
+        (Misc.string_of_list string_of_typed_bout ","  b.b_outs)
 
 let print_actor (id,ac) = 
   Pr_type.reset_type_var_names ();
@@ -631,22 +835,17 @@ let print_box (i,b) =
         b.b_name
         (Misc.string_of_list string_of_typed_bin ","  b.b_ins)
         (Misc.string_of_list string_of_typed_bout ","  b.b_outs)
-        (match b.b_tag with ParamB -> "val=" ^ string_of_net_expr (fst b.b_val) | _ -> "")
+        (match b.b_tag with ParamB -> "val=" ^ string_of_net_expr b.b_val.bv_lit | _ -> "")
 
 let print_wire (i,(((s,ss),(d,ds)),ty,b)) =
-  Printf.printf "W*%d: %s: (B%d,%d) -> (B%d,%d)\n" i (string_of_type ty) s ss d ds
-
-(* let print_value tp (name,v) =
- *   let type_of name = 
- *       begin try string_of_type_scheme (List.assoc name tp.tp_vals)
- *       with Not_found -> "?" end in
- *   printf "val %s : %s = %s\n" name (type_of name) (Expr.string_of_val v);
- *   flush stdout *)
+  Printf.printf "W%d: %s: (B%d,%d) %s (B%d,%d)\n" i (string_of_type ty) s ss (if b then "+>" else "->") d ds
 
 let dump_static sp =
   printf "Static environment ---------------\n";
   (* printf "- Values --------\n";
    * List.iter (print_value tp) sp.e_vals; *)
+  printf "- Parameters ----------------------\n";
+  List.iter print_param sp.gparams;
   printf "- Actors --------------------------\n";
   List.iter print_actor sp.gacts;
   printf "- Boxes --------------------------\n";

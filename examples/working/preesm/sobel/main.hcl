@@ -6,11 +6,11 @@ parameter index: nat = 0;
 parameter nbSlice: nat = 8;
 parameter sliceHeight: nat = (height/nbSlice)+2;
 
-#pragma preesm("Read_YUV", "include/yuvRead.h", "readYUV", "initReadYUV")
-#pragma preesm("Merge", "include/splitMerge.h", "merge")
-#pragma preesm("Sobel", "include/sobel.h", "sobel")
-#pragma preesm("Split", "include/splitMerge.h", "split")
-#pragma preesm("display", "include/yuvDisplay.h", "yuvDisplay", "yuvDisplayInit")
+#pragma code("Read_YUV", "include/yuvRead.h", "readYUV", "initReadYUV")
+#pragma code("Merge", "include/splitMerge.h", "merge")
+#pragma code("Sobel", "include/sobel.h", "sobel")
+#pragma code("Split", "include/splitMerge.h", "split")
+#pragma code("display", "include/yuvDisplay.h", "yuvDisplay", "yuvDisplayInit")
 
 actor Read_YUV
   param (width: nat, height: nat)

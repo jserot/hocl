@@ -48,8 +48,8 @@ let output_box ch (i,b) =
     then string_of_int i ^ ":" ^ b.b_name
     else b.b_name in
   let bval = 
-    let s1 = Syntax.string_of_net_expr (fst b.b_val) in
-    let s2 = string_of_ssval (snd b.b_val) in
+    let s1 = Syntax.string_of_net_expr b.b_val.bv_lit in
+    let s2 = string_of_ssval b.b_val.bv_val in
     if s1 = s2 then s1 else s1 ^ "=" ^ s2 in
   match b.b_tag with
   | ActorB ->

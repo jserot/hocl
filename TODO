@@ -1,5 +1,5 @@
-- network level constants (esp. when describing [foldl]-based nets) 
-  (could be further translated to input-less constant gen actors or parameters) ?
-- allow ucase and _ in idents
-- rate annotations for actor ports
+- net -> let
+- dynamic parameters
+- sub-graphs
 - use Dune 
+
