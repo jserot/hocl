@@ -39,3 +39,12 @@ From the root of the source tree :
 1. `./configure [options]`  (`./configure --help` for the list of options)
 2. `make`
 3. `make install`
+
+To try examples :
+
+1. go the directory containing the example (*e.g.* `cd examples/working/simple/basic`)
+2. type `make dot` to generate the `.dot` representation (`make` will also display it)
+3. type `make preesm` to invoke the PREESM backend (code will be generated in
+   sub-directory `preesm`)
+4. type `make systemc` to invoke the SystemC backend (code will be generated in
+   sub-directory `systemc`); to test the generated code: `cd systemc; make`
