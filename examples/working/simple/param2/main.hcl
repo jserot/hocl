@@ -9,4 +9,4 @@ actor inp in () out(o: int);
 actor f param (w: nat, u: bool) in (i: int) out (o: int);
 actor outp in (i: int) out ();
 
-net _ = inp |> f (width,flag) >> outp;
+let _ = inp |> f (width,flag) >> outp;

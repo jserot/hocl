@@ -10,4 +10,4 @@ actor outp in (i: int) out ();
 #pragma code("outp", "../code/include/output.h", "output", "outputInit")
 #pragma code("foo", "../code/include/foo.h", "foo")
 
-net _ = inp |> foo multFactor >> outp;
+let _ = inp |> foo multFactor >> outp;

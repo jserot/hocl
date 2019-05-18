@@ -32,7 +32,6 @@
 %token FUN            (* "function"*)
 %token MATCH          (* "match"*)
 %token WITH           (* "with"*)
-%token NET            (* "net"*)
 %token LET            (* "let"*)
 %token IN             (* "in"*)
 %token OUT            (* "out"*)
@@ -243,7 +242,7 @@ simple_type_expr:
 (* NET DEFNS*)
 
 net_defn:
-        NET r=optional(REC) bs=my_separated_nonempty_list(AND, net_binding)
+        LET r=optional(REC) bs=my_separated_nonempty_list(AND, net_binding)
           { mk_net_defn $loc (r, bs) }
 
 net_binding:

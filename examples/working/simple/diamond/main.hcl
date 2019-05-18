@@ -8,8 +8,8 @@ actor f in (i: t) out (o1: t, o2: t);
 actor g in (i: t) out (o: t);
 actor h in (i1: t, i2: t) out (o: t);
 
-net diamond top middle bottom v = 
+let diamond top middle bottom v = 
   let (x,y) = top v in
   bottom (middle x, middle y);
 
-net _ = i |> diamond f g h >> o;
+let _ = i |> diamond f g h >> o;

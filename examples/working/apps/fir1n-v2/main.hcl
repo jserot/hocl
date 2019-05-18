@@ -8,8 +8,8 @@ actor i in () out (o: float);
 actor z in () out (o: float);
 actor o in (i: float) out ();
 
-net fir n z x = 
+let fir n z x = 
   let xs = miter n d x in
   foldl m z (x::xs);
 
-net _ = i |> fir 3 (z()) >> o;
+let _ = i |> fir 3 (z()) >> o;

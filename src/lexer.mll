@@ -21,7 +21,6 @@ let keyword_table = [
   "parameter", PARAMETER;
   "param", PARAM;
   "fun", FUN;
-  "net", NET;
   "let", LET;
   "and", AND;
   "in", IN;

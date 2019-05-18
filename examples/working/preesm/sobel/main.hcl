@@ -41,9 +41,9 @@ actor display
   out ()
 ;
 
-net (yi,u,v) = Read_YUV(width, height) ();
-net yo = yi
+let (yi,u,v) = Read_YUV(width, height) ();
+let yo = yi
        >> Split (nbSlice, width, height)
        >> Sobel (width, sliceHeight)
        >> Merge (nbSlice, width, height);
-net () = display (index, width, height) (yo,u,v);
+let () = display (index, width, height) (yo,u,v);

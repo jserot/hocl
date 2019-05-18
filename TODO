@@ -1,4 +1,5 @@
-- net -> let
+- update ./config
+- add README
 - dynamic parameters
 - sub-graphs
 - use Dune 

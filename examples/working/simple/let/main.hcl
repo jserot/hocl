@@ -9,8 +9,8 @@ actor g in (i: int) out (o: int);
 actor h in (i1: int, i2: int) out (o: int);
 actor o in (i: int) out ();
 
-net main x =
+let main x =
   let (y,z) = f x in
   h (g y, g z);
 
-net _ = i |> main >> o;
+let _ = i |> main >> o;

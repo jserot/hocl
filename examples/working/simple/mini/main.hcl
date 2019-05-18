@@ -6,4 +6,4 @@ actor inp in () out(o: int);
 actor f in (i: int) out (o: int);
 actor outp in (i: int) out ();
 
-net _ = inp |> f >> outp;
+let _ = inp |> f >> outp;

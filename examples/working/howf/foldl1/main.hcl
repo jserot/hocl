@@ -6,4 +6,4 @@ actor i in () out (o: t);
 actor z in () out (o: t);
 actor o in (i: t) out ();
 
-net _ = i |> repl 5 >> foldl1 g >> o;
+let _ = i |> repl 5 >> foldl1 g >> o;

@@ -6,7 +6,7 @@ actor i in () out (o: t);
 actor comb4 in (i1: t, i2: t, i3: t, i4:t) out (o: t);
 actor o in (i: t) out ();
 
-net delay n x = x :: miter (n-1) d x;
+let delay n x = x :: miter (n-1) d x;
 
-net x = delay 4 (i());
-net _ = o (comb4 (x[0],x[1],x[2],x[3]));
+let x = delay 4 (i());
+let _ = o (comb4 (x[0],x[1],x[2],x[3]));

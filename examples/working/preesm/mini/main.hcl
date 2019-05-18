@@ -10,4 +10,4 @@ actor inp in () out(o: int);
 actor foo in (i: int) out (o: int);
 actor outp in (i: int) out ();
 
-net _ = inp |> foo >> outp;
+let _ = inp |> foo >> outp;

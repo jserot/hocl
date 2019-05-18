@@ -6,4 +6,4 @@ actor f2 in (i: t) out (o: t);
 actor f3 in (i: t) out (o: t);
 actor o in (i: t) out ();
 
-net _ = i |> pipe [f1,f2,f3] >> o;
+let _ = i |> pipe [f1,f2,f3] >> o;

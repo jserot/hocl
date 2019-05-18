@@ -10,7 +10,7 @@ actor o1 in (i: t') out ();
 actor o2 in (i: t') out ();
 actor o3 in (i: t') out ();
 
-net xs = i |> mapf [f1,f2,f3];
-net _ = o1 (xs[0]);
-net _ = o2 (xs[1]);
-net _ = o3 (xs[2]);
+let xs = i |> mapf [f1,f2,f3];
+let _ = o1 (xs[0]);
+let _ = o2 (xs[1]);
+let _ = o3 (xs[2]);

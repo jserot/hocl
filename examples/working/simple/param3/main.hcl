@@ -9,5 +9,5 @@ actor inp in () out (e: pixel);
 actor foo param (w: nat) in (e: pixel) out (e: pixel);
 actor outp in (e: pixel) out ();
 
-net _ = outp (foo fullwidth (inp ()));
--- net _ = inp |> foo fullwidth >> outp;
+let _ = outp (foo fullwidth (inp ()));
+-- let _ = inp |> foo fullwidth >> outp;
