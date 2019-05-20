@@ -8,5 +8,5 @@ actor o in (i: t) out ();
 
 let delay n x = x :: miter (n-1) d x;
 
-let x = delay 4 (i());
-let _ = o (comb4 (x[0],x[1],x[2],x[3]));
+let x = i |> delay 4;
+let _ = comb4 (x[0],x[1],x[2],x[3]) >> o;
