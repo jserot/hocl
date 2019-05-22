@@ -23,6 +23,11 @@ and generating tool-specific descriptions.
 [dream]: https://dream.ispr-ip.fr
 [vaader]: https://www.ietr.fr/spip.php?article1604
 
+DOCUMENTATION
+------------
+
+Here's a short [tutorial](https://github.com/jserot/hocl/blob/master/doc/tutorial.pdf) on the language.
+
 INSTALLATION
 ------------
 
