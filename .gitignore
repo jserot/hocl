@@ -1,4 +1,5 @@
-/doc
+doc/um
+doc/tutorial
 lib/etc/config
 _build/
 src/parser.output
