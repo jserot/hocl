@@ -18,8 +18,12 @@ preesm: $(SRCS)
 systemc: $(SRCS)
 	$(HOCL) $(HOCL_OPTS) -systemc $(SYSTEMC_OPTS) $(SRCS)
 
+xdf: $(SRCS)
+	$(HOCL) $(HOCL_OPTS) -xdf $(XDF_OPTS) $(SRCS)
+
 clean:
 	@\rm -f *.dot
+	@\rm -f *.xdf
 	@\rm -f *.output
 
 clobber: clean

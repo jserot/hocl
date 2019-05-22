@@ -157,7 +157,7 @@ let output_actor_box oc sp (i,b) =
   | _ ->
       () 
 
-let output_parameter oc (i,b) =
+let output_parameter oc sp (i,b) =
   match b.b_tag, b.b_val with
   | ParamB, v ->
      fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (string_of_expr v.bv_lit) b.b_name 
@@ -195,7 +195,7 @@ let output oc sp =
   fprintf oc "  <key attr.name=\"graph_desc\" attr.type=\"string\" for=\"node\"/>\n";
   fprintf oc "  <graph edgedefault=\"directed\">\n";
   fprintf oc "    <data key=\"name\">%s</data>\n" cfg.top_name;
-  List.iter (output_parameter oc) sp.boxes;
+  List.iter (output_parameter oc sp) sp.boxes;
   List.iter (output_actor_box oc sp) sp.boxes;
   List.iter (output_connexion oc sp) sp.wires;
   fprintf oc "  </graph>\n";

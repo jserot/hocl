@@ -10,8 +10,8 @@ actor o1 in (i: t') out ();
 actor o2 in (i: t') out ();
 actor o3 in (i: t') out ();
 
-net xs = mapf [f1,f2,f3] (i ());
-net ys = shuffle [2,1,0] xs;
-net () = o1 (ys[0]);
-net () = o2 (ys[1]);
-net () = o3 (ys[2]);
+let xs = mapf [f1,f2,f3] (i ());
+let ys = shuffle [2,1,0] xs;
+let () = o1 (ys[0]);
+let () = o2 (ys[1]);
+let () = o3 (ys[2]);

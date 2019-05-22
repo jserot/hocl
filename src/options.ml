@@ -13,7 +13,7 @@
 let print_version () =
   Printf.printf "This is the HOCL compiler, version %s\n" Version.version
 
-type output_format = NoOutput | Dot | Preesm | Systemc  (* | Xdf | Dif | Vhdl *)
+type output_format = NoOutput | Dot | Preesm | Systemc | Xdf (* | Dif | Vhdl *)
 
 type cfg = {
     mutable prelude: string;
@@ -56,8 +56,8 @@ let do_insert_bcasts () = Static.cfg.Static.insert_bcasts <- true
 let do_dot () = cfg.output_fmt <- Dot
 let do_preesm () = cfg.output_fmt <- Preesm
 let do_systemc () = cfg.output_fmt <- Systemc
-(* let do_xdf () = output_fmt := Xdf
- * let do_dif () = output_fmt := Dif
+let do_xdf () = cfg.output_fmt <- Xdf
+(* let do_dif () = output_fmt := Dif
  * let do_vhdl () = output_fmt := Vhdl *)
 let do_dot_unlabeled_edges () = Dot.cfg.Dot.labeled_edges <- false
 let do_dot_show_indexes () = Dot.cfg.Dot.show_indexes <- true
@@ -78,7 +78,7 @@ let set_sc_trace () = Systemc.cfg.Systemc.sc_trace <- true
  * let set_sc_dump_fifo_stats () = Systemc.cfg.Systemc.sc_dump_fifo_stats <- true
  * let set_sc_fifo_stats_file f = Systemc.cfg.Systemc.sc_fifo_stats_file <- f *)
 (* XDF related options *)
-(* let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p *)
+let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p
 
 let options_spec = [
 "-prelude", Arg.String (set_prelude), "set location of the standard prelude file";
@@ -96,8 +96,8 @@ let options_spec = [
 "-dot", Arg.Unit (do_dot), "generate .dot representation of the program";
 "-preesm", Arg.Unit (do_preesm), "activate the Preesm backend";
 "-systemc", Arg.Unit (do_systemc), "activate the SystemC backend";
-(* "-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network and .cal descriptions of the actors";
- * "-dif", Arg.Unit (do_dif), "generate .dif representation of the program";
+"-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network";
+(* "-dif", Arg.Unit (do_dif), "generate .dif representation of the program";
  * "-vhdl", Arg.Unit (do_vhdl), "activate the VHDL backend"; *)
 "-version", Arg.Unit (print_version), "print version of the compiler";
 "--v", Arg.Unit (print_version), "print version of the compiler";
@@ -116,5 +116,5 @@ let options_spec = [
  * "-sc_trace_fifos", Arg.Unit (set_sc_trace_fifos), "trace fifo usage in .vcd file";
  * "-sc_dump_fifo_stats", Arg.Unit (set_sc_dump_fifo_stats), "dump fifo usage statistics after run";
  * "-sc_fifo_stats_file", Arg.String (set_sc_fifo_stats_file), "set file for dumping fifo statistics (default: fifo_stats.dat)"; *)
-(* "-xdf_package", Arg.String (set_xdf_package), "set package name for the generated XDF code"; *)
+"-xdf_package", Arg.String (set_xdf_package), "set package name for the generated XDF code";
 ];

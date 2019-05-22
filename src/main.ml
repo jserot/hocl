@@ -63,6 +63,10 @@ let output sp =
      check_dir Options.cfg.target_dir;
      let fname = mk_fname ".pi" in
      Preesm.dump fname sp
+  | Xdf ->
+     check_dir Options.cfg.target_dir;
+     let fname = mk_fname ".xdf" in
+     Xdf.dump fname sp
   | Systemc ->
      check_dir Options.cfg.target_dir;
      let top_fname = mk_fname "_top.cpp" in

@@ -48,10 +48,10 @@ and ss_box = {
     b_typ: typ;                      (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
     (* b_tysig: typ;                 (\* "Signature" type, i.e. [t_params * t_ins * t_vars * t_outs] *\) *)
     (* b_tvbs: typ var_bind list;    (\* Type var instantiations (when the box derives from a polymorphic actor) *\) *)
+    b_params: (string * (typ * ss_val)) list;      (* Parameters, with their actual values *)
     b_ins: (string * (wid * typ * Syntax.io_annot)) list;
     b_outs: (string * (wid list * typ * Syntax.io_annot)) list;
     mutable b_val: b_val;            (* For parameter boxes *)
-    (* b_params: (string * (Expr.e_val * typ)) list;      (\* Parameters, with their actual values *\) *)
 }
 
 and wid = int
@@ -114,17 +114,17 @@ let no_bval =
   let no_expr = {ne_desc=NUnit; ne_loc=Location.no_location; ne_typ=no_type } in
   { bv_lit=no_expr; bv_sub=no_expr; bv_val=SVUnit }
           
-let new_box name ty ins outs =
+let new_box name ty params ins outs =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=ActorB; b_name=name; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
+  bid, { b_id=bid; b_tag=ActorB; b_name=name; b_params=params; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
 
 let new_param_box name ty v =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=ParamB; b_name=name; b_ins=[]; b_outs=[]; b_typ=ty; b_val=v }
+  bid, { b_id=bid; b_tag=ParamB; b_name=name; b_params=[]; b_ins=[]; b_outs=[]; b_typ=ty; b_val=v }
 
 let new_dummy_box name ty =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=DummyB; b_name=name; b_ins=[]; b_outs=["r",([0],ty,no_annot)]; b_typ=ty; b_val=no_bval }
+  bid, { b_id=bid; b_tag=DummyB; b_name=name; b_params=[]; b_ins=[]; b_outs=["r",([0],ty,no_annot)]; b_typ=ty; b_val=no_bval }
 
 let boxes_of_wire boxes (((s,ss),(d,ds)),ty,_) = 
   try
@@ -415,8 +415,14 @@ and instanciate_actor tp nenv loc a args =
   let bins =
       List.map (fun (id,ty,_) -> (id,(0,ty,no_annot))) a.sa_params 
     @ List.map (fun (id,ty,ann) -> (id,(0,ty,ann))) a.sa_ins in
+  let bparams =
+    let static_value v = match v with
+      | Some (SVLoc (_,_,_,v')) -> v'
+      | Some v' -> v'
+      | None -> Misc.fatal_error "Static.instanciate_actor.static_value" in
+    List.map (function (id,ty,v) -> id,(ty, static_value v)) a.sa_params in
   let bouts = List.map (fun (id,ty,ann) -> (id,([0],ty,ann))) a.sa_outs in
-  let l, b = new_box a.sa_id tyact bins bouts in
+  let l, b = new_box a.sa_id tyact bparams bins bouts in
   let mk_wire b l v = match v with
     SVLoc(i,j,ty,_) -> new_wid(), (((i,j),l),ty,b)
   | _ -> illegal_application loc in
@@ -619,7 +625,7 @@ and extract_dep_params tp env e =
 let new_bcast_box ty wid wids =
   let bid = new_bid () in
   let bos = Misc.list_map_index (fun i wid -> "o_" ^ string_of_int (i+1), ([wid],ty,no_annot)) wids in 
-  bid, { b_id=bid; b_tag=ActorB; b_name=cfg.bcast_name; b_ins=["i",(wid,ty,no_annot)]; b_outs=bos; b_typ=ty; b_val=no_bval }
+  bid, { b_id=bid; b_tag=ActorB; b_name=cfg.bcast_name; b_params=[]; b_ins=["i",(wid,ty,no_annot)]; b_outs=bos; b_typ=ty; b_val=no_bval }
 
 let rec is_bcast_box boxes bid = (find_box boxes bid).b_name = cfg.bcast_name
 
