@@ -46,7 +46,6 @@ and ss_box = {
     b_tag: box_tag;
     b_name: string;                  (* For regular (resp. param) boxes, name of the instanciated actor (resp. param) *)
     b_typ: typ;                      (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
-    (* b_tysig: typ;                 (\* "Signature" type, i.e. [t_params * t_ins * t_vars * t_outs] *\) *)
     (* b_tvbs: typ var_bind list;    (\* Type var instantiations (when the box derives from a polymorphic actor) *\) *)
     b_params: (string * (typ * ss_val)) list;      (* Parameters, with their actual values *)
     b_ins: (string * (wid * typ * Syntax.io_annot)) list;
@@ -81,7 +80,6 @@ type static_program = {
 and sa_desc = {                                                     (* Actors *)
     sa_desc: Ssval.sv_act;                                          (* Definition *)
     sa_insts: bid list                                              (* Instances *)
-    (* mutable ac_insts: (ss_box, bid) ActInsts.t;                     (\* Instances *\) *)
   }
 
 let is_valid_param_value = function
@@ -141,20 +139,9 @@ let dst_box_of_wire boxes (w:ss_wire) = snd (boxes_of_wire boxes w)
 
 exception Matching_fail
 
-(* let is_output nenv id =
- *   try match List.assoc id nenv with
- *       SVLoc(_,_,_,true) as loc -> Some loc
- *     | _ -> None
- *     with Not_found -> None *)
-
 let rec net_matching toplevel nenv npat r = match npat.np_desc, r with
   | NPat_var id, r' ->
      [id, r], []
-      (* begin match toplevel, is_output nenv id, r' with
-       * | false, _, _ -> [id, r], []
-       * | true, None, _ -> [id, r], []
-       * | true, Some (SVLoc(l',_,ty',_)), SVLoc(l,s,ty,_) -> [], [new_wid(),(((l,s),(l',0)),ty')]
-       * | true, _, _ -> fatal_error "matching: cannot bind output" end *)
   | NPat_tuple ps, SVTuple rs when List.length ps = List.length rs ->
       let nenvs, ws = List.split (List.map2 (net_matching toplevel nenv) ps rs) in
       List.concat nenvs, List.concat ws
@@ -375,17 +362,6 @@ and create_rec_bindings toplevel nenv npat =
        let ty = type_copy npat.np_typ in
        let l, b = new_dummy_box id ty in
        [id, SVLoc(l,0,ty,SVUnit)], [(l,b)]
-        (* begin match toplevel, is_output nenv id with
-         *   false, _
-         * | true, None ->
-         *     let ty = type_copy npat.np_typ in
-         *     let l, b = new_dummy_box id ty in
-         *     [id, SVLoc(l,0,ty,false)], [(l,b)]
-         * | true, Some l ->
-         *     (\* Note 2013-04-12, JS
-         *        Outputs are _not_ added to the recursive environment *\)
-         *     [], []
-         * end *)
     | NPat_tuple ps ->
         List.fold_left
           (fun (ne,bs) p ->
@@ -410,7 +386,6 @@ and apply_subst ((i,s),(i',s')) (wid,((src,dst),ty,b)) =
 (* Auxilliaries *)
 
 and instanciate_actor tp nenv loc a args =
-  (* let senv = List.fold_left (fun acc (id,v) -> match v with SVVal v' -> (id,v')::acc | _ -> acc) [] nenv in *)
   let tyins, tyouts, typarams, tyact = instanciate_actor_ios loc a args in
   let bins =
       List.map (fun (id,ty,_) -> (id,(0,ty,no_annot))) a.sa_params 
@@ -519,28 +494,6 @@ let rec build_actor_desc tp { ad_desc = a } =
     sa_typ = ta.at_sig }
 
 (* RULE NE,B,W |- NetDecl => NE',B',W *)
-
-(* let eval_simple_net_expr nenv expr =
- *   match expr.ne_desc with
- *   | NVar v ->
- *       if List.mem_assoc v nenv then 
- *         begin match List.assoc v nenv with
- *           SVVal v -> v
- *         | _ -> illegal_expression expr.ne_loc
- *         end
- *       else
- *         unbound_value_err v expr.ne_loc
- *   | NConst c -> Expr.eval_const expr.ne_loc c
- *   | NArray1Const es -> 
- *       let a = Array1.of_list (List.map (Expr.eval_const expr.ne_loc) es) in
- *       Expr.Val_array1 (Array1.size a, a)
- *   | NArray2Const ess -> 
- *       let a = Array2.of_list (List.map (List.map (Expr.eval_const expr.ne_loc)) ess) in
- *       Expr.Val_array2 (Array2.size a, a)
- *   | NArray3Const esss -> 
- *       let a = Array3.of_list (List.map (List.map (List.map (Expr.eval_const expr.ne_loc))) esss) in
- *       Expr.Val_array3 (Array3.size a, a)
- *   | _ -> illegal_expression expr.ne_loc *)
 
 let eval_net_decl tp (nenv,boxes,wires) { nd_desc = isrec, defns; nd_loc=loc } = 
   (* TODO: inject senv here below .. *)

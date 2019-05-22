@@ -68,14 +68,6 @@ let builtin_typing_env = {
       ];
   te_values =
     List.map (fun (id,(ty,_)) -> id, ty) builtin_primitives
-    (* @ [ ">>",
-     *     let t1 = new_type_var ()
-     *     and t2 = new_type_var () in
-     *     generalize [] (type_arrow2 t1 (type_arrow t1 t2) t2)]
-     * @ [ "|>",
-     *     let t1 = new_type_var ()
-     *     and t2 = new_type_var () in
-     *     generalize [] (type_arrow2 (type_arrow type_unit t1) (type_arrow t1 t2) t2)] *)
   }
 
 let dump_type (name, arity) =

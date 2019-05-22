@@ -112,7 +112,7 @@ let new_type_var () = TyVar {stamp = new_stamp(); value = Unknown}
 let generalize env ty =
   (* Note : we use here a naive version in which generic variables are detected by
      simply checking whether they do not occur free in the englobing typing environment.
-     A more efficient version would use binding levels, of course *)
+     A more efficient version would use binding levels *)
   let vars_of tvars' ty = 
      (* Returns the list of type variables occuring in [t] but not in [tvars'] *)
     let tvars = ref [] in

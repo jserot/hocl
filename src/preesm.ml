@@ -21,18 +21,14 @@ type preesm_config = {
     mutable xml_version: string;
     mutable xml_encoding: string;
     mutable top_name: string;
-    (* mutable actors_num: bool; *)
     mutable code_prefix: string;
-    (* mutable use_floats: bool; *)
   }
 
 let cfg = {
   xml_version = "1.0";
   xml_encoding = "UTF-8";
   top_name = "";
-  (* actors_num = true; *)
   code_prefix = "";
-  (* use_floats = false; *)
 }
 
 exception Error of string
