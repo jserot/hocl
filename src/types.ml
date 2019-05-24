@@ -35,7 +35,7 @@ let type_arrow t1 t2 = TyArrow (t1,t2)
 let type_arrow2 t1 t2 t3 = TyArrow (t1,TyArrow (t2,t3))
 let type_constr c ts = TyConstr(c, ts)
 let type_pair t1 t2 = TyProduct [t1;t2]
-let type_list t n = TyConstr("list", [t])
+let type_bundle t n = TyConstr("bundle", [t])
 let type_param t = TyConstr("param", [t])
 let type_nat = type_constr "nat" []
 let type_bool = type_constr "bool" []
@@ -92,11 +92,11 @@ let rec unify ty1 ty2 =
       unify ty2 ty2'
   | TyProduct ts1, TyProduct ts2 when List.length ts1 = List.length ts2 ->
       List.iter2 unify ts1 ts2
-  (* | Tconstr({tc_name="bundle"}, [ty1'], [sz1]), Tproduct ts2 *)
-  (* | Tproduct ts2, Tconstr({tc_name="bundle"}, [ty1'], [sz1]) ->
-   *     (\* Note 2014-05-14, JS. Special case for unifying bundles and tuples *\)
-   *     unify_size (val1,val2) sz1 (SzConst (List.length ts2));
-   *     List.iter (unify ty1') ts2 *)
+  | TyConstr("bundle", [ty1'] (*, [sz1]*)), TyProduct ts2
+  | TyProduct ts2, TyConstr("bundle", [ty1'] (*, [sz1]*)) ->
+      (* JS. Special case for unifying bundles and tuples *)
+      (* unify_size (val1,val2) sz1 (SzConst (List.length ts2)); *)
+      List.iter (unify ty1') ts2
   | TyConstr(constr1, arguments1), TyConstr(constr2, arguments2)
     when constr1=constr2 && List.length arguments1 = List.length arguments2 ->
       List.iter2 unify arguments1 arguments2

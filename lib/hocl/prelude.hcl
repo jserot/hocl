@@ -11,7 +11,7 @@ let (>>) x f = f x;
 let (|>) i f = f (i ());
 
 -- The [repl] higher-order function
--- has type [nat -> 'a -> 'a list]
+-- has type [nat -> 'a -> 'a bundle]
 -- and can be defined as : [repl n x = [x, ..., x]]
 --                                      \---v---/
 --                                       n times
@@ -34,7 +34,7 @@ let rec iter n f x =
 
 -- The [miter] higher-order function is a variant of [iter] where the results of
 -- the intermediate applications are output
--- It has type [nat -> ('a -> 'a) -> 'a -> 'a list]
+-- It has type [nat -> ('a -> 'a) -> 'a -> 'a bundle]
 -- and can be defined as : [miter n f x = [f x, f (f x), ..., f^n x]]
 
 let rec miter n f x =
@@ -43,7 +43,7 @@ let rec miter n f x =
 ;
 
 -- The [pipe] higher-order function
--- has type [('a -> 'a) list -> 'a -> 'a]
+-- has type [('a -> 'a) bundle -> 'a -> 'a]
 -- and can be defined as : [pipe [f1, ..., fn] x = fn (... f2 (f1 x) ...)]
 
 let rec pipe fs x = match fs with
@@ -52,7 +52,7 @@ let rec pipe fs x = match fs with
 ;
 
 -- The [map] higher-order function
--- has type [('a -> 'b) -> 'a list -> 'b list]
+-- has type [('a -> 'b) -> 'a bundle -> 'b bundle]
 -- and can be defined as : [map f [x1, ..., xn] = [f x1, ..., f xn]]
 
 let rec map f xs =
@@ -62,7 +62,7 @@ let rec map f xs =
 ;
 
 -- The [mapf] higher-order function
--- has type [('a -> 'b) list -> 'a -> 'b list]
+-- has type [('a -> 'b) bundle -> 'a -> 'b bundle]
 -- and can be defined as : [mapf [f1, ..., fn] = [f1 x, ..., fn x]]
 
 let rec mapf fs x = match fs with
@@ -71,7 +71,7 @@ let rec mapf fs x = match fs with
 ;
 
 -- The [map2f] higher-order function
--- has type [('a -> 'b) list -> 'a list -> 'b list]
+-- has type [('a -> 'b) bundle -> 'a bundle -> 'b bundle]
 -- and can be defined as : [mapf [f1, ..., fn] [x1, ..., xn] = [f1 x2, ..., fn x2]]
 
 let rec map2f fs xs = match (fs,xs) with
@@ -80,7 +80,7 @@ let rec map2f fs xs = match (fs,xs) with
 ;
 
 -- The [foldl] higher-order wiring function
--- has type [('a * 'b -> 'a) -> 'a -> 'b list -> 'a]
+-- has type [('a * 'b -> 'a) -> 'a -> 'b bundle -> 'a]
 -- and can be defined as : [foldl f z [x1, ..., xn] = f (... (f (z,x1), x2), ..., xn)
   
 let rec foldl f z xs =
@@ -89,9 +89,9 @@ let rec foldl f z xs =
 | x::xs' -> foldl f (f (z,x)) xs'
 ;
 
--- [foldl1] is a variant of [foldl] operating on non empty lists and not requiring
+-- [foldl1] is a variant of [foldl] operating on non empty bundles and not requiring
 -- an initial [z] value
--- It has type [('a * 'a -> 'a) -> 'a list -> 'a]
+-- It has type [('a * 'a -> 'a) -> 'a bundle -> 'a]
 -- and can be defined as : [foldl1 f [x1, x2, ..., xn] = foldl f x1 [x2, ..., xn]]
   
 let rec foldl1 f l =
@@ -100,7 +100,7 @@ let rec foldl1 f l =
 ;
 
 -- The [foldr] higher-order wiring function
--- has type [('a * 'b -> 'b) -> 'b -> 'a list -> 'b]
+-- has type [('a * 'b -> 'b) -> 'b -> 'a bundle -> 'b]
 -- and can be defined as : [foldr f [x1, ..., xn] z = f (x1, ... (f (xn,z), xn-1), ...)]
   
 let rec foldr f z xs =
