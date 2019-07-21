@@ -38,6 +38,7 @@ type static_env = (string * ss_val) list
 
 type box_tag = 
     ActorB
+  | BcastB
   | ParamB 
   | DummyB  (* Temporary boxes used for handling recursive defns *)
 
@@ -112,9 +113,11 @@ let no_bval =
   let no_expr = {ne_desc=NUnit; ne_loc=Location.no_location; ne_typ=no_type } in
   { bv_lit=no_expr; bv_sub=no_expr; bv_val=SVUnit }
           
-let new_box name ty params ins outs =
+let new_box kind name ty params ins outs =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=ActorB; b_name=name; b_params=params; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
+  bid, { b_id=bid;
+         b_tag=(match kind with A_Regular -> ActorB | A_Bcast -> BcastB);
+         b_name=name; b_params=params; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
 
 let new_param_box name ty v =
   let bid = new_bid () in
@@ -397,7 +400,7 @@ and instanciate_actor tp nenv loc a args =
       | None -> Misc.fatal_error "Static.instanciate_actor.static_value" in
     List.map (function (id,ty,v) -> id,(ty, static_value v)) a.sa_params in
   let bouts = List.map (fun (id,ty,ann) -> (id,([0],ty,ann))) a.sa_outs in
-  let l, b = new_box a.sa_id tyact bparams bins bouts in
+  let l, b = new_box a.sa_kind a.sa_id tyact bparams bins bouts in
   let mk_wire b l v = match v with
     SVLoc(i,j,ty,_) -> new_wid(), (((i,j),l),ty,b)
   | _ -> illegal_application loc in
@@ -487,7 +490,8 @@ and instanciate_actor_ios loc a args =
 let rec build_actor_desc tp { ad_desc = a } =
   let ta = List.assoc a.a_id tp.tp_actors in
   a.a_id,
-  { sa_id = a.a_id;
+  { sa_kind = a.a_kind;
+    sa_id = a.a_id;
     sa_params = List.map (fun (id,ty) -> id,ty,None) ta.at_params;
     sa_ins = ta.at_ins;
     sa_outs = ta.at_outs;
@@ -677,7 +681,8 @@ let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * bool)) list) (
   try
     bid,
     (match b.b_tag with
-     | ActorB ->
+     | ActorB
+     | BcastB ->
         { b with
           b_ins = List.mapi
                         (fun sel (id,(_,ty,ann)) -> id, (find_src_wire wires bid sel, ty, ann))
@@ -801,7 +806,7 @@ let print_actor (id,ac) =
 let print_box (i,b) =
   Pr_type.reset_type_var_names ();
   Printf.printf "%s%d: %s (ins=[%s] outs=[%s] %s)\n"
-        (match b.b_tag with ActorB -> "B" | DummyB -> "D" | ParamB -> "P")
+        (match b.b_tag with BcastB -> "Y" | ActorB -> "B" | DummyB -> "D" | ParamB -> "P")
         i
         b.b_name
         (Misc.string_of_list string_of_typed_bin ","  b.b_ins)

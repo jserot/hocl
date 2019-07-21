@@ -51,12 +51,15 @@ and actor_decl =
     ad_loc: location }
 
 and actor_desc = {
+    a_kind: actor_kind;
     a_id: string;
     a_params: (string * type_expression) list;
     a_ins: (string * type_expression * io_annot) list;
     a_outs: (string * type_expression * io_annot) list;
   }
 
+and actor_kind = A_Regular | A_Bcast
+                           
 (* and io_annot = net_expr *)
 and io_annot = string
              
@@ -193,9 +196,11 @@ let string_of_io_annot s = s
 
 let string_of_actor_io (id,ty,ann) = id ^ ": " ^ string_of_ty_expr ty ^ string_of_io_annot ann
                                
+let string_of_actor_kind = function A_Regular -> "actor" | A_Bcast -> "bcast"
+
 let string_of_actor_decl d =
   let a = d.ad_desc in
-  a.a_id
+  string_of_actor_kind a.a_kind ^ " " ^ a.a_id
     ^ " in (" ^ Misc.string_of_list string_of_actor_io ", " a.a_ins ^ ")"
     ^ " out (" ^ Misc.string_of_list string_of_actor_io ", " a.a_outs ^ ")"
 
@@ -215,7 +220,7 @@ let string_of_pragma_decl d = match d.pr_desc with
 
 let dump_type d = Printf.printf "type %s\n" (string_of_type_decl d)
 let dump_param d = Printf.printf "parameter %s\n" (string_of_param_decl d)
-let dump_actor d = Printf.printf "actor %s\n" (string_of_actor_decl d)
+let dump_actor d = Printf.printf "%s\n" (string_of_actor_decl d)
 let dump_defn d = Printf.printf "net %s\n" (string_of_net_defn d)
 let dump_pragma d = Printf.printf "pragma %s\n" (string_of_pragma_decl d)
 

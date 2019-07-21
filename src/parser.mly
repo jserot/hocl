@@ -40,6 +40,7 @@
 %token TY_NAT         (* "nat"*)
 %token TY_BOOL        (* "bool"*)
 %token TY_UNIT        (* "unit"*)
+%token BCAST          (* "bcast"*)
 %token ACTOR          (* "actor"*)
 %token PARAMETER      (* "parameter"*)
 %token PARAM          (* "param"*)
@@ -198,10 +199,14 @@ param_decl:
 (* ACTOR DECLARATION *)
 
 actor_decl:
-   ACTOR id=IDENT params=actor_params IN LPAREN inps=my_separated_list(COMMA, actor_io) RPAREN
+   kind=actor_kind id=IDENT params=actor_params IN LPAREN inps=my_separated_list(COMMA, actor_io) RPAREN
                  OUT LPAREN outps=my_separated_list(COMMA, actor_io) RPAREN
-    { mk_actor_decl $loc {a_id=id; a_params=params; a_ins=inps; a_outs=outps} }
+    { mk_actor_decl $loc {a_kind=kind; a_id=id; a_params=params; a_ins=inps; a_outs=outps} }
 
+actor_kind:
+  | ACTOR { A_Regular }
+  | BCAST { A_Bcast }
+    
 actor_params:
   | (* Nothing *) { [] }
   | PARAM LPAREN ps=my_separated_list(COMMA, actor_param) RPAREN { ps }

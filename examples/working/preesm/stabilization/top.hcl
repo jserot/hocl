@@ -10,11 +10,9 @@ parameter displaySize: nat = displayHeight*displayWidth;
 
 #pragma code("ReadYUV", "include/yuvRead.h", "readYUV", "initReadYUV")
 #pragma code("DisplayYUV", "include/yuvDisplay.h", "yuvDisplay", "yuvDisplayInit")
+#pragma code("Stabilization", "include/stabilization.h", "stabilize") -- TO BE REMOVED WHEN REFINING
 #pragma code("MD5", "include/md5.h", "MD5_Update")
 #pragma code("WriteYUV", "include/yuvWrite.h", "yuvWrite", "initYUVWrite")
-#pragma code("DuplicateY", "include/bcasts.h", "duplicateY")
-#pragma code("DuplicateU", "include/bcasts.h", "duplicateU")
-#pragma code("DuplicateV", "include/bcasts.h", "duplicateV")
 
 actor ReadYUV
   param (width: nat, height: nat)
@@ -50,19 +48,19 @@ actor WriteYUV
   out ()
 ;
 
-actor DuplicateY
+bcast DuplicateY
   param (size: nat)
   in (inp: uchar "size")
   out (out_0: uchar "size", out_1: uchar "size", out_2: uchar "size") 
 ;
 
-actor DuplicateU
+bcast DuplicateU
   param (size: nat)
   in (inp: uchar "size/4")
   out (out_0: uchar "size/4", out_1: uchar "size/4")
 ;
 
-actor DuplicateV
+bcast DuplicateV
   param (size: nat)
   in (inp: uchar "size/4")
   out (out_0: uchar "size/4", out_1: uchar "size/4")

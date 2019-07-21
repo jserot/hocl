@@ -120,6 +120,9 @@ let output_actor_box_port oc dir is_param (id, (wid,ty,ann)) =
       dir id ann
 
 let output_actor_box oc sp (i,b) =
+  let is_param (id, (wid,ty,ann)) = 
+    let w = lookup_wire sp.wires wid in
+    is_param_box (Static.src_box_of_wire sp.boxes w) in
   match b.b_tag with
   | ActorB ->
      let open Syntax in
@@ -133,9 +136,6 @@ let output_actor_box oc sp (i,b) =
      fprintf oc "    <node id=\"%s\" kind=\"actor\" period=\"%s\">\n" id period;
      fprintf oc "      <data key=\"graph_desc\">%s</data>\n" incl_file;
      fprintf oc "      <loop name=\"%s\">\n" loop_fn;
-     let is_param (id, (wid,ty,ann)) = 
-       let w = lookup_wire sp.wires wid in
-       is_param_box (Static.src_box_of_wire sp.boxes w) in
      let param_ins, fifo_ins = List.partition is_param b.b_ins in 
      List.iter (output_actor_box_inp oc true) param_ins;
      List.iter (output_actor_box_inp oc false) fifo_ins;
@@ -146,6 +146,15 @@ let output_actor_box oc sp (i,b) =
          List.iter (output_actor_box_iinit oc) param_ins;
          fprintf oc "      </init>\n";
        end;
+     List.iter (output_actor_box_port oc "input" true) param_ins;
+     List.iter (output_actor_box_port oc "input" false) fifo_ins;
+     List.iter (output_actor_box_port oc "output" false) b.b_outs;
+     fprintf oc "    </node>\n"
+  | BcastB ->
+     let open Syntax in
+     let id = box_name sp (i,b) in 
+     fprintf oc "    <node id=\"%s\" kind=\"broadcast\">\n" id;
+     let param_ins, fifo_ins = List.partition is_param b.b_ins in 
      List.iter (output_actor_box_port oc "input" true) param_ins;
      List.iter (output_actor_box_port oc "input" false) fifo_ins;
      List.iter (output_actor_box_port oc "output" false) b.b_outs;
@@ -164,15 +173,15 @@ let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
   let src_name, src_slot =
     let b = lookup_box sp.boxes s in
     match b.b_tag with
-    | ActorB -> box_name sp (s,b), fst (List.nth b.b_outs ss)
+    | ActorB | BcastB -> box_name sp (s,b), fst (List.nth b.b_outs ss)
     | ParamB -> box_name sp (s,b), ""
-    | _ -> Misc.fatal_error "Preesm.out_put_connexion" in
+    | _ -> Misc.fatal_error "Preesm.output_connexion" in
   let dst_name, dst_slot =
     let b = lookup_box sp.boxes d in
     match b.b_tag with
-    | ActorB -> box_name sp (d,b), fst (List.nth b.b_ins ds)
+    | ActorB| BcastB -> box_name sp (d,b), fst (List.nth b.b_ins ds)
     | ParamB -> box_name sp (d,b), ""
-    | _ -> Misc.fatal_error "Preesm.out_put_connexion" in
+    | _ -> Misc.fatal_error "Preesm.output_connexion" in
   fprintf oc "    <edge kind=\"%s\" source=\"%s\" %s target=\"%s\" %s %s/>\n"
     (if is_param_dep then "dependency" else "fifo")
     src_name
