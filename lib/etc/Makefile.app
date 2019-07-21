@@ -5,7 +5,7 @@ DOTVIEWER=graphviz
 all: dot.show
 
 dot: $(SRCS)
-	$(HOCL) $(HOCL_OPTS) -dot $(DOT_OPTS) $(SRCS)
+	$(HOCL) $(HOCL_OPTS) $(GEN_OPTS) -dot $(DOT_OPTS) $(SRCS)
 
 dot.show: dot
 	$(DOTVIEWER) $(MAIN).dot
@@ -13,13 +13,13 @@ dot.show: dot
 .PHONY: preesm systemc
 
 preesm: $(SRCS)
-	$(HOCL) $(HOCL_OPTS) -preesm $(PREESM_OPTS) $(SRCS)
+	$(HOCL) $(HOCL_OPTS) $(GEN_OPTS) -preesm $(PREESM_OPTS) $(SRCS)
 
 systemc: $(SRCS)
-	$(HOCL) $(HOCL_OPTS) -systemc $(SYSTEMC_OPTS) $(SRCS)
+	$(HOCL) $(HOCL_OPTS) $(GEN_OPTS) -systemc $(SYSTEMC_OPTS) $(SRCS)
 
 xdf: $(SRCS)
-	$(HOCL) $(HOCL_OPTS) -xdf $(XDF_OPTS) $(SRCS)
+	$(HOCL) $(HOCL_OPTS) $(GEN_OPTS) -xdf $(XDF_OPTS) $(SRCS)
 
 clean:
 	@\rm -f *.dot

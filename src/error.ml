@@ -135,7 +135,7 @@ let initial_value_mismatch v v' =
   eprintf "Error: initial values %s and %s mismatch\n" v v';
   raise Error
 
-let unwired_box where name sel =
-  eprintf "Unconnected %s slot (#%d) for box %s.\n" where sel name;
+let invalid_box_wiring what name sel =
+  eprintf "Error: %s %d for box %s.\n" what sel name;
   raise Error
 

@@ -437,7 +437,7 @@ and instanciate_actor tp nenv loc a args =
       [l,b],
       wps @ [new_wid(),w]
   | [t], _, ts', _, SVLoc(l1,s1,ty,SVUnit) when List.length ts' > 1 ->           (* APP_1_n *)
-      let w = ((l1,s1),(l,0)), t, false in
+      let w = ((l1,s1),(l,np)), t, false in
       SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,SVUnit)) ts'),
       [l,b],
       wps @ [new_wid(),w]
@@ -692,7 +692,7 @@ let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * bool)) list) (
      | DummyB ->
         Misc.fatal_error "Static.update_wids" (* should not happen *))
   with
-    BoxWiring (where,bid,sel) -> unwired_box where b.b_name sel
+    BoxWiring (what,bid,sel) -> invalid_box_wiring what b.b_name sel
 
 and add_param_inputs wires bid =
   let ws =
@@ -713,14 +713,14 @@ and add_param_outputs wires bid =
 and find_src_wire wires bid sel =
   let find wids (wid, ((_,(d,ds)),_,_)) = if d=bid && ds=sel then wid::wids else wids in
   match List.fold_left find [] wires with
-    [] -> raise (BoxWiring ("input",bid,sel))
+    [] -> raise (BoxWiring ("no wire connected to input",bid,sel))
   | [w] -> w
-  | ws -> fatal_error "find_src_wire: more than one source wire" (* should not happen ! *)
+  | ws -> raise (BoxWiring ("more than one wire connected to input",bid,sel))
 
 and find_dst_wire wires bid sel =
   let find wids (wid, (((s,ss),_),_,_)) = if s=bid && ss=sel then wid::wids else wids in
   match List.fold_left find [] wires with
-    [] ->  raise (BoxWiring ("output",bid,sel))
+    [] ->  raise (BoxWiring ("no wire connected to output",bid,sel))
   | ws -> ws
 
 let collect_actor_insts name boxes =
