@@ -437,7 +437,7 @@ and instanciate_actor tp nenv loc a args =
       [l,b],
       wps @ [new_wid(),w]
   | [t], _, ts', _, SVLoc(l1,s1,ty,SVUnit) when List.length ts' > 1 ->           (* APP_1_n *)
-      let w = ((l1,s1),(l,0)), t, false in
+      let w = ((l1,s1),(l,np)), t, false in
       SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,SVUnit)) ts'),
       [l,b],
       wps @ [new_wid(),w]
