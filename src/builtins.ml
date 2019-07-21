@@ -64,7 +64,7 @@ let builtin_typing_env = {
       "nat", 0;
       "bool", 0;
       "unit", 0;
-      "list", 1
+      "bundle", 1
       ];
   te_values =
     List.map (fun (id,(ty,_)) -> id, ty) builtin_primitives

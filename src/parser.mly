@@ -279,9 +279,9 @@ net_expr:
       | e1=net_expr COLONCOLON e2=net_expr 
           { mk_net_expr $loc (NCons(e1,e2)) }
       | e=simple_net_expr LBRACKET i=simple_net_expr RBRACKET
-          { mk_net_expr $loc (NListElem (e,i)) }
+          { mk_net_expr $loc (NBundleElem (e,i)) }
       (* | LBRACKET es=my_separated_nonempty_list(COMMA,net_expr) RBRACKET
-       *     { mk_net_expr $loc (NList es) } *)
+       *     { mk_net_expr $loc (NBundle es) } *)
       | LET r=optional(REC) bs=my_separated_nonempty_list(AND,net_binding) IN e=net_expr  %prec prec_let
           { mk_net_expr $loc (NLet(r, bs, e)) }
       | FUN p=net_pattern ARROW e=net_expr
@@ -311,7 +311,7 @@ simple_net_expr:
       | LPAREN RPAREN
           { mk_net_expr $loc (NUnit) }
       | LBRACKET es=net_expr_comma_list RBRACKET
-          { mk_net_expr $loc (NList (List.rev es)) }
+          { mk_net_expr $loc (NBundle (List.rev es)) }
       | LBRACKET RBRACKET
           { mk_net_expr $loc (NNil) }
       | n=INT
@@ -343,7 +343,7 @@ net_pattern:
       | p1=net_pattern COLONCOLON p2=net_pattern
           { mk_net_pat $loc (NPat_cons(p1,p2)) }
       | LBRACKET ps=net_pattern_comma_list RBRACKET
-          { mk_net_pat $loc (NPat_list(List.rev ps)) }
+          { mk_net_pat $loc (NPat_bundle(List.rev ps)) }
 
 simple_net_pattern:
       | id=IDENT

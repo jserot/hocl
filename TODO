@@ -1,3 +1,4 @@
+- issue a more user-friendly error message in case of unconnected io ports
 - dynamic parameters
 - sub-graphs
 - use Dune 

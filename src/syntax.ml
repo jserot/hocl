@@ -82,7 +82,7 @@ and net_pattern_desc =
   | NPat_tuple of net_pattern list
   | NPat_nil
   | NPat_cons of net_pattern * net_pattern
-  | NPat_list of net_pattern list
+  | NPat_bundle of net_pattern list
   | NPat_unit
   | NPat_ignore
 
@@ -99,8 +99,8 @@ and net_expr_desc =
    | NFun of net_pattern * net_expr (* single match here ! *)
    | NNil
    | NCons of net_expr * net_expr
-   | NList of net_expr list
-   | NListElem of net_expr * net_expr
+   | NBundle of net_expr list
+   | NBundleElem of net_expr * net_expr
    | NIf of net_expr * net_expr * net_expr
    | NMatch of net_expr * net_binding list
    | NBool of bool
@@ -162,8 +162,8 @@ and string_of_net_exp = function
    | NFun (p,e) -> "<fun>"
    | NNil -> "[]"
    | NCons (e1,e2) -> string_of_net_expr e1 ^ "::" ^ string_of_net_expr e2
-   | NList es -> "[" ^ Misc.string_of_list string_of_net_expr "," es ^ "]"
-   | NListElem (e1,e2) -> string_of_net_expr e1 ^ "[" ^ string_of_net_expr e2 ^ "]"
+   | NBundle es -> "[" ^ Misc.string_of_list string_of_net_expr "," es ^ "]"
+   | NBundleElem (e1,e2) -> string_of_net_expr e1 ^ "[" ^ string_of_net_expr e2 ^ "]"
    | NIf (e1,e2,e3) -> "if " ^ string_of_net_expr e1 ^ " then " ^ string_of_net_expr e2 ^ " else " ^ string_of_net_expr e3
    | NMatch (e1,bs) -> "match " ^ string_of_net_expr e1 ^ " with " ^ Misc.string_of_list string_of_net_binding " | " bs
    | NBool b -> string_of_bool b
@@ -181,7 +181,7 @@ and string_of_net_pat = function
   | NPat_tuple ps -> "(" ^ Misc.string_of_list string_of_net_pattern "," ps ^ ")"
   | NPat_nil -> "[]"
   | NPat_cons (p1,p2) -> string_of_net_pattern p1 ^ "::" ^ string_of_net_pattern p2
-  | NPat_list ps -> "[" ^ Misc.string_of_list string_of_net_pattern "," ps ^ "]"
+  | NPat_bundle ps -> "[" ^ Misc.string_of_list string_of_net_pattern "," ps ^ "]"
   | NPat_unit -> "()"
   | NPat_ignore -> "_"
 

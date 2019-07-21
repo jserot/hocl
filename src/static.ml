@@ -145,10 +145,10 @@ let rec net_matching toplevel nenv npat r = match npat.np_desc, r with
   | NPat_tuple ps, SVTuple rs when List.length ps = List.length rs ->
       let nenvs, ws = List.split (List.map2 (net_matching toplevel nenv) ps rs) in
       List.concat nenvs, List.concat ws
-  | NPat_list ps, SVList rs when List.length ps = List.length rs ->
+  | NPat_bundle ps, SVList rs when List.length ps = List.length rs ->
       let nenvs, ws = List.split (List.map2 (net_matching toplevel nenv) ps rs) in
       List.concat nenvs, List.concat ws
-  | NPat_list ps, SVCons _ ->
+  | NPat_bundle ps, SVCons _ ->
       net_matching toplevel nenv npat (list_of_cons r)
   | NPat_unit, _ -> [], []
   | NPat_ignore, _ -> [], []
@@ -169,6 +169,8 @@ let rec matching pat v = match pat.np_desc, v with
       env1 @ env2
   | NPat_cons _, SVList _ ->
       matching pat (cons_of_list v)
+  | NPat_cons _, SVTuple vs ->
+     matching pat (cons_of_list (SVList vs))
   | _, _ -> raise Matching_fail
 
 (* Rule: NE |- NExp => rho,B,W *)
@@ -192,13 +194,13 @@ let rec eval_net_expr tp nenv expr =
       let v1, bs1, ws1 = eval_net_expr tp nenv e1 in
       let v2, bs2, ws2 = eval_net_expr tp nenv e2 in
       SVCons (v1,v2), bs1@bs2, ws1@ws2
-  | NList es ->
+  | NBundle es ->
       let rs, bs, ws = List.fold_right
           (fun e (rs,bs,ws) -> let r',bs',ws' = eval_net_expr tp nenv e in (r'::rs,bs'@bs,ws'@ws))
           es
           ([],[],[]) in
       SVList rs, bs, ws
-  | NListElem (l,i) ->
+  | NBundleElem (l,i) ->
       let v1, bs1, ws1 = eval_net_expr tp nenv l in
       let v2, bs2, ws2 = eval_net_expr tp nenv i in
       eval_list_access expr.ne_loc v1 v2, bs1@bs2, ws1@ws2
@@ -408,7 +410,14 @@ and instanciate_actor tp nenv loc a args =
       (fun i p -> match p with (id,ty,Some v) -> mk_wire true (l,i) v | _ -> illegal_application loc)
       a.sa_params in
   let np = List.length a.sa_params in
-  match tyins', a.sa_ins, tyouts', a.sa_outs, args with
+  let args' = match tyins', args with
+    | ts, SVCons _ when List.length ts > 1 ->  (* Bundle to tuple conversion *)
+       begin match list_of_cons args with
+       | SVList vs when List.length vs = List.length ts -> SVTuple vs
+       | _ -> illegal_application loc
+       end
+    | _, _ -> args in
+  match tyins', a.sa_ins, tyouts', a.sa_outs, args' with
   | [], [_], [], [_], SVUnit ->                                                 (* APP_0_0 *)
      SVUnit,
      [l,b],
