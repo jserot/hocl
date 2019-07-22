@@ -39,6 +39,9 @@ type static_env = (string * ss_val) list
 type box_tag = 
     ActorB
   | BcastB
+  | SourceB
+  | SinkB
+  | GraphB
   | ParamB 
   | DummyB  (* Temporary boxes used for handling recursive defns *)
 
@@ -115,9 +118,13 @@ let no_bval =
           
 let new_box kind name ty params ins outs =
   let bid = new_bid () in
-  bid, { b_id=bid;
-         b_tag=(match kind with A_Regular -> ActorB | A_Bcast -> BcastB);
-         b_name=name; b_params=params; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
+  let tag = match kind with A_Regular -> ActorB | A_Bcast -> BcastB | A_Graph -> GraphB in
+  bid, { b_id=bid; b_tag=tag; b_name=name; b_params=params; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
+
+let new_io_box kind name ty (*params*) =
+  let bid = new_bid () in
+  let tag = match kind with Io_src -> SourceB | Io_snk -> SinkB in
+  bid, { b_id=bid; b_tag=tag; b_name=name; b_params=[](*params*); b_ins=[]; b_outs=[]; b_typ=ty; b_val=no_bval }
 
 let new_param_box name ty v =
   let bid = new_bid () in
@@ -240,15 +247,15 @@ let rec eval_net_expr tp nenv expr =
       v', bs'@bs'', ws'@ws''
 
 and eval_net_application tp (bs,ws) nenv loc val_fn val_arg ty_arg = 
-  match val_fn with
-  | SVPrim f -> f val_arg, [], []
-  | SVClos {cl_pat=npat; cl_exp=nexp; cl_env=nenv'} ->   (* RULE NAPP CLO *)
+  match val_fn, val_arg with
+  | SVPrim f, _ -> f val_arg, [], []
+  | SVClos {cl_pat=npat; cl_exp=nexp; cl_env=nenv'}, _ ->   (* RULE NAPP CLO *)
       let nenv'', _ =
         begin try net_matching false [] npat val_arg
         with Matching_fail -> binding_error npat.np_loc
         end in
       eval_net_expr tp (nenv'' @ nenv') nexp
-  | SVAct a ->
+  | SVAct a, _ ->
      begin match a.sa_params with
      | [] ->
         (* Actor with all parameter values set *)
@@ -277,7 +284,16 @@ and eval_net_application tp (bs,ws) nenv loc val_fn val_arg ty_arg =
      | _ ->
         illegal_application loc
      end
-  | _ ->
+  | SVLoc (l, s, TyArrow(ty, ty'), SVUnit), _ when is_unit_type ty -> (* Special case for source boxes *)
+     SVLoc (l, s, ty', SVUnit),
+     [],
+     []
+  | SVLoc (l, s, TyArrow(ty, ty'), SVUnit), SVLoc (l1,s1,_,_) when is_unit_type ty' -> (* Special case for sink boxes *)
+     let w = ((l1,s1),(l,s)), ty, false in
+     SVUnit,
+     [],
+     [new_wid(),w]
+  | _, _ ->
      illegal_application loc
 
 (* Rule TE,EE,NE |- let/net [rec] npat1=nexp1 ... npatn=nexpn => NE', B, W *)
@@ -506,8 +522,6 @@ let eval_net_decl tp (nenv,boxes,wires) { nd_desc = isrec, defns; nd_loc=loc } =
   boxes @ boxes',
   wires @ wires'
 
-(* RULE |- IoDecl => NE,B *)
-
 let subst_deps names e =
   let rec subst e = match e.ne_desc with
   | NVar v ->
@@ -555,6 +569,11 @@ and extract_dep_params tp env e =
   | NTuple es -> List.concat (List.map extract es)
   | _ -> invalid_param_expr e.ne_loc in
   extract e
+
+let rec eval_io_decl tp nenv (ne,bs,ws) { io_desc=kind,id,ty; io_loc=loc } =
+  let ty = List.assoc id tp.tp_ios in
+  let l, b = new_io_box kind id ty in
+  (id,SVLoc (l,0,ty,SVUnit)) :: ne, (l,b) :: bs, ws
     
 (* RULE W |- B => B' *)
 
@@ -681,8 +700,7 @@ let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * bool)) list) (
   try
     bid,
     (match b.b_tag with
-     | ActorB
-     | BcastB ->
+     | ActorB | BcastB | SourceB | SinkB | GraphB ->
         { b with
           b_ins = List.mapi
                         (fun sel (id,(_,ty,ann)) -> id, (find_src_wire wires bid sel, ty, ann))
@@ -736,15 +754,16 @@ let collect_actor_insts name boxes =
   
 let build_static tp senv p =
   let senv_p, bs_p, ws_p = List.fold_left (eval_param_decl tp senv) ([],[],[]) p.params in
+  let senv_i, bs_i, ws_i = List.fold_left (eval_io_decl tp senv_p) ([],[],[]) p.ios in
   let actors  = List.map (build_actor_desc tp) p.actors in
   let senv_a = List.map (fun (id,a) -> id, SVAct a) actors in
   let ne', bs', ws' =
     List.fold_left
       (eval_net_decl tp)
-      (senv_p @ senv_a @ senv, [], [])
+      (senv_p @ senv_i @ senv_a @ senv, [], [])
       p.defns in
-  let ws'' = ws' @ ws_p in
-  let bs'' = List.map (update_wids ws'') (bs' @ bs_p) in
+  let ws'' = ws' @ ws_p @ ws_i in
+  let bs'' = List.map (update_wids ws'') (bs' @ bs_p @ bs_i) in
   { nvals = ne';
     boxes = bs'';
     wires = ws'';
@@ -803,10 +822,19 @@ let print_actor (id,ac) =
     (Misc.string_of_list string_of_typed_io ","  a.sa_outs)
     (Misc.string_of_list (function bid -> "B" ^ string_of_int bid) "," ac.sa_insts)
 
+let box_prefix b = match b.b_tag with
+    BcastB -> "Y"
+  | SourceB -> "I"
+  | SinkB -> "O"
+  | ActorB -> "B"
+  | DummyB -> "D"
+  | ParamB -> "P"
+  | GraphB -> "G"
+
 let print_box (i,b) =
   Pr_type.reset_type_var_names ();
   Printf.printf "%s%d: %s (ins=[%s] outs=[%s] %s)\n"
-        (match b.b_tag with BcastB -> "Y" | ActorB -> "B" | DummyB -> "D" | ParamB -> "P")
+        (box_prefix b)
         i
         b.b_name
         (Misc.string_of_list string_of_typed_bin ","  b.b_ins)

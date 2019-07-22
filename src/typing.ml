@@ -269,6 +269,13 @@ let type_param_decl tenv { pd_desc=(id,te,e); pd_loc=loc } =
   try_unify "parameter" ty ty' loc;
   (id, (* type_param *) ty)
 
+let type_io_decl tenv { io_desc=(kind,id,te); io_loc=loc } =
+  let ty = type_of_type_expression tenv te in
+  let ty' = match kind with
+  | Io_src -> type_arrow type_unit ty
+  | Io_snk -> type_arrow ty type_unit in
+  (id, ty')
+
 (* Typing top-level net defns *)
   
 let type_net_defn tenv { nd_desc=d } = match d with
@@ -279,6 +286,7 @@ let type_net_defn tenv { nd_desc=d } = match d with
 
 type typed_program = {
   (* tp_types: (string * type_desc) list;     (\* Type constructors *\) *)
+  tp_ios: (string * typ) list;
   tp_params: (string * typ) list;
   tp_actors: (string * typed_actor) list;
   tp_defns: (string * typ_scheme) list;
@@ -286,24 +294,29 @@ type typed_program = {
 
 let rec type_program tenv p = 
   let typed_types = List.map (type_type_decl tenv) p.types in
-  let tenv' = { tenv with te_types = tenv.te_types @ typed_types } in 
-  let typed_params, tenv'' =
+  let tenv_t = { tenv with te_types = tenv.te_types @ typed_types } in 
+  let typed_params, tenv_p =
     List.fold_left
       (fun (tps,tenv) p ->
         let id, ty = type_param_decl tenv p in
         (id,ty)::tps, { tenv with te_values = tenv.te_values @ [id, generalize [] ty] })
-      ([], tenv')
+      ([], tenv_t)
       p.params in
-  let typed_actors =  List.map (type_actor_decl tenv'') p.actors in
-  let tenv''' = { tenv'' with te_values = List.map (function (id,a) -> id,a.at_sig) typed_actors @ tenv.te_values } in
+  let typed_ios = List.map (type_io_decl tenv_p) p.ios in
+  let typed_actors =  List.map (type_actor_decl tenv_p) p.actors in
+  let tenv_d = {
+      tenv_p with te_values = List.map (fun (id,ty) -> id, generalize [] ty) typed_ios
+                              @ List.map (function (id,a) -> id,a.at_sig) typed_actors
+                              @ tenv.te_values } in
   let typed_defns =
     List.fold_left
       (fun env d ->
-        let env' = type_net_defn { tenv'' with te_values = tenv''.te_values @ env } d in
+        let env' = type_net_defn { tenv_d with te_values = tenv_d.te_values @ env } d in
         env @ env')
-      tenv'''.te_values
+      tenv_d.te_values
       p.defns in
   { tp_params = typed_params;
+    tp_ios = typed_ios;
     tp_actors = typed_actors;
     tp_defns = typed_defns }
 
@@ -312,9 +325,14 @@ let rec type_program tenv p =
 let rec dump_typed_program builtins tp =
   Printf.printf "Typed program ---------------\n";
   List.iter dump_typed_actor tp.tp_actors;
+  List.iter dump_typed_io tp.tp_ios;
   List.iter dump_typed_param tp.tp_params;
   List.iter (dump_typed_value builtins) tp.tp_defns;
   Printf.printf "----------------------------------\n"
+
+and dump_typed_io (name, ty) =
+  Printf.printf "io %s : %s\n" name (Pr_type.string_of_type ty);
+  flush stdout
 
 and dump_typed_param (name, ty) =
   Printf.printf "parameter %s : %s\n" name (Pr_type.string_of_type ty);

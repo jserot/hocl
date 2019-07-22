@@ -41,9 +41,12 @@
 %token TY_BOOL        (* "bool"*)
 %token TY_UNIT        (* "unit"*)
 %token BCAST          (* "bcast"*)
+%token GRAPH          (* "graph"*)
 %token ACTOR          (* "actor"*)
 %token PARAMETER      (* "parameter"*)
 %token PARAM          (* "param"*)
+%token SOURCE         (* "source"*)
+%token SINK           (* "sink"*)
 %token FUN            (* "function"*)
 %token MATCH          (* "match"*)
 %token WITH           (* "with"*)
@@ -94,6 +97,7 @@ let mk_location (p1,p2) =
 let mk_type_decl l desc = { td_desc = desc; td_loc = mk_location l }
 let mk_pragma_decl l desc = { pr_desc = desc; pr_loc = mk_location l }
 let mk_param_decl l desc = { pd_desc = desc; pd_loc = mk_location l }
+let mk_io_decl l desc = { io_desc = desc; io_loc = mk_location l }
 let mk_actor_decl l desc = { ad_desc = desc; ad_loc = mk_location l }
 let mk_type_expr l desc = { te_desc = desc; te_loc = mk_location l; te_typ = Types.no_type}
 let mk_net_defn l desc = { nd_desc = desc; nd_loc = mk_location l }
@@ -117,18 +121,21 @@ let mk_infix l (op,l') e1 e2 = mk_apply l (mk_net_expr l' (NVar op)) [e1; e2]
 type decl =
   | TyDecl of Syntax.type_decl
   | ParamDecl of Syntax.param_decl
+  | IoDecl of Syntax.io_decl
   | ActorDecl of Syntax.actor_decl
   | NetDefn of Syntax.net_defn
   | PragmaDecl of Syntax.pragma_decl
 
 let is_type_decl = function TyDecl _ -> true | _ -> false             
 let is_param_decl = function ParamDecl _ -> true | _ -> false             
+let is_io_decl = function IoDecl _ -> true | _ -> false             
 let is_actor_decl = function ActorDecl _ -> true | _ -> false             
 let is_net_defn  = function NetDefn _ -> true | _ -> false             
 let is_pragma_decl = function PragmaDecl _ -> true | _ -> false             
 
 let type_decl_of = function TyDecl d -> d | _ -> Misc.fatal_error "Parser.type_decl_of"             
 let param_decl_of = function ParamDecl d -> d | _ -> Misc.fatal_error "Parser.param_decl_of"             
+let io_decl_of = function IoDecl d -> d | _ -> Misc.fatal_error "Parser.io_decl_of"             
 let actor_decl_of = function ActorDecl d -> d | _ -> Misc.fatal_error "Parser.actor_decl_of"             
 let net_defn_of  = function NetDefn d -> d | _ -> Misc.fatal_error "Parser.net_defn_of"             
 let pragma_decl_of = function PragmaDecl d -> d | _ -> Misc.fatal_error "Parser.pragma_decl_of"             
@@ -170,6 +177,7 @@ program:
   | decls = my_list(decl) EOF
       { { Syntax.types = decls |> List.filter is_type_decl |> List.map type_decl_of;
           Syntax.params = decls |> List.filter is_param_decl |> List.map param_decl_of;
+          Syntax.ios = decls |> List.filter is_io_decl |> List.map io_decl_of;
           Syntax.actors = decls |> List.filter is_actor_decl |> List.map actor_decl_of;
           Syntax.defns = decls |> List.filter is_net_defn |> List.map net_defn_of;
           Syntax.pragmas = decls |> List.filter is_pragma_decl |> List.map pragma_decl_of } 
@@ -181,6 +189,7 @@ decl:
     d = type_decl SEMI { TyDecl d }
   | d = param_decl SEMI { ParamDecl d }
   | d = actor_decl SEMI { ActorDecl d }
+  | d = io_decl SEMI { IoDecl d }
   | d = net_defn SEMI { NetDefn d }
   | d = pragma { PragmaDecl d }
           
@@ -196,6 +205,16 @@ param_decl:
   | PARAMETER id=IDENT COLON ty=simple_type_expr EQUAL e=net_expr
       { mk_param_decl $loc (id,ty,e) }
 
+(* SOURCE/SINK DECLARATION *)
+
+io_decl:
+  | kind=io_kind id=IDENT COLON ty=simple_type_expr
+      { mk_io_decl $loc (kind,id,ty) }
+
+io_kind:
+  | SOURCE { Io_src }
+  | SINK { Io_snk }
+
 (* ACTOR DECLARATION *)
 
 actor_decl:
@@ -206,6 +225,7 @@ actor_decl:
 actor_kind:
   | ACTOR { A_Regular }
   | BCAST { A_Bcast }
+  | GRAPH { A_Graph }
     
 actor_params:
   | (* Nothing *) { [] }

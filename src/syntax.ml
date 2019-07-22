@@ -30,6 +30,7 @@ and type_expression_desc =
 type program =
   { types: type_decl list;
     params: param_decl list ;
+    ios: io_decl list ;
     actors: actor_decl list ;
     defns: net_defn list;
     pragmas: pragma_decl list }
@@ -46,6 +47,13 @@ and param_decl =
 and pdecl_desc = string * type_expression * net_expr             (* Name, type, initial value *)
   (* Note: ideally, parameter expressions should be a strict subset of network expression *)
 
+and io_decl =
+  { io_desc: io_desc;
+    io_loc: location }
+and io_desc = io_kind * string * type_expression            (* Name, type *)
+
+and io_kind = Io_src | Io_snk
+
 and actor_decl = 
   { ad_desc: actor_desc;
     ad_loc: location }
@@ -58,7 +66,7 @@ and actor_desc = {
     a_outs: (string * type_expression * io_annot) list;
   }
 
-and actor_kind = A_Regular | A_Bcast
+and actor_kind = A_Regular | A_Bcast | A_Graph
                            
 (* and io_annot = net_expr *)
 and io_annot = string
@@ -121,16 +129,20 @@ let is_fun_definition = function
   { nb_desc={np_desc=NPat_var _}, {ne_desc=NFun (_,_)} } -> true
 | _ -> false
 
+let is_src_decl = function { io_desc=Io_src,_,_ } -> true | _ -> false
+let is_snk_decl = function { io_desc=Io_snk,_,_ } -> true | _ -> false
+
 (* let no_annot = { ne_desc=NUnit; ne_loc=Location.no_location; ne_typ=Types.no_type } *)
 let no_annot = ""
 
 (* Program manipulation *)
 
-let empty_program = { types=[]; params=[]; actors=[]; defns=[]; pragmas=[] }
+let empty_program = { types=[]; params=[]; ios=[]; actors=[]; defns=[]; pragmas=[] }
 
 let add_program p1 p2 = { (* TODO : Flag redefinitions ? *)
     types= p1.types @ p2.types;
     params= p1.params @ p2.params;
+    ios= p1.ios @ p2.ios;
     actors= p1.actors @ p2.actors;
     defns= p1.defns @ p2.defns;
     pragmas= p1.pragmas @ p2.pragmas;
@@ -196,7 +208,7 @@ let string_of_io_annot s = s
 
 let string_of_actor_io (id,ty,ann) = id ^ ": " ^ string_of_ty_expr ty ^ string_of_io_annot ann
                                
-let string_of_actor_kind = function A_Regular -> "actor" | A_Bcast -> "bcast"
+let string_of_actor_kind = function A_Regular -> "actor" | A_Bcast -> "bcast" | A_Graph -> "graph"
 
 let string_of_actor_decl d =
   let a = d.ad_desc in

@@ -21,6 +21,7 @@ type dot_config = {
     mutable labeled_edges: bool;
     mutable show_indexes: bool;
     mutable param_box_shape: string;
+    mutable srcsnk_box_shape: string;
     mutable slotted_boxes: bool;
     mutable show_wire_annots: bool;
     mutable rank_dir: string
@@ -29,7 +30,8 @@ type dot_config = {
 let cfg = {
   labeled_edges = true;
   show_indexes = false;
-  param_box_shape = "hexagon";
+  param_box_shape = "invhouse";
+  srcsnk_box_shape = "cds";
   slotted_boxes = true;
   show_wire_annots = false;
   rank_dir = "LR"
@@ -75,6 +77,13 @@ let output_box ch (i,b) =
           (ioslots "s" (List.length b.b_outs))
       else
         fprintf ch "n%d [shape=box,style=rounded,label=\"%s\"];\n" i  bid
+  | GraphB ->
+        fprintf ch "n%d [shape=box,label=\"%s\"];\n" i  bid
+  | SourceB | SinkB -> 
+     fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
+       i
+       cfg.srcsnk_box_shape
+       bid
   | ParamB -> 
      fprintf ch "n%d [shape=%s,label=\"%s\n(%s)\"];\n"
        i

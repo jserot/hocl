@@ -21,7 +21,7 @@ open Static
 
 exception Toplevel
  
-let usage = "usage: hoclc [options...] file"
+let usage = "usage: hoclc [options...] files"
 
 let anonymous fname = source_files := !source_files @ [fname]
 

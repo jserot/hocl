@@ -33,6 +33,9 @@ let keyword_table = [
   "actor", ACTOR;
   "parameter", PARAMETER;
   "param", PARAM;
+  "source", SOURCE;
+  "sink", SINK;
+  "graph", GRAPH;
   "fun", FUN;
   "let", LET;
   "and", AND;
