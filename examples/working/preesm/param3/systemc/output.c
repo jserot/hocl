@@ -1,1 +1,1 @@
-../code/src/output.c
+../src/output.c

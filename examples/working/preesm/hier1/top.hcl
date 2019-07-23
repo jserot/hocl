@@ -2,8 +2,9 @@
 
 type int;
 
-#pragma code("inp", "../code/include/input.h", "input", "inputInit")
-#pragma code("outp", "../code/include/output.h", "output", "outputInit")
+#pragma code("inp", "include/input.h", "input", "inputInit")
+#pragma code("outp", "include/output.h", "output", "outputInit")
+#pragma code("sub", "sub.hcl")
 
 actor inp in () out(o: int);
 graph sub in (i: int) out (o: int);

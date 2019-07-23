@@ -700,7 +700,7 @@ let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * bool)) list) (
   try
     bid,
     (match b.b_tag with
-     | ActorB | BcastB | SourceB | SinkB | GraphB ->
+     | ActorB | BcastB | GraphB ->
         { b with
           b_ins = List.mapi
                         (fun sel (id,(_,ty,ann)) -> id, (find_src_wire wires bid sel, ty, ann))
@@ -708,6 +708,10 @@ let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * bool)) list) (
           b_outs = List.mapi
                       (fun sel (id,(_,ty,ann)) -> id, (find_dst_wire wires bid sel, ty, ann))
                       (List.filter (fun (id,(_,ty,_)) -> not (is_unit_type ty)) b.b_outs) }
+     | SourceB -> 
+        { b with b_outs = add_source_outputs wires b.b_name bid }
+     | SinkB -> 
+        { b with b_ins = add_sink_inputs wires b.b_name bid }
      | ParamB -> 
         { b with
           b_ins = add_param_inputs wires bid;
@@ -716,6 +720,25 @@ let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * bool)) list) (
         Misc.fatal_error "Static.update_wids" (* should not happen *))
   with
     BoxWiring (what,bid,sel) -> invalid_box_wiring what b.b_name sel
+
+and add_source_outputs wires bname bid =
+  let ws =
+    List.filter
+      (function (wid, (((s,ss),(d,ds)), ty, _)) -> s=bid && ss=0)
+      wires in
+  match ws with
+    [] -> []
+  | (_,(_,ty,_))::_ -> [bname, (List.map fst ws, ty, no_annot)]
+
+and add_sink_inputs wires bname bid =
+  let ws =
+    List.filter
+      (function (wid, (((s,ss),(d,ds)), ty, _)) -> d=bid && ds=0)
+      wires in
+  match ws with
+    [] -> []
+  | [(wid,(_,ty,_))] -> [bname, (wid, ty, no_annot)]
+  | _ -> List.mapi (fun i (wid,(_,ty,_)) -> bname ^ string_of_int (i+1), (wid, ty, no_annot)) ws
 
 and add_param_inputs wires bid =
   let ws =

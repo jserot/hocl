@@ -1,8 +1,8 @@
 SC_DIR		= /usr/local/systemc-2.3.1
 SC_CXX      = g++
 SC_LD	 	= g++
-CXXFLAGS  += -I../code/include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
-SC_CXXFLAGS  += -I../../../../../lib/systemc -I../code/include -I$(SC_DIR)/include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
+CXXFLAGS  += -I../include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
+SC_CXXFLAGS  += -I../../../../../lib/systemc -I../include -I$(SC_DIR)/include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
 LDFLAGS	    = -L$(SC_DIR)/lib-macosx64
 
 CPP_SRCS = inp_act.cpp outp_act.cpp foo_act.cpp main_top.cpp
@@ -33,9 +33,9 @@ inp_act.o: inp_act.cpp
 outp_act.o: outp_act.cpp
 foo_act.o: foo_act.cpp
 main_top.o: main_top.cpp
-input.o: ../code/src/input.c
-output.o: ../code/src/output.c
-foo.o: ../code/src/foo.c
+input.o: input.c
+output.o: output.c
+foo.o: foo.c
 
 clean:
 	\rm -f $(GEN_SRCS) 

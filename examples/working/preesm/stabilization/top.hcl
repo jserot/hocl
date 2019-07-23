@@ -10,7 +10,7 @@ parameter displaySize: nat = displayHeight*displayWidth;
 
 #pragma code("ReadYUV", "include/yuvRead.h", "readYUV", "initReadYUV")
 #pragma code("DisplayYUV", "include/yuvDisplay.h", "yuvDisplay", "yuvDisplayInit")
-#pragma code("Stabilization", "include/stabilization.h", "stabilize") -- TO BE REMOVED WHEN REFINING
+#pragma code("Stabilization", "stabilization.hcl")
 #pragma code("MD5", "include/md5.h", "MD5_Update")
 #pragma code("WriteYUV", "include/yuvWrite.h", "yuvWrite", "initYUVWrite")
 
@@ -26,7 +26,7 @@ actor DisplayYUV
   out ()
 ;
 
-actor Stabilization
+graph Stabilization
   param (width: nat, height: nat, border: nat)
   in (y: uchar "height*width",
       u: uchar "height/2*width/2",

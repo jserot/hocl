@@ -311,7 +311,7 @@ let rec type_program tenv p =
   let typed_defns =
     List.fold_left
       (fun env d ->
-        let env' = type_net_defn { tenv_d with te_values = tenv_d.te_values @ env } d in
+        let env' = type_net_defn { tenv_p with te_values = tenv_p.te_values @ env } d in
         env @ env')
       tenv_d.te_values
       p.defns in

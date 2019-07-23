@@ -121,6 +121,10 @@ let rec map_succ f = function
 let loopback = function [] -> [] | x::xs -> (x::xs)@[x]
 
 let file_prefix f = Filename.remove_extension (Filename.basename f)
+
+let replace_suffix ?(sep='.') s f =
+    let i = String.rindex f sep in
+    String.sub f 0 (i+1) ^ s 
                   
 let check_dir name = 
       if not (Sys.file_exists name && Sys.is_directory name) then begin

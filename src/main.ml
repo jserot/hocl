@@ -50,26 +50,27 @@ let compile p =
   if Options.cfg.dump_static then dump_static sp;
   sp
 
-let mk_fname suff = Options.cfg.target_dir ^ "/" ^ Options.cfg.output_prefix ^ suff
+(* let mk_fname suff = Options.cfg.target_dir ^ "/" ^ Options.cfg.output_prefix ^ suff *)
+let mk_fname pfx sfx = Options.cfg.target_dir ^ "/" ^ pfx ^ sfx
 
-let output sp = 
+let output pfx sp = 
   begin match Options.cfg.output_fmt with
   | NoOutput -> ()
   | Dot ->
      check_dir Options.cfg.target_dir;
-     let fname = mk_fname ".dot" in
+     let fname = mk_fname pfx ".dot" in
      Dot.dump fname sp
   | Preesm ->
      check_dir Options.cfg.target_dir;
-     let fname = mk_fname ".pi" in
+     let fname = mk_fname pfx ".pi" in
      Preesm.dump fname sp
   | Xdf ->
      check_dir Options.cfg.target_dir;
-     let fname = mk_fname ".xdf" in
+     let fname = mk_fname pfx ".xdf" in
      Xdf.dump fname sp
   | Systemc ->
      check_dir Options.cfg.target_dir;
-     let top_fname = mk_fname "_top.cpp" in
+     let top_fname = mk_fname pfx "_top.cpp" in
      Systemc.dump_top_module Options.cfg.output_prefix top_fname sp;
      List.iter (Systemc.dump_actor Options.cfg.target_dir Options.cfg.output_prefix sp) sp.gacts;
      List.iter (Systemc.dump_param Options.cfg.target_dir Options.cfg.output_prefix sp) sp.gparams
@@ -78,6 +79,19 @@ let output sp =
      (* if !Misc.generate_makefiles then Genmake.dump_systemc_makefile () *)
     end
 
+let process_file f =
+  Printf.printf "Processing file %s\n" f; flush stdout;
+  let fs = if Options.cfg.prelude <> "" then [ Options.cfg.prelude; f ] else [f] in
+  let p = 
+    List.fold_left
+      (fun p f -> Syntax.add_program p (parse f))
+      Syntax.empty_program
+      fs in
+  (* Syntax.dump_program p; *)
+  let sp = compile p in
+  let pfx = Misc.file_prefix f in
+  output pfx sp
+
 let main () =
 try
   Sys.catch_break true;
@@ -85,18 +99,10 @@ try
   print_banner ();
   if Options.cfg.dump_tenv then Builtins.dump_typing_environment ();
   if Options.cfg.dump_senv then Builtins.dump_static_environment ();
-  if Options.cfg.output_prefix = "" then
-    Options.cfg.output_prefix <- Misc.file_prefix (List.hd (List.rev !source_files));
+  (* if Options.cfg.output_prefix = "" then
+   *   Options.cfg.output_prefix <- Misc.file_prefix (List.hd (List.rev !source_files)); *)
   Logfile.start ();
-  if Options.cfg.prelude <> "" then source_files := Options.cfg.prelude :: !source_files;
-  let p =
-    List.fold_left
-      (fun p f -> Syntax.add_program p (parse f))
-      Syntax.empty_program
-      !source_files in
-  (* Syntax.dump_program p; *)
-  let sp = compile p in
-  output sp;
+  List.iter process_file !source_files;
   Logfile.stop ()
 with
   Parser.Error ->

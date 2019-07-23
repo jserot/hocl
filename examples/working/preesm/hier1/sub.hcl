@@ -2,13 +2,13 @@
 
 type int;
 
-#pragma code("foo", "../code/include/foo.h", "foo")
-#pragma code("bar", "../code/include/foo.h", "bar")
+#pragma code("foo", "include/foo.h", "foo")
+#pragma code("bar", "include/foo.h", "bar")
 
 source i: int;
 sink o: int;
 
 actor foo in (i: int) out (o: int);
-actor bar in (i: int) out (o: int);
+actor bar in (e: int) out (s: int);
 
 let _ = i |> foo >> bar >> o;
