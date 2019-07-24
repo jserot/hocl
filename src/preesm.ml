@@ -101,7 +101,7 @@ let lookup_wire wires wid =
       try List.assoc wid wires
       with Not_found -> Misc.fatal_error "Preesm.lookup_wire"
 
-let is_param_box b = b.b_tag = ParamB
+let is_param_box b = b.b_tag = LocalParamB || b.b_tag = InParamB
 
 let output_actor_box_io oc dir is_config id ty =                            
   fprintf oc "          <param direction=\"%s\" isConfig=\"%s\" name=\"%s\" type=\"%s\"/>\n"
@@ -195,8 +195,10 @@ let output_actor_box oc sp (i,b) =
 
 let output_parameter oc sp (i,b) =
   match b.b_tag, b.b_val with
-  | ParamB, v ->
+  | LocalParamB, v ->
      fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (string_of_expr v.bv_lit) b.b_name 
+  | InParamB, _ ->
+     fprintf oc "    <node id=\"%s\" kind=\"cfg_in_iface\"/>\n" b.b_name 
   | _ -> ()
 
 let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
@@ -204,14 +206,14 @@ let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
     let b = lookup_box sp.boxes s in
     match b.b_tag with
     | ActorB | BcastB | GraphB -> box_name sp (s,b), fst (List.nth b.b_outs ss)
-    | ParamB  -> box_name sp (s,b), ""
+    | LocalParamB | InParamB  -> box_name sp (s,b), ""
     | SourceB -> box_name sp (s,b), box_name sp (s,b)
     | _ -> Misc.fatal_error "Preesm.output_connexion" in
   let dst_name, dst_slot =
     let b = lookup_box sp.boxes d in
     match b.b_tag with
     | ActorB | BcastB | GraphB -> box_name sp (d,b), fst (List.nth b.b_ins ds)
-    | ParamB -> box_name sp (d,b), ""
+    | LocalParamB -> box_name sp (d,b), ""
     | SinkB -> box_name sp (d,b), box_name sp (d,b) 
     | _ -> Misc.fatal_error "Preesm.output_connexion" in
   let mk_field name v = if v = "" then "" else Printf.sprintf "%s=\"%s\"" name v in

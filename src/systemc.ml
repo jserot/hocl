@@ -414,7 +414,7 @@ and dump_box sp oc (i,b) =
       fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
       List.iter (dump_box_input oc bname) b.b_ins;
       List.iter (dump_box_output oc bname) b.b_outs
-  | ParamB ->
+  | LocalParamB ->
       let modname = bname ^ cfg.sc_param_suffix in
       fprintf oc "  %s %s(\"%s\");\n"
         modname

@@ -42,7 +42,8 @@ type box_tag =
   | SourceB
   | SinkB
   | GraphB
-  | ParamB 
+  | LocalParamB 
+  | InParamB 
   | DummyB  (* Temporary boxes used for handling recursive defns *)
 
 and ss_box = {
@@ -126,9 +127,10 @@ let new_io_box kind name ty (*params*) =
   let tag = match kind with Io_src -> SourceB | Io_snk -> SinkB in
   bid, { b_id=bid; b_tag=tag; b_name=name; b_params=[](*params*); b_ins=[]; b_outs=[]; b_typ=ty; b_val=no_bval }
 
-let new_param_box name ty v =
+let new_param_box name kind ty v =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=ParamB; b_name=name; b_params=[]; b_ins=[]; b_outs=[]; b_typ=ty; b_val=v }
+  let tag = match kind with P_Input -> InParamB | P_Local -> LocalParamB in
+  bid, { b_id=bid; b_tag=tag; b_name=name; b_params=[]; b_ins=[]; b_outs=[]; b_typ=ty; b_val=v }
 
 let new_dummy_box name ty =
   let bid = new_bid () in
@@ -536,24 +538,29 @@ let subst_deps names e =
   in
   subst e
   
-let rec eval_param_decl tp nenv (ne,bs,ws) { pd_desc=id,_,e; pd_loc=loc } =
-  match eval_net_expr tp (nenv @ ne) e with
-  | v, _, _' when is_valid_param_value v -> 
-     let ty = List.assoc id tp.tp_params in
-     let dep_params = extract_dep_params tp ne e in 
-     let bv = {
-         bv_lit = e;
-         bv_sub = subst_deps (List.map fst dep_params) e;
-         bv_val = v } in
-     let l, b = new_param_box id ty bv in
-     let ws' =
-       List.map 
-         (function
-          | id, SVLoc (l',s',ty,_) -> new_wid (), (((l',s'),(l,0)),ty,true)
-          | _, _ -> invalid_param_value id loc)
-         dep_params in
-     (id,SVLoc (l,0,ty,v)) :: ne, (l,b) :: bs, ws'@ws
-  | _ -> invalid_param_value id loc
+let rec eval_param_decl tp nenv (ne,bs,ws) { pd_desc=id,kind,ty,e; pd_loc=loc } =
+  let ty = List.assoc id tp.tp_params in
+  let bv, dep_params = match kind with
+    | P_Local ->
+       begin
+         match eval_net_expr tp (nenv @ ne) e with
+         | v, _, _' when is_valid_param_value v -> 
+            let dep_params = extract_dep_params tp ne e in 
+            { bv_lit = e;
+              bv_sub = subst_deps (List.map fst dep_params) e;
+              bv_val = v }, dep_params
+         | _ -> invalid_param_value id loc
+       end
+    | P_Input ->
+       no_bval, [] in
+  let l, b = new_param_box id kind ty bv in
+  let ws' =
+    List.map 
+      (function
+       | id, SVLoc (l',s',ty,_) -> new_wid (), (((l',s'),(l,0)),ty,true)
+       | _, _ -> invalid_param_value id loc)
+      dep_params in
+  (id,SVLoc (l,0,ty,bv.bv_val)) :: ne, (l,b) :: bs, ws'@ws
 
 and extract_dep_params tp env e =
   let rec extract e = match e.ne_desc with
@@ -626,7 +633,7 @@ and update_wires s' j wires wid =
 
 let insert_bcast_after (boxes,wires) (bid,box) = 
   match box.b_tag with
-    ParamB ->
+    LocalParamB | InParamB ->
       (* Do not insert bcasts after parameters (?) *)
       boxes, wires
   | _ ->
@@ -712,7 +719,7 @@ let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * bool)) list) (
         { b with b_outs = add_source_outputs wires b.b_name bid }
      | SinkB -> 
         { b with b_ins = add_sink_inputs wires b.b_name bid }
-     | ParamB -> 
+     | LocalParamB | InParamB -> 
         { b with
           b_ins = add_param_inputs wires bid;
           b_outs = add_param_outputs wires bid }
@@ -794,7 +801,10 @@ let build_static tp senv p =
       List.map
         (fun (id,a) -> id, { sa_desc=a; sa_insts=collect_actor_insts id bs'})
         actors;
-    gparams = List.map (fun (_,b) -> b.b_name, b) (List.filter (fun (_,b) -> b.b_tag=ParamB) bs'');
+    gparams =
+      List.map
+        (fun (_,b) -> b.b_name, b)
+        (List.filter (fun (_,b) -> b.b_tag=LocalParamB || b.b_tag=InParamB) bs'');
     pragmas = List.map (fun d -> d.Syntax.pr_desc) p.pragmas }
   |> (if cfg.insert_bcasts then insert_bcasters else Misc.id)
   (* |> (if cfg.insert_fifos then insert_fifos else Misc.id) *)
@@ -851,7 +861,8 @@ let box_prefix b = match b.b_tag with
   | SinkB -> "O"
   | ActorB -> "B"
   | DummyB -> "D"
-  | ParamB -> "P"
+  | LocalParamB -> "L"
+  | InParamB -> "P"
   | GraphB -> "G"
 
 let print_box (i,b) =
@@ -862,7 +873,7 @@ let print_box (i,b) =
         b.b_name
         (Misc.string_of_list string_of_typed_bin ","  b.b_ins)
         (Misc.string_of_list string_of_typed_bout ","  b.b_outs)
-        (match b.b_tag with ParamB -> "val=" ^ string_of_net_expr b.b_val.bv_lit | _ -> "")
+        (match b.b_tag with LocalParamB -> "val=" ^ string_of_net_expr b.b_val.bv_lit | _ -> "")
 
 let print_wire (i,(((s,ss),(d,ds)),ty,b)) =
   Printf.printf "W%d: %s: (B%d,%d) %s (B%d,%d)\n" i (string_of_type ty) s ss (if b then "+>" else "->") d ds

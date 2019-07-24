@@ -20,7 +20,8 @@ open Static
 type dot_config = {
     mutable labeled_edges: bool;
     mutable show_indexes: bool;
-    mutable param_box_shape: string;
+    mutable local_param_box_shape: string;
+    mutable input_param_box_shape: string;
     mutable srcsnk_box_shape: string;
     mutable slotted_boxes: bool;
     mutable show_wire_annots: bool;
@@ -30,7 +31,8 @@ type dot_config = {
 let cfg = {
   labeled_edges = true;
   show_indexes = false;
-  param_box_shape = "invhouse";
+  local_param_box_shape = "invhouse";
+  input_param_box_shape = "invtriangle";
   srcsnk_box_shape = "cds";
   slotted_boxes = true;
   show_wire_annots = false;
@@ -84,12 +86,17 @@ let output_box ch (i,b) =
        i
        cfg.srcsnk_box_shape
        bid
-  | ParamB -> 
+  | LocalParamB -> 
      fprintf ch "n%d [shape=%s,label=\"%s\n(%s)\"];\n"
        i
-       cfg.param_box_shape
+       cfg.local_param_box_shape
        bid
        bval
+  | InParamB -> 
+     fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
+       i
+       cfg.input_param_box_shape
+       bid
   | DummyB ->  (* Should not occur *)
       fprintf ch "n%d [shape=box,style=dotted,label=\"%s\"];\n" i "dummy"
 

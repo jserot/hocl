@@ -202,8 +202,10 @@ type_decl:
 (* PARAMETER DECLARATION *)
 
 param_decl:
-  | PARAMETER id=IDENT COLON ty=simple_type_expr EQUAL e=net_expr
-      { mk_param_decl $loc (id,ty,e) }
+  | PARAMETER id=IDENT COLON ty=simple_type_expr  (* Input parameter *)
+      { mk_param_decl $loc (id,P_Input,ty,mk_net_expr $loc (NUnit)) }
+  | PARAMETER id=IDENT COLON ty=simple_type_expr EQUAL e=net_expr (* Locally static parameter *)
+      { mk_param_decl $loc (id,P_Local,ty,e) }
 
 (* SOURCE/SINK DECLARATION *)
 

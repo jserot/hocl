@@ -263,10 +263,12 @@ let type_actor_decl tenv { ad_desc=a } =
     at_outs = ty_outs;
     at_sig = trivial_scheme ty }
 
-let type_param_decl tenv { pd_desc=(id,te,e); pd_loc=loc } =
+let type_param_decl tenv { pd_desc=(id,kind,te,e); pd_loc=loc } =
   let ty = type_of_type_expression tenv te in
-  let ty' = type_expression tenv e in
-  try_unify "parameter" ty ty' loc;
+  if kind = Syntax.P_Local then begin
+    let ty' = type_expression tenv e in
+     try_unify "parameter" ty ty' loc
+    end;
   (id, (* type_param *) ty)
 
 let type_io_decl tenv { io_desc=(kind,id,te); io_loc=loc } =

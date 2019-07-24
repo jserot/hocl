@@ -44,8 +44,10 @@ and tdecl_desc =
 and param_decl =
   { pd_desc: pdecl_desc;
     pd_loc: location }
-and pdecl_desc = string * type_expression * net_expr             (* Name, type, initial value *)
+and pdecl_desc = string * param_kind * type_expression * net_expr  (* Name, type, initial value (Unit for input params *)
   (* Note: ideally, parameter expressions should be a strict subset of network expression *)
+
+and param_kind = P_Local | P_Input
 
 and io_decl =
   { io_desc: io_desc;
@@ -220,7 +222,8 @@ let string_of_type_decl d = match d.td_desc with
   | Opaque_type_decl id -> id
 
 let string_of_param_decl d = match d.pd_desc with
-  | name, ty, e -> name ^ ": " ^ string_of_ty_expr ty ^ " = " ^ string_of_net_expr e
+  | name, P_Input, ty, _ -> name ^ ": " ^ string_of_ty_expr ty
+  | name, P_Local, ty, e -> name ^ ": " ^ string_of_ty_expr ty ^ " = " ^ string_of_net_expr e
 
 let rec string_of_net_defn d = match d.nd_desc with
     r, bs -> string_of_rec r ^ Misc.string_of_list string_of_net_binding " and " bs
