@@ -271,11 +271,14 @@ let type_param_decl tenv { pd_desc=(id,kind,te,e); pd_loc=loc } =
     end;
   (id, (* type_param *) ty)
 
-let type_io_decl tenv { io_desc=(kind,id,te); io_loc=loc } =
+let type_io_decl tenv { io_desc=(kind,id,params,te); io_loc=loc } =
   let ty = type_of_type_expression tenv te in
-  let ty' = match kind with
-  | Io_src -> type_arrow type_unit ty
-  | Io_snk -> type_arrow ty type_unit in
+  let ty_params = List.map (fun (id,te) -> type_of_type_expression tenv te) params in
+  let ty' = match kind, ty_params with
+  | Io_src, [] -> type_arrow type_unit ty
+  | Io_src, ts -> type_arrow2 (type_product ts) type_unit ty
+  | Io_snk, [] -> type_arrow ty type_unit
+  | Io_snk, ts -> type_arrow2 (type_product ts) ty type_unit in
   (id, ty')
 
 (* Typing top-level net defns *)

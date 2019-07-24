@@ -286,13 +286,27 @@ and eval_net_application tp (bs,ws) nenv loc val_fn val_arg ty_arg =
      | _ ->
         illegal_application loc
      end
-  | SVLoc (l, s, TyArrow(ty, ty'), SVUnit), _ when is_unit_type ty -> (* Special case for source boxes *)
-     SVLoc (l, s, ty', SVUnit),
+  | SVLoc (l, s, TyArrow(ty, ty'), v), _ when is_unit_type ty ->
+     (* Special case for parameter-less source boxes *)
+     SVLoc (l, s, ty', v),
      [],
      []
-  | SVLoc (l, s, TyArrow(ty, ty'), SVUnit), SVLoc (l1,s1,_,_) when is_unit_type ty' -> (* Special case for sink boxes *)
+  | SVLoc (l, s, TyArrow(ty'', TyArrow(ty, ty')), SVUnit), SVLoc (l1,s1,_,_) when is_unit_type ty ->
+     (* Special case for parameterized source boxes *)
+     let w = ((l1,s1),(l,s)), ty'', true in
+     SVLoc (l, s, TyArrow(ty,ty'), val_arg),
+     [],
+     [new_wid(),w]
+  | SVLoc (l, s, TyArrow(ty, ty'), v), SVLoc (l1,s1,_,_) when is_unit_type ty' ->
+     (* Special case for parameter-less sink boxes *)
      let w = ((l1,s1),(l,s)), ty, false in
      SVUnit,
+     [],
+     [new_wid(),w]
+  | SVLoc (l, s, TyArrow(ty'', TyArrow(ty, ty')), SVUnit), SVLoc (l1,s1,_,_) when is_unit_type ty' ->
+     (* Special case for parameterized sink boxes *)
+     let w = ((l1,s1),(l,s)), ty'', true in
+     SVLoc (l, s, TyArrow(ty,ty'), val_arg),
      [],
      [new_wid(),w]
   | _, _ ->
@@ -434,7 +448,7 @@ and instanciate_actor tp nenv loc a args =
      SVUnit,
      [l,b],
      wps
-  | [t], [_], [], [_], SVLoc(l1,s1,ty,SVUnit) ->                                 (* APP_1_0 *)
+  | [t], [_], [], [_], SVLoc(l1,s1,ty,_) ->                                     (* APP_1_0 *)
      let w = ((l1,s1),(l,np)), t, false in
      SVUnit,
      [l,b],
@@ -452,12 +466,12 @@ and instanciate_actor tp nenv loc a args =
       SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,SVUnit)) ts),
       [l,b],
       wps
-  | [t], _, [t'], _, SVLoc(l1,s1,ty,SVUnit) ->                                   (* APP_1_1 *)
+  | [t], _, [t'], _, SVLoc(l1,s1,ty,_) ->                                       (* APP_1_1 *)
       let w = ((l1,s1),(l,np)), t, false in
       SVLoc (l,0,t',SVUnit),
       [l,b],
       wps @ [new_wid(),w]
-  | [t], _, ts', _, SVLoc(l1,s1,ty,SVUnit) when List.length ts' > 1 ->           (* APP_1_n *)
+  | [t], _, ts', _, SVLoc(l1,s1,ty,_) when List.length ts' > 1 ->               (* APP_1_n *)
       let w = ((l1,s1),(l,np)), t, false in
       SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,SVUnit)) ts'),
       [l,b],
@@ -577,10 +591,10 @@ and extract_dep_params tp env e =
   | _ -> invalid_param_expr e.ne_loc in
   extract e
 
-let rec eval_io_decl tp nenv (ne,bs,ws) { io_desc=kind,id,ty; io_loc=loc } =
+let rec eval_io_decl tp nenv (ne,bs,ws) { io_desc=kind,id,params,ty; io_loc=loc } =
   let ty = List.assoc id tp.tp_ios in
   let l, b = new_io_box kind id ty in
-  (id,SVLoc (l,0,ty,SVUnit)) :: ne, (l,b) :: bs, ws
+  (id,SVLoc (l,0,ty,SVUnit)) :: ne, (l,b) :: bs, ws (* TODO: attach params *)
     
 (* RULE W |- B => B' *)
 

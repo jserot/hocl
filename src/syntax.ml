@@ -52,7 +52,7 @@ and param_kind = P_Local | P_Input
 and io_decl =
   { io_desc: io_desc;
     io_loc: location }
-and io_desc = io_kind * string * type_expression            (* Name, type *)
+and io_desc = io_kind * string * (string * type_expression) list * type_expression   (* Kind, name, params, type *)
 
 and io_kind = Io_src | Io_snk
 
@@ -131,8 +131,8 @@ let is_fun_definition = function
   { nb_desc={np_desc=NPat_var _}, {ne_desc=NFun (_,_)} } -> true
 | _ -> false
 
-let is_src_decl = function { io_desc=Io_src,_,_ } -> true | _ -> false
-let is_snk_decl = function { io_desc=Io_snk,_,_ } -> true | _ -> false
+let is_src_decl = function { io_desc=Io_src,_,_,_ } -> true | _ -> false
+let is_snk_decl = function { io_desc=Io_snk,_,_,_ } -> true | _ -> false
 
 (* let no_annot = { ne_desc=NUnit; ne_loc=Location.no_location; ne_typ=Types.no_type } *)
 let no_annot = ""

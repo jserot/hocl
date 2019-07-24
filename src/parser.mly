@@ -210,8 +210,12 @@ param_decl:
 (* SOURCE/SINK DECLARATION *)
 
 io_decl:
-  | kind=io_kind id=IDENT COLON ty=simple_type_expr
-      { mk_io_decl $loc (kind,id,ty) }
+  | kind=io_kind id=IDENT params=io_params COLON ty=simple_type_expr
+      { mk_io_decl $loc (kind,id,params,ty) }
+
+io_params:
+  | (* Nothing *) { [] }
+  | LPAREN ps=my_separated_list(COMMA, actor_param) RPAREN { ps }
 
 io_kind:
   | SOURCE { Io_src }

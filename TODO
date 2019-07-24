@@ -1,4 +1,8 @@
+- reverse-interpretation of .pi files
+- cluster-based drawing of hierarchy graphical in the .dot backend (?)
+- implementation of hierarchy in the SystemC backend
+- unify external (and internal) representation of data and cfg I/Os. For ex
+  . source (resp. sink) nodes are just actors with no refinement
 - dynamic parameters
-- sub-graphs
-- use Dune 
+- Dune-based build process
 

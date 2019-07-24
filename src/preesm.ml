@@ -214,7 +214,7 @@ let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
     match b.b_tag with
     | ActorB | BcastB | GraphB -> box_name sp (d,b), fst (List.nth b.b_ins ds)
     | LocalParamB -> box_name sp (d,b), ""
-    | SinkB -> box_name sp (d,b), box_name sp (d,b) 
+    | SinkB | SourceB -> box_name sp (d,b), box_name sp (d,b) 
     | _ -> Misc.fatal_error "Preesm.output_connexion" in
   let mk_field name v = if v = "" then "" else Printf.sprintf "%s=\"%s\"" name v in
   fprintf oc "    <edge kind=\"%s\" source=\"%s\" %s target=\"%s\" %s %s/>\n"
