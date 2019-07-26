@@ -17,3 +17,6 @@ src/old/
 src/obsolete/
 examples/tofix/
 examples/tosee/
+*.merlin
+tools/pi2hcl/examples/*.hcl
+tools/pi2hcl/examples/*.dot
