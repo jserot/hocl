@@ -94,6 +94,17 @@ let rec mk_node_desc (id,attrs,nodes) =
       n_ios = nodes |> Ezxmlm.member_with_attr "loop" |> snd |> Ezxmlm.members_with_attr "param"
               |> List.map fst |> List.map (List.map rem_url) |> List.map mk_io_desc;
       n_mark = Unmarked; }
+  | "param" ->
+    { n_id = id;    
+      n_name = name;
+      n_kind = kind;
+      n_period = "";
+      n_desc = List.assoc "expr" attrs; 
+      n_ports = [];
+      n_init_fn = "";
+      n_loop_fn = "";
+      n_ios = [];
+      n_mark = Unmarked; }
   | _ ->
     { n_id = id;    
       n_name = name;
@@ -120,18 +131,12 @@ and mk_io_desc l =
     io_type = lookup "type";
     io_isConfig = lookup "isConfig" }
   
-let is_param_inp io = io.io_direction = "IN" && io.io_isConfig = "true"
-let is_param_outp io = io.io_direction = "OUT" && io.io_isConfig = "true"
-let is_data_inp io = io.io_direction = "IN" && io.io_isConfig = "false"
-let is_data_outp io = io.io_direction = "OUT" && io.io_isConfig = "false"
-
-let string_of_io io = io.io_name ^ ": " ^ io.io_type
-                    
 let mk_edge_desc (id,l) =
   let lookup k = try List.assoc k l with Not_found -> "" in
+  let kind = lookup "kind" in
   { e_id = id;
-    e_kind = lookup "kind";
-    e_type = lookup "type";
+    e_kind = kind;
+    e_type = (match kind with "dependency" -> "nat" | _ -> lookup "type");
     e_source = lookup "source";
     e_sourceport = lookup "sourceport";
     e_target = lookup "target";
@@ -163,6 +168,7 @@ let find_target_node nodes e =
       
 let succs edges nodes n =
   let mk_edge_spec n io = n.n_name, io.io_name in
+  let is_data_outp io = io.io_direction = "OUT" && io.io_isConfig = "false" in
   List.filter is_data_outp n.n_ios
   |> List.map (mk_edge_spec n)
   |> List.map (find_outp_edge edges)

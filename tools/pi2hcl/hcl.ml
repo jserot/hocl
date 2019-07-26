@@ -16,10 +16,12 @@ open Printf
    
 type hcl_config = {
   mutable annot_file: string;
+  mutable default_param_type: string;
   }
 
 let cfg = {
   annot_file = "";
+  default_param_type = "nat";
 }
 
 let collect_types acc e =
@@ -43,22 +45,39 @@ let output_actor oc n =
   let open Ir in
   match n.n_kind with
   | "actor" ->
-    let params = List.filter is_param_inp n.n_ios in
-    let inps = List.filter is_data_inp n.n_ios in
-    let outps = List.filter is_data_outp n.n_ios in
+    let params = List.filter (fun p -> p.pt_kind = "cfg_input") n.n_ports in
+    let inps = List.filter (fun p -> p.pt_kind = "input") n.n_ports in
+    let outps = List.filter (fun p -> p.pt_kind = "output") n.n_ports in
+    let get_io name =
+      try List.find (fun io -> io.io_name = name) n.n_ios
+      with Not_found -> failwith "Hcl.output_actor" in
+    let string_of_port p =
+      let io = get_io p.pt_name in
+      p.pt_name ^ ": " ^ io.io_type ^ (if p.pt_expr = "" then "" else " \"" ^ p.pt_expr ^ "\"") in 
     begin match params with
       [] ->
-       fprintf oc "actor %s in (%s) out (%s);\n"
+       fprintf oc "actor %s\n  in (%s)\n  out (%s);\n"
          n.n_name
-         (Misc.string_of_list string_of_io "," inps)
-         (Misc.string_of_list string_of_io "," outps)
+         (Misc.string_of_list string_of_port ", " inps)
+         (Misc.string_of_list string_of_port ", " outps)
     | _ ->
-       fprintf oc "actor %s param (%s) in (%s) out (%s);\n"
+       fprintf oc "actor %s\n  param (%s)\n  in (%s)\n  out (%s);\n"
          n.n_name
-         (Misc.string_of_list string_of_io "," params)
-         (Misc.string_of_list string_of_io "," inps)
-         (Misc.string_of_list string_of_io "," outps)
+         (Misc.string_of_list string_of_port ", " params)
+         (Misc.string_of_list string_of_port ", " inps)
+         (Misc.string_of_list string_of_port ", " outps)
     end
+  | _ ->
+     ()
+
+let output_parameter oc n =
+  let open Ir in
+  match n.n_kind with
+  | "param" ->
+     fprintf oc "parameter %s: %s = %s;\n"
+         n.n_name
+         cfg.default_param_type
+         n.n_desc
   | _ ->
      ()
 
@@ -68,6 +87,9 @@ let output_defn oc names edges n =
       [] -> "()"
     | [x] -> x
     | _ -> "(" ^ Misc.string_of_list Misc.id "," ios ^ ")" in
+  let is_param_inp io = io.io_direction = "IN" && io.io_isConfig = "true" in
+  let is_data_inp io = io.io_direction = "IN" && io.io_isConfig = "false" in
+  let is_data_outp io = io.io_direction = "OUT" && io.io_isConfig = "false" in
   match n.n_kind with
   | "actor" ->
     let params = List.filter is_param_inp n.n_ios in
@@ -76,16 +98,18 @@ let output_defn oc names edges n =
     let mk_edge_spec io = n.n_name, io.io_name in
     let mk_dep_name e =
       try List.assoc (e.e_source, e.e_sourceport) names
-      with Not_found -> e.e_source ^ "_" ^ e.e_sourceport in
+      with Not_found -> if e.e_sourceport = "" then e.e_source else e.e_source ^ "_" ^ e.e_sourceport in
+    let inp_edges = List.map (find_inp_edge edges) (List.map mk_edge_spec inps) in
+    let outp_edges = List.map (find_outp_edge edges) (List.map mk_edge_spec outps) in
+    let param_edges = List.map (find_inp_edge edges) (List.map mk_edge_spec params) in
+    let actual_inps = List.map mk_dep_name inp_edges |> tuplify in
+    let actual_outps = List.map mk_dep_name outp_edges |> tuplify in
+    let actual_params = List.map mk_dep_name param_edges |> tuplify in
     begin match params with
       [] ->
-       let inp_edges = List.map (find_inp_edge edges) (List.map mk_edge_spec inps) in
-       let outp_edges = List.map (find_outp_edge edges) (List.map mk_edge_spec outps) in
-       let actual_inps = List.map mk_dep_name inp_edges |> tuplify in
-       let actual_outps = List.map mk_dep_name outp_edges |> tuplify in
-       fprintf oc "let %s = %s %s\n" actual_outps n.n_name actual_inps  
+       fprintf oc "let %s = %s %s;\n" actual_outps n.n_name actual_inps  
     | _ ->
-       failwith "Hcl.output_defn: not implemented: parameterized actor"
+       fprintf oc "let %s = %s %s %s;\n" actual_outps n.n_name actual_params actual_inps
     end
   | _ ->
      ()
@@ -93,6 +117,8 @@ let output_defn oc names edges n =
 let output ch names nodes edges = 
   let types = List.fold_left collect_types [] edges in 
   List.iter (output_type ch) types;
+  fprintf ch "\n";
+  List.iter (output_parameter ch) nodes;
   fprintf ch "\n";
   List.iter (output_pragma ch) nodes;
   fprintf ch "\n";
