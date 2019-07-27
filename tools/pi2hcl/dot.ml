@@ -52,25 +52,23 @@ let output_box ch b =
       else
         fprintf ch "%s [shape=box,style=rounded,label=\"%s\"];\n"  b.n_name b.n_name
   (* | GraphB ->
-   *       fprintf ch "n%d [shape=box,label=\"%s\"];\n" i  bid
-   * | SourceB | SinkB -> 
-   *    fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
-   *      i
-   *      cfg.srcsnk_box_shape
-   *      bid *)
+   *       fprintf ch "n%d [shape=box,label=\"%s\"];\n" i  bid *)
+  | "src" | "snk" -> 
+     fprintf ch "%s [shape=%s,label=\"%s\"];\n"
+       b.n_name
+       cfg.srcsnk_box_shape
+       b.n_name
   | "param" -> 
      fprintf ch "%s [shape=%s,label=\"%s\n(%s)\"];\n"
        b.n_name
        cfg.local_param_box_shape
        b.n_name
        b.n_desc
-  (* | InParamB -> 
-   *    fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
-   *      i
-   *      cfg.input_param_box_shape
-   *      bid
-   * | DummyB ->  (\* Should not occur *\)
-   *     fprintf ch "n%d [shape=box,style=dotted,label=\"%s\"];\n" i "dummy" *)
+  | "cfg_in_iface" -> 
+     fprintf ch "%s [shape=%s,label=\"%s\"];\n"
+       b.n_name
+       cfg.input_param_box_shape
+       b.n_name
   | _ -> ()
 
 let output_wire ch w =

@@ -75,6 +75,7 @@ let rec get_data l = match l with
   | `Data d :: _ -> d 
   | _ :: rest -> get_data rest
 
+
 let rec mk_node_desc (id,attrs,nodes) =
   let name = List.assoc "id" attrs in
   let kind = List.assoc "kind" attrs in
@@ -83,16 +84,32 @@ let rec mk_node_desc (id,attrs,nodes) =
     { n_id = id;    
       n_name = name;
       n_kind = kind;
-      n_period = List.assoc "period" attrs;
+      n_period = (try List.assoc "period" attrs with Not_found -> "");
       n_desc = nodes |> Ezxmlm.member_with_attr "data" |> snd |> get_data;
       n_ports = nodes |> Ezxmlm.members_with_attr "port" |> List.map fst |> List.map (List.map rem_url)
                     |> List.map mk_port_desc;
       n_init_fn =
         (try nodes |> Ezxmlm.member_with_attr "init"  |> fst |> List.map rem_url |> List.assoc "name"
         with Ezxmlm.Tag_not_found _ -> ""); 
-      n_loop_fn = nodes |> Ezxmlm.member_with_attr "loop" |> fst |> List.map rem_url |> List.assoc "name";
-      n_ios = nodes |> Ezxmlm.member_with_attr "loop" |> snd |> Ezxmlm.members_with_attr "param"
-              |> List.map fst |> List.map (List.map rem_url) |> List.map mk_io_desc;
+      n_loop_fn = 
+        (try nodes |> Ezxmlm.member_with_attr "loop"  |> fst |> List.map rem_url |> List.assoc "name"
+        with Ezxmlm.Tag_not_found _ -> ""); 
+      n_ios =
+        (try nodes |> Ezxmlm.member_with_attr "loop" |> snd |> Ezxmlm.members_with_attr "param"
+             |> List.map fst |> List.map (List.map rem_url) |> List.map mk_io_desc 
+        with Ezxmlm.Tag_not_found _ -> []); 
+      n_mark = Unmarked; }
+    | "src" | "snk" -> 
+    { n_id = id;    
+      n_name = name;
+      n_kind = kind;
+      n_period = "";
+      n_desc = "";
+      n_ports = nodes |> Ezxmlm.members_with_attr "port" |> List.map fst |> List.map (List.map rem_url)
+                    |> List.map mk_port_desc;
+      n_init_fn = "";
+      n_loop_fn =  "";
+      n_ios = [];
       n_mark = Unmarked; }
   | "param" ->
     { n_id = id;    

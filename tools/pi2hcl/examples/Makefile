@@ -1,18 +1,14 @@
 PI2HCL=../_build/default/main.bc
 
-all: mini
+% : %.pi
+	$(PI2HCL) -dot -names $@.names $<
+	open -a Graphviz $@.dot
 
-mini: mini.pi mini.names
-	$(PI2HCL) -dot -names mini.names mini.pi
-	open -a Graphviz mini.dot
-
-sobel: sobel.pi 
-	$(PI2HCL) -dot -names sobel.names sobel.pi
-	open -a Graphviz sobel.dot
-
-sub: sub.pi 
-	$(PI2HCL) -dot sub.pi
-	open -a Graphviz sub.dot
+mini.hcl: mini.pi
+sobel.hcl: sobel.pi
+hier_top.hcl: hier_top.pi
+hier_sub.hcl: hier_sub.pi
+hier: hier_top hier_sub
 
 clean:
 	\rm -f *.hcl

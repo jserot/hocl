@@ -31,41 +31,81 @@ let collect_types acc e =
 let output_type oc t =
   fprintf oc "type %s;\n" t
   
+let mk_hcl_fname f =
+  if Filename.check_suffix f "pi"
+  then Misc.replace_suffix "hcl" (Filename.basename f)
+  else f
+  
 let output_pragma oc n =
   let open Ir in
-  match n.n_kind, n.n_init_fn with
-  | "actor", "" ->
+  match n.n_kind, n.n_loop_fn, n.n_init_fn with
+  | "actor", "", "" -> (* Subgraph case *)
+     fprintf oc "#pragma code(\"%s\", \"%s\");\n" n.n_name (mk_hcl_fname n.n_desc) (* .pi -> .hcl *)
+  | "actor", "", _ ->
     fprintf oc "#pragma code(\"%s\", \"%s\", \"%s\");\n" n.n_name n.n_desc n.n_loop_fn
-  | "actor", _ ->
+  | "actor", _, _ ->
     fprintf oc "#pragma code(\"%s\", \"%s\", \"%s\", \"%s\");\n" n.n_name n.n_desc n.n_loop_fn n.n_init_fn
-  | _, _ ->
+  | _, _, _ -> (* TO FIX ? *)
      ()
 
-let output_actor oc n =
+exception Aie of string * Ir.node_desc * Ir.edge_desc list
+
+let get_port_type edges node port =
+  let open Ir in
+  try
+    let io = List.find (fun io -> io.io_name = port.pt_name) node.n_ios in (* For "regular" (C-bound) actors ... *)
+    io.io_type
+  with Not_found -> (* For hierarchical actors (described by a sub-graph), the type must be inferred from the context *)
+    let e =
+      begin match port.pt_kind with
+      | "input" | "cfg_input" -> find_inp_edge edges (node.n_name, port.pt_name) 
+      | "output" | "cfg_output" -> find_outp_edge edges (node.n_name, port.pt_name) 
+      | _ -> failwith "Hcl.get_port_type" (* should not happen *)
+      end in
+    e.e_type
+    
+let output_actor oc edges n =
   let open Ir in
   match n.n_kind with
-  | "actor" ->
+  | "actor" | "src" | "snk" ->
     let params = List.filter (fun p -> p.pt_kind = "cfg_input") n.n_ports in
     let inps = List.filter (fun p -> p.pt_kind = "input") n.n_ports in
     let outps = List.filter (fun p -> p.pt_kind = "output") n.n_ports in
-    let get_io name =
-      try List.find (fun io -> io.io_name = name) n.n_ios
-      with Not_found -> failwith "Hcl.output_actor" in
     let string_of_port p =
-      let io = get_io p.pt_name in
-      p.pt_name ^ ": " ^ io.io_type ^ (if p.pt_expr = "" then "" else " \"" ^ p.pt_expr ^ "\"") in 
-    begin match params with
-      [] ->
+      let ty = get_port_type edges n p in
+      p.pt_name ^ ": " ^ ty ^ (if p.pt_expr = "" then "" else " \"" ^ p.pt_expr ^ "\"") in 
+    begin match n.n_kind, params, inps, outps with
+      "actor", [], _, _ ->
        fprintf oc "actor %s\n  in (%s)\n  out (%s);\n"
          n.n_name
          (Misc.string_of_list string_of_port ", " inps)
          (Misc.string_of_list string_of_port ", " outps)
-    | _ ->
+    | "actor", _, _, _ ->
        fprintf oc "actor %s\n  param (%s)\n  in (%s)\n  out (%s);\n"
          n.n_name
          (Misc.string_of_list string_of_port ", " params)
          (Misc.string_of_list string_of_port ", " inps)
          (Misc.string_of_list string_of_port ", " outps)
+    | "src", [], _, [p] ->
+       fprintf oc "source %s : %s;\n"
+         n.n_name
+         (get_port_type edges n p)
+    | "src", _, _, [p] ->
+       fprintf oc "source %s (%s) : %s;\n"
+         n.n_name
+         (Misc.string_of_list string_of_port ", " params)
+         (get_port_type edges n p)
+    | "snk", [], [p], _ ->
+       fprintf oc "sink %s : %s;\n"
+         n.n_name
+         (get_port_type edges n p)
+    | "snk", _, [p], _ ->
+       fprintf oc "sink %s (%s) : %s;\n"
+         n.n_name
+         (Misc.string_of_list string_of_port ", " params)
+         (get_port_type edges n p)
+    | _, _, _, _ ->
+       failwith "Hcl.dump_actor"
     end
   | _ ->
      ()
@@ -78,6 +118,10 @@ let output_parameter oc n =
          n.n_name
          cfg.default_param_type
          n.n_desc
+  | "cfg_in_iface" ->
+     fprintf oc "parameter %s: %s;\n"
+         n.n_name
+         cfg.default_param_type
   | _ ->
      ()
 
@@ -87,15 +131,14 @@ let output_defn oc names edges n =
       [] -> "()"
     | [x] -> x
     | _ -> "(" ^ Misc.string_of_list Misc.id "," ios ^ ")" in
-  let is_param_inp io = io.io_direction = "IN" && io.io_isConfig = "true" in
-  let is_data_inp io = io.io_direction = "IN" && io.io_isConfig = "false" in
-  let is_data_outp io = io.io_direction = "OUT" && io.io_isConfig = "false" in
   match n.n_kind with
-  | "actor" ->
-    let params = List.filter is_param_inp n.n_ios in
-    let inps = List.filter is_data_inp n.n_ios in
-    let outps = List.filter is_data_outp n.n_ios in
-    let mk_edge_spec io = n.n_name, io.io_name in
+  | "actor" | "src" | "snk" ->
+    (* Note. This might have to be adjusted for "src" and "snk" nodes if cfg input ports are not explicitely 
+       listed (like in the SIFT examples). To be clarified. *)
+    let params = List.filter (fun p -> p.pt_kind = "cfg_input") n.n_ports in
+    let inps = List.filter (fun p -> p.pt_kind = "input") n.n_ports in
+    let outps = List.filter (fun p -> p.pt_kind = "output") n.n_ports in
+    let mk_edge_spec port = n.n_name, port.pt_name in
     let mk_dep_name e =
       try List.assoc (e.e_source, e.e_sourceport) names
       with Not_found -> if e.e_sourceport = "" then e.e_source else e.e_source ^ "_" ^ e.e_sourceport in
@@ -122,7 +165,7 @@ let output ch names nodes edges =
   fprintf ch "\n";
   List.iter (output_pragma ch) nodes;
   fprintf ch "\n";
-  List.iter (output_actor ch) nodes;
+  List.iter (output_actor ch edges) nodes;
   fprintf ch "\n";
   List.iter (output_defn ch names edges) nodes
 
@@ -149,12 +192,13 @@ let read_annot_file f =
   
 let dump annot_file fname p =
   let open Ir in
+  let sname = Misc.replace_suffix "pi" fname in
   let names = if annot_file = "" then [] else read_annot_file annot_file in
   let oc = open_out fname  in
   if annot_file = "" then 
-    fprintf oc "-- Generated by pi2hcl from file %s\n\n" fname
+    fprintf oc "-- Generated by pi2hcl from file %s\n\n" sname
   else
-    fprintf oc "-- Generated by pi2hcl from files %s and %s\n\n" fname annot_file;
+    fprintf oc "-- Generated by pi2hcl from files %s and %s\n\n" sname annot_file;
   output oc names p.p_nodes p.p_edges;
   close_out oc;
   printf "Generated file %s\n" fname
