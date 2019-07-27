@@ -10,6 +10,10 @@ sobel: sobel.pi
 	$(PI2HCL) -dot -names sobel.names sobel.pi
 	open -a Graphviz sobel.dot
 
+sub: sub.pi 
+	$(PI2HCL) -dot sub.pi
+	open -a Graphviz sub.dot
+
 clean:
 	\rm -f *.hcl
 	\rm -f *.dot

@@ -57,14 +57,14 @@ let output_box ch b =
    *    fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
    *      i
    *      cfg.srcsnk_box_shape
-   *      bid
-   * | LocalParamB -> 
-   *    fprintf ch "n%d [shape=%s,label=\"%s\n(%s)\"];\n"
-   *      i
-   *      cfg.local_param_box_shape
-   *      bid
-   *      bval
-   * | InParamB -> 
+   *      bid *)
+  | "param" -> 
+     fprintf ch "%s [shape=%s,label=\"%s\n(%s)\"];\n"
+       b.n_name
+       cfg.local_param_box_shape
+       b.n_name
+       b.n_desc
+  (* | InParamB -> 
    *    fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
    *      i
    *      cfg.input_param_box_shape
@@ -75,7 +75,7 @@ let output_box ch b =
 
 let output_wire ch w =
   let open Ir in
-  let style = match w.e_kind with "config" -> "dashed" | _ -> "plain" in
+  let style = match w.e_kind with "dependency" -> "dashed" | _ -> "plain" in
   let slot s p = match p with "" -> s | _ -> s ^ ":" ^ p in
   match cfg.labeled_edges with
   | true ->
