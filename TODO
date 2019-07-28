@@ -13,8 +13,13 @@ COMPILER
 - dynamic parameters
 
 PI2HCL
+- translation of cyclic graphs (ex: examples/sift)
+- handling of delay nodes (ex: examples/sift)
 - implicit vs. explicit cfg inputs for src/snk nodes
 - port annotations (vs. expr)
+
+DOC
+- update tutorial with support for bcast nodes and hierarchical graphs
 
 BUILD
 - dunify build process

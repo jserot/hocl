@@ -44,6 +44,9 @@ with
 | Sys_error msg ->
     eprintf "Input/output error: %s.\n" msg;
     flush stderr; exit 6
+| Ir.CyclicGraph n ->
+   eprintf "Not implemented: translation of cyclic graphs (cycle here starts at node %s).\n" n;
+   exit 4
 | e ->
     eprintf "Internal error: %s.\n" (Printexc.to_string e);
     flush stderr; exit 7

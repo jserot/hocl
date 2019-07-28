@@ -11,6 +11,8 @@ src/grammar.html
 *~
 *.dot
 *.pi
+!tools/pi2hcl/examples/*.pi
+!tools/pi2hcl/examples/sift/*.pi
 hocl.output
 bin/
 src/old/
