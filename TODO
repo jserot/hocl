@@ -1,13 +1,22 @@
+COMPILER
 - clarify the description of "src" and "snk" nodes in .pi files concerning the cfg inputs :
   + preesm seems to accept the explicit form ...
   + ... but some examples in the repo (ex: SIFT) seem to omit the decl of cfg input ports in src and snk nodes ..
   + the current implementation of [hoclc] and [pi2hcl] use the explicit form
-- support expr-annot for subgraphs src and snk nodes (cf SIFT/Htop_sift.pi/{image}src for ex)
-- reverse-interpretation of .pi files
+- support expr-annot for src and snk nodes in subgraphs (cf SIFT/Htop_sift.pi/{image}src for ex)
+- automatic insertion of bcast nodes
+- dot backend: show port names for actor boxes (like in pi2hcl)
 - cluster-based drawing of hierarchy graphical in the .dot backend (?)
 - implementation of hierarchy in the SystemC backend
 - unify external (and internal) representation of data and cfg I/Os. For ex
   . source (resp. sink) nodes are just actors with no refinement
 - dynamic parameters
-- Dune-based build process
+
+PI2HCL
+- bcast nodes
+- implicit vs. explicit cfg inputs for src/snk nodes
+- port annotations (vs. expr)
+
+BUILD
+- dunify build process
 
