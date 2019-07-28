@@ -38,17 +38,20 @@ let cfg = {
 
 let output_box ch b =
   let open Ir in
-  let is_input io = io.io_direction = "IN" in
-  let is_output io = io.io_direction = "OUT" in
-  let ioslots ios = Misc.string_of_list (function io -> "<" ^ io.io_name ^ ">" ^ io.io_name) "|" ios in
+  let is_input p = match p.pt_kind with "input" | "cfg_input" -> true | _ -> false in
+  let is_output p = match p.pt_kind with "output" | "cfg_output" -> true | _ -> false in
+  let ioslots ports = Misc.string_of_list (function p -> "<" ^ p.pt_name ^ ">" ^ p.pt_name) "|" ports in
+  (* let is_input io = io.io_direction = "IN" in
+   * let is_output io = io.io_direction = "OUT" in
+   * let ioslots ios = Misc.string_of_list (function io -> "<" ^ io.io_name ^ ">" ^ io.io_name) "|" ios in *)
   match b.n_kind with
-  | "actor" ->
+  | "actor" | "broadcast" ->
       if cfg.slotted_boxes then
         fprintf ch "%s [shape=record,style=rounded,label=\"<id>%s|{{%s}|{%s}}\"];\n"
           b.n_name
           b.n_name
-          (ioslots (List.filter is_input b.n_ios))
-          (ioslots (List.filter is_output b.n_ios))
+          (ioslots (List.filter is_input b.n_ports))
+          (ioslots (List.filter is_output b.n_ports))
       else
         fprintf ch "%s [shape=box,style=rounded,label=\"%s\"];\n"  b.n_name b.n_name
   (* | GraphB ->

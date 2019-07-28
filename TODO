@@ -4,16 +4,15 @@ COMPILER
   + ... but some examples in the repo (ex: SIFT) seem to omit the decl of cfg input ports in src and snk nodes ..
   + the current implementation of [hoclc] and [pi2hcl] use the explicit form
 - support expr-annot for src and snk nodes in subgraphs (cf SIFT/Htop_sift.pi/{image}src for ex)
+- unify specification of IOs for toplevel graph and hierarchical subgraphs (the former are described as actors,
+  the latter as "source"/"sink" special nodes
 - automatic insertion of bcast nodes
 - dot backend: show port names for actor boxes (like in pi2hcl)
 - cluster-based drawing of hierarchy graphical in the .dot backend (?)
 - implementation of hierarchy in the SystemC backend
-- unify external (and internal) representation of data and cfg I/Os. For ex
-  . source (resp. sink) nodes are just actors with no refinement
 - dynamic parameters
 
 PI2HCL
-- bcast nodes
 - implicit vs. explicit cfg inputs for src/snk nodes
 - port annotations (vs. expr)
 

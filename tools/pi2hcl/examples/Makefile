@@ -9,6 +9,7 @@ sobel.hcl: sobel.pi
 hier_top.hcl: hier_top.pi
 hier_sub.hcl: hier_sub.pi
 hier: hier_top hier_sub
+bcast.hcl: bcast.pi
 
 clean:
 	\rm -f *.hcl

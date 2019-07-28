@@ -99,6 +99,18 @@ let rec mk_node_desc (id,attrs,nodes) =
              |> List.map fst |> List.map (List.map rem_url) |> List.map mk_io_desc 
         with Ezxmlm.Tag_not_found _ -> []); 
       n_mark = Unmarked; }
+   | "broadcast" -> 
+    { n_id = id;    
+      n_name = name;
+      n_kind = kind;
+      n_period = "";
+      n_desc = "";
+      n_ports = nodes |> Ezxmlm.members_with_attr "port" |> List.map fst |> List.map (List.map rem_url)
+                    |> List.map mk_port_desc;
+      n_init_fn = "";
+      n_loop_fn =  "";
+      n_ios = [];
+      n_mark = Unmarked; }
     | "src" | "snk" -> 
     { n_id = id;    
       n_name = name;
@@ -184,16 +196,16 @@ let find_target_node nodes e =
   | _ -> raise (Several_matching_nodes ("Ir.find_target_node", e.e_target))
       
 let succs edges nodes n =
-  let mk_edge_spec n io = n.n_name, io.io_name in
-  let is_data_outp io = io.io_direction = "OUT" && io.io_isConfig = "false" in
-  List.filter is_data_outp n.n_ios
+  let mk_edge_spec n p = n.n_name, p.pt_name in
+  let is_data_outp p = p.pt_kind = "output"  in
+  List.filter is_data_outp n.n_ports
   |> List.map (mk_edge_spec n)
   |> List.map (find_outp_edge edges)
   |> List.map (find_target_node nodes)
 
 exception CyclicGraph of string
 
-let topological_sort edges nodes =    (* DFS-based alogorithm *)
+let topological_sort edges nodes =    (* DFS-based algorithm *)
   let acc = ref [] in
   let rec visit n =
     match n.n_mark with

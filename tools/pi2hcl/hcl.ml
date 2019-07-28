@@ -67,7 +67,7 @@ let get_port_type edges node port =
 let output_actor oc edges n =
   let open Ir in
   match n.n_kind with
-  | "actor" | "src" | "snk" ->
+  | "actor" | "broadcast" | "src" | "snk" ->
     let params = List.filter (fun p -> p.pt_kind = "cfg_input") n.n_ports in
     let inps = List.filter (fun p -> p.pt_kind = "input") n.n_ports in
     let outps = List.filter (fun p -> p.pt_kind = "output") n.n_ports in
@@ -82,6 +82,17 @@ let output_actor oc edges n =
          (Misc.string_of_list string_of_port ", " outps)
     | "actor", _, _, _ ->
        fprintf oc "actor %s\n  param (%s)\n  in (%s)\n  out (%s);\n"
+         n.n_name
+         (Misc.string_of_list string_of_port ", " params)
+         (Misc.string_of_list string_of_port ", " inps)
+         (Misc.string_of_list string_of_port ", " outps)
+    | "broadcast", [], _, _ ->
+       fprintf oc "bcast %s\n  in (%s)\n  out (%s);\n"
+         n.n_name
+         (Misc.string_of_list string_of_port ", " inps)
+         (Misc.string_of_list string_of_port ", " outps)
+    | "broadcast", _, _, _ ->
+       fprintf oc "bcast %s\n  param (%s)\n  in (%s)\n  out (%s);\n"
          n.n_name
          (Misc.string_of_list string_of_port ", " params)
          (Misc.string_of_list string_of_port ", " inps)
@@ -132,7 +143,7 @@ let output_defn oc names edges n =
     | [x] -> x
     | _ -> "(" ^ Misc.string_of_list Misc.id "," ios ^ ")" in
   match n.n_kind with
-  | "actor" | "src" | "snk" ->
+  | "actor" | "broadcast" | "src" | "snk" ->
     (* Note. This might have to be adjusted for "src" and "snk" nodes if cfg input ports are not explicitely 
        listed (like in the SIFT examples). To be clarified. *)
     let params = List.filter (fun p -> p.pt_kind = "cfg_input") n.n_ports in
