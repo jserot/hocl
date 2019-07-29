@@ -1,25 +1,38 @@
-HOCL=/Users/jserot/Dev/ml/hocl/src/main.byte
-HOCL_OPTS=-prelude /Users/jserot/Dev/ml/hocl/lib/hocl/prelude.hcl
+HOCL=/Users/jserot/Dev/ml/hocl
+HOCLC=$(HOCL)/src/main.byte
+HOCL_OPTS=-prelude $(HOCL)/lib/hocl/prelude.hcl
 DOTVIEWER=graphviz
+PREESM_REP=/Users/jserot/Desktop/SF2/preesm-dev
+PREESM_PROJ=$(PREESM_REP)/$(PROJ)
 
 all: dot.show
 
 dot: $(SRCS)
-	$(HOCL) $(HOCL_OPTS) -dot $(DOT_OPTS) $(SRCS)
+	$(HOCLC) $(HOCL_OPTS) $(GEN_OPTS) -dot $(DOT_OPTS) $(SRCS)
 
 dot.show: dot
-	$(DOTVIEWER) $(MAIN).dot
+	@for f in *.dot; do $(DOTVIEWER) $$f; done
 
-.PHONY: preesm systemc
+.PHONY: preesm systemc preesm.proj
 
 preesm: $(SRCS)
-	$(HOCL) $(HOCL_OPTS) -preesm $(PREESM_OPTS) $(SRCS)
+	$(HOCLC) $(HOCL_OPTS) $(GEN_OPTS) -preesm $(PREESM_OPTS) $(SRCS)
+
+preesm.proj: 
+	if [ ! -d $(PREESM_PROJ) ]; then mkdir $(PREESM_PROJ); fi
+	if [ ! -d $(PREESM_PROJ)/Algo ]; then mkdir $(PREESM_PROJ)/Algo; fi
+	if [ ! -d $(PREESM_PROJ)/include ]; then mkdir $(PREESM_PROJ)/include; fi
+	if [ ! -d $(PREESM_PROJ)/src ]; then mkdir $(PREESM_PROJ)/src; fi
+	if [ ! -e $(PREESM_PROJ)/.project ]; then sed -e 's/%%NAME%%/$(PROJ)/' $(HOCL)/lib/preesm/.project.templ > $(PREESM_PROJ)/.project; fi
+	cp include/*.h $(PREESM_PROJ)/include
+	cp src/*.c $(PREESM_PROJ)/src
+	cp preesm/*.pi $(PREESM_PROJ)/Algo
 
 systemc: $(SRCS)
-	$(HOCL) $(HOCL_OPTS) -systemc $(SYSTEMC_OPTS) $(SRCS)
+	$(HOCLC) $(HOCL_OPTS) $(GEN_OPTS) -systemc $(SYSTEMC_OPTS) $(SRCS)
 
 xdf: $(SRCS)
-	$(HOCL) $(HOCL_OPTS) -xdf $(XDF_OPTS) $(SRCS)
+	$(HOCLC) $(HOCL_OPTS) $(GEN_OPTS) -xdf $(XDF_OPTS) $(SRCS)
 
 clean:
 	@\rm -f *.dot

@@ -1,0 +1,5 @@
+inp o x
+bc o1 x1
+bc o2 x2
+foo1 o y1
+foo2 o y2

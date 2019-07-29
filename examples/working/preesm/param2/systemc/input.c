@@ -1,1 +1,1 @@
-../code/src/input.c
+../src/input.c

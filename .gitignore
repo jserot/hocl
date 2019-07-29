@@ -11,9 +11,14 @@ src/grammar.html
 *~
 *.dot
 *.pi
+!tools/pi2hcl/examples/*.pi
+!tools/pi2hcl/examples/sift/*.pi
 hocl.output
 bin/
 src/old/
 src/obsolete/
 examples/tofix/
 examples/tosee/
+*.merlin
+tools/pi2hcl/examples/*.hcl
+tools/pi2hcl/examples/*.dot

@@ -30,6 +30,7 @@ and type_expression_desc =
 type program =
   { types: type_decl list;
     params: param_decl list ;
+    ios: io_decl list ;
     actors: actor_decl list ;
     defns: net_defn list;
     pragmas: pragma_decl list }
@@ -43,20 +44,32 @@ and tdecl_desc =
 and param_decl =
   { pd_desc: pdecl_desc;
     pd_loc: location }
-and pdecl_desc = string * type_expression * net_expr             (* Name, type, initial value *)
+and pdecl_desc = string * param_kind * type_expression * net_expr  (* Name, type, initial value (Unit for input params *)
   (* Note: ideally, parameter expressions should be a strict subset of network expression *)
+
+and param_kind = P_Local | P_Input
+
+and io_decl =
+  { io_desc: io_desc;
+    io_loc: location }
+and io_desc = io_kind * string * (string * type_expression) list * type_expression   (* Kind, name, params, type *)
+
+and io_kind = Io_src | Io_snk
 
 and actor_decl = 
   { ad_desc: actor_desc;
     ad_loc: location }
 
 and actor_desc = {
+    a_kind: actor_kind;
     a_id: string;
     a_params: (string * type_expression) list;
     a_ins: (string * type_expression * io_annot) list;
     a_outs: (string * type_expression * io_annot) list;
   }
 
+and actor_kind = A_Regular | A_Bcast | A_Graph
+                           
 (* and io_annot = net_expr *)
 and io_annot = string
              
@@ -118,16 +131,20 @@ let is_fun_definition = function
   { nb_desc={np_desc=NPat_var _}, {ne_desc=NFun (_,_)} } -> true
 | _ -> false
 
+let is_src_decl = function { io_desc=Io_src,_,_,_ } -> true | _ -> false
+let is_snk_decl = function { io_desc=Io_snk,_,_,_ } -> true | _ -> false
+
 (* let no_annot = { ne_desc=NUnit; ne_loc=Location.no_location; ne_typ=Types.no_type } *)
 let no_annot = ""
 
 (* Program manipulation *)
 
-let empty_program = { types=[]; params=[]; actors=[]; defns=[]; pragmas=[] }
+let empty_program = { types=[]; params=[]; ios=[]; actors=[]; defns=[]; pragmas=[] }
 
 let add_program p1 p2 = { (* TODO : Flag redefinitions ? *)
     types= p1.types @ p2.types;
     params= p1.params @ p2.params;
+    ios= p1.ios @ p2.ios;
     actors= p1.actors @ p2.actors;
     defns= p1.defns @ p2.defns;
     pragmas= p1.pragmas @ p2.pragmas;
@@ -193,9 +210,11 @@ let string_of_io_annot s = s
 
 let string_of_actor_io (id,ty,ann) = id ^ ": " ^ string_of_ty_expr ty ^ string_of_io_annot ann
                                
+let string_of_actor_kind = function A_Regular -> "actor" | A_Bcast -> "bcast" | A_Graph -> "graph"
+
 let string_of_actor_decl d =
   let a = d.ad_desc in
-  a.a_id
+  string_of_actor_kind a.a_kind ^ " " ^ a.a_id
     ^ " in (" ^ Misc.string_of_list string_of_actor_io ", " a.a_ins ^ ")"
     ^ " out (" ^ Misc.string_of_list string_of_actor_io ", " a.a_outs ^ ")"
 
@@ -203,7 +222,8 @@ let string_of_type_decl d = match d.td_desc with
   | Opaque_type_decl id -> id
 
 let string_of_param_decl d = match d.pd_desc with
-  | name, ty, e -> name ^ ": " ^ string_of_ty_expr ty ^ " = " ^ string_of_net_expr e
+  | name, P_Input, ty, _ -> name ^ ": " ^ string_of_ty_expr ty
+  | name, P_Local, ty, e -> name ^ ": " ^ string_of_ty_expr ty ^ " = " ^ string_of_net_expr e
 
 let rec string_of_net_defn d = match d.nd_desc with
     r, bs -> string_of_rec r ^ Misc.string_of_list string_of_net_binding " and " bs
@@ -215,7 +235,7 @@ let string_of_pragma_decl d = match d.pr_desc with
 
 let dump_type d = Printf.printf "type %s\n" (string_of_type_decl d)
 let dump_param d = Printf.printf "parameter %s\n" (string_of_param_decl d)
-let dump_actor d = Printf.printf "actor %s\n" (string_of_actor_decl d)
+let dump_actor d = Printf.printf "%s\n" (string_of_actor_decl d)
 let dump_defn d = Printf.printf "net %s\n" (string_of_net_defn d)
 let dump_pragma d = Printf.printf "pragma %s\n" (string_of_pragma_decl d)
 

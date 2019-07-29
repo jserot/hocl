@@ -27,6 +27,7 @@ type ss_val =
   | SVNil
   | SVAct of sv_act
   | SVLoc of idx * sel * typ * ss_val (* node index, output selector, type, parameter value (when applicable) *)
+                                      (* For source boxes, [typ] will be [unit->ty], for sink boxes [ty->unit] *)
 
 and sv_clos =
   { cl_pat: Syntax.net_pattern;
@@ -39,6 +40,7 @@ and sel = int
 and sv_loc = idx * sel
 
 and sv_act = {
+    sa_kind: Syntax.actor_kind;
     sa_id: string;
     sa_params: (string * typ * ss_val option) list;
     sa_ins: (string * typ * Syntax.io_annot) list;

@@ -20,7 +20,9 @@ open Static
 type dot_config = {
     mutable labeled_edges: bool;
     mutable show_indexes: bool;
-    mutable param_box_shape: string;
+    mutable local_param_box_shape: string;
+    mutable input_param_box_shape: string;
+    mutable srcsnk_box_shape: string;
     mutable slotted_boxes: bool;
     mutable show_wire_annots: bool;
     mutable rank_dir: string
@@ -29,7 +31,9 @@ type dot_config = {
 let cfg = {
   labeled_edges = true;
   show_indexes = false;
-  param_box_shape = "hexagon";
+  local_param_box_shape = "invhouse";
+  input_param_box_shape = "invtriangle";
+  srcsnk_box_shape = "cds";
   slotted_boxes = true;
   show_wire_annots = false;
   rank_dir = "LR"
@@ -65,7 +69,8 @@ let output_box ch (i,b) =
     let s2 = string_of_ssval b.b_val.bv_val in
     if s1 = s2 then s1 else s1 ^ "=" ^ s2 in
   match b.b_tag with
-  | ActorB ->
+  | ActorB
+  | BcastB ->
       if cfg.slotted_boxes then
         fprintf ch "n%d [shape=record,style=rounded,label=\"<id>%s|{{%s}|{%s}}\"];\n"
           i
@@ -74,12 +79,24 @@ let output_box ch (i,b) =
           (ioslots "s" (List.length b.b_outs))
       else
         fprintf ch "n%d [shape=box,style=rounded,label=\"%s\"];\n" i  bid
-  | ParamB -> 
+  | GraphB ->
+        fprintf ch "n%d [shape=box,label=\"%s\"];\n" i  bid
+  | SourceB | SinkB -> 
+     fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
+       i
+       cfg.srcsnk_box_shape
+       bid
+  | LocalParamB -> 
      fprintf ch "n%d [shape=%s,label=\"%s\n(%s)\"];\n"
        i
-       cfg.param_box_shape
+       cfg.local_param_box_shape
        bid
        bval
+  | InParamB -> 
+     fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
+       i
+       cfg.input_param_box_shape
+       bid
   | DummyB ->  (* Should not occur *)
       fprintf ch "n%d [shape=box,style=dotted,label=\"%s\"];\n" i "dummy"
 

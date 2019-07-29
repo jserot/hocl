@@ -22,6 +22,8 @@ type preesm_config = {
     mutable xml_encoding: string;
     mutable top_name: string;
     mutable code_prefix: string;
+    mutable algo_dir: string;
+    mutable default_port_ann: string
   }
 
 let cfg = {
@@ -29,6 +31,8 @@ let cfg = {
   xml_encoding = "UTF-8";
   top_name = "";
   code_prefix = "";
+  algo_dir = "Algo";
+  default_port_ann = "1" 
 }
 
 exception Error of string
@@ -97,7 +101,7 @@ let lookup_wire wires wid =
       try List.assoc wid wires
       with Not_found -> Misc.fatal_error "Preesm.lookup_wire"
 
-let is_param_box b = b.b_tag = ParamB
+let is_param_box b = b.b_tag = LocalParamB || b.b_tag = InParamB
 
 let output_actor_box_io oc dir is_config id ty =                            
   fprintf oc "          <param direction=\"%s\" isConfig=\"%s\" name=\"%s\" type=\"%s\"/>\n"
@@ -117,9 +121,12 @@ let output_actor_box_port oc dir is_param (id, (wid,ty,ann)) =
     fprintf oc "      <port kind=\"cfg_%s\" name=\"%s\"/>\n" dir id
   else
     fprintf oc "      <port kind=\"%s\" name=\"%s\" expr=\"%s\" annotation=\"NONE\"/>\n"
-      dir id ann
+      dir id (if ann = "" then cfg.default_port_ann else ann)
 
 let output_actor_box oc sp (i,b) =
+  let is_param (id, (wid,ty,ann)) = 
+    let w = lookup_wire sp.wires wid in
+    is_param_box (Static.src_box_of_wire sp.boxes w) in
   match b.b_tag with
   | ActorB ->
      let open Syntax in
@@ -133,9 +140,6 @@ let output_actor_box oc sp (i,b) =
      fprintf oc "    <node id=\"%s\" kind=\"actor\" period=\"%s\">\n" id period;
      fprintf oc "      <data key=\"graph_desc\">%s</data>\n" incl_file;
      fprintf oc "      <loop name=\"%s\">\n" loop_fn;
-     let is_param (id, (wid,ty,ann)) = 
-       let w = lookup_wire sp.wires wid in
-       is_param_box (Static.src_box_of_wire sp.boxes w) in
      let param_ins, fifo_ins = List.partition is_param b.b_ins in 
      List.iter (output_actor_box_inp oc true) param_ins;
      List.iter (output_actor_box_inp oc false) fifo_ins;
@@ -150,29 +154,69 @@ let output_actor_box oc sp (i,b) =
      List.iter (output_actor_box_port oc "input" false) fifo_ins;
      List.iter (output_actor_box_port oc "output" false) b.b_outs;
      fprintf oc "    </node>\n"
+  | GraphB ->
+     let open Syntax in
+     let id = box_name sp (i,b) in 
+     let incl_file = 
+       begin match get_pragma_desc "code" b.b_name sp with 
+       | [incl_file] -> incl_file
+       | _ -> raise (Error ("cannot find valid #pragma description for actor " ^ b.b_name))
+       end in
+     fprintf oc "    <node id=\"%s\" kind=\"actor\">\n" id;
+     fprintf oc "      <data key=\"graph_desc\">%s/%s</data>\n" cfg.algo_dir (Misc.replace_suffix "pi" incl_file);
+     let param_ins, fifo_ins = List.partition is_param b.b_ins in 
+     List.iter (output_actor_box_port oc "input" true) param_ins;
+     List.iter (output_actor_box_port oc "input" false) fifo_ins;
+     List.iter (output_actor_box_port oc "output" false) b.b_outs;
+     fprintf oc "    </node>\n"
+  | BcastB ->
+     let open Syntax in
+     let id = box_name sp (i,b) in 
+     fprintf oc "    <node id=\"%s\" kind=\"broadcast\">\n" id;
+     let param_ins, fifo_ins = List.partition is_param b.b_ins in 
+     List.iter (output_actor_box_port oc "input" true) param_ins;
+     List.iter (output_actor_box_port oc "input" false) fifo_ins;
+     List.iter (output_actor_box_port oc "output" false) b.b_outs;
+     fprintf oc "    </node>\n"
+  | SourceB ->
+     let open Syntax in
+     let id = box_name sp (i,b) in 
+     fprintf oc "    <node id=\"%s\" kind=\"src\">\n" id;
+     List.iter (output_actor_box_port oc "output" false) b.b_outs;
+     fprintf oc "    </node>\n"
+  | SinkB ->
+     let open Syntax in
+     let id = box_name sp (i,b) in 
+     fprintf oc "    <node id=\"%s\" kind=\"snk\">\n" id;
+     List.iter (output_actor_box_port oc "input" false) b.b_ins;
+     fprintf oc "    </node>\n"
   | _ ->
       () 
 
 let output_parameter oc sp (i,b) =
   match b.b_tag, b.b_val with
-  | ParamB, v ->
+  | LocalParamB, v ->
      fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (string_of_expr v.bv_lit) b.b_name 
+  | InParamB, _ ->
+     fprintf oc "    <node id=\"%s\" kind=\"cfg_in_iface\"/>\n" b.b_name 
   | _ -> ()
 
 let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
-  let mk_field name v = if v = "" then "" else Printf.sprintf "%s=\"%s\"" name v in
   let src_name, src_slot =
     let b = lookup_box sp.boxes s in
     match b.b_tag with
-    | ActorB -> box_name sp (s,b), fst (List.nth b.b_outs ss)
-    | ParamB -> box_name sp (s,b), ""
-    | _ -> Misc.fatal_error "Preesm.out_put_connexion" in
+    | ActorB | BcastB | GraphB -> box_name sp (s,b), fst (List.nth b.b_outs ss)
+    | LocalParamB | InParamB  -> box_name sp (s,b), ""
+    | SourceB -> box_name sp (s,b), box_name sp (s,b)
+    | _ -> Misc.fatal_error "Preesm.output_connexion" in
   let dst_name, dst_slot =
     let b = lookup_box sp.boxes d in
     match b.b_tag with
-    | ActorB -> box_name sp (d,b), fst (List.nth b.b_ins ds)
-    | ParamB -> box_name sp (d,b), ""
-    | _ -> Misc.fatal_error "Preesm.out_put_connexion" in
+    | ActorB | BcastB | GraphB -> box_name sp (d,b), fst (List.nth b.b_ins ds)
+    | LocalParamB -> box_name sp (d,b), ""
+    | SinkB | SourceB -> box_name sp (d,b), box_name sp (d,b) 
+    | _ -> Misc.fatal_error "Preesm.output_connexion" in
+  let mk_field name v = if v = "" then "" else Printf.sprintf "%s=\"%s\"" name v in
   fprintf oc "    <edge kind=\"%s\" source=\"%s\" %s target=\"%s\" %s %s/>\n"
     (if is_param_dep then "dependency" else "fifo")
     src_name
@@ -181,7 +225,7 @@ let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
     (mk_field "targetport" dst_slot)
     (mk_field "type" (if is_param_dep then "" else string_of_type ty))
 
-let output oc sp = 
+let output oc name sp = 
   fprintf oc "<?xml version=\"%s\" encoding=\"%s\"?>\n" cfg.xml_version cfg.xml_encoding;
   fprintf oc "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\">\n";
   fprintf oc "  <key attr.name=\"parameters\" for=\"graph\" id=\"parameters\"/>\n";
@@ -190,7 +234,7 @@ let output oc sp =
   fprintf oc "  <key attr.name=\"name\" attr.type=\"string\" for=\"graph\"/>\n";
   fprintf oc "  <key attr.name=\"graph_desc\" attr.type=\"string\" for=\"node\"/>\n";
   fprintf oc "  <graph edgedefault=\"directed\">\n";
-  fprintf oc "    <data key=\"name\">%s</data>\n" cfg.top_name;
+  fprintf oc "    <data key=\"name\">%s</data>\n" name;
   List.iter (output_parameter oc sp) sp.boxes;
   List.iter (output_actor_box oc sp) sp.boxes;
   List.iter (output_connexion oc sp) sp.wires;
@@ -198,8 +242,8 @@ let output oc sp =
   fprintf oc "</graphml>\n"
 
 let dump fname sp =
-  if cfg.top_name = "" then cfg.top_name <- Misc.file_prefix fname;
+  let name = if cfg.top_name = "" then Misc.file_prefix fname else cfg.top_name in
   let oc = open_out fname in
-  output oc sp;
+  output oc name sp;
   Logfile.write fname;
   close_out oc

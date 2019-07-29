@@ -29,9 +29,13 @@ let keyword_table = [
   "nat", TY_NAT;
   "bool", TY_BOOL;
   "unit", TY_UNIT;
+  "bcast", BCAST;
   "actor", ACTOR;
   "parameter", PARAMETER;
   "param", PARAM;
+  "source", SOURCE;
+  "sink", SINK;
+  "graph", GRAPH;
   "fun", FUN;
   "let", LET;
   "and", AND;

@@ -1,0 +1,6 @@
+Test generated Preesm code 
+- set project name in $(CWD)/Makefile
+- make preesm
+- make preesm.proj
+- From Preesm: Menu File > Open Project from File System
+- Right click on <project>/Algo/xxx.pi, then Preesm > Check Model or Generate diagram
