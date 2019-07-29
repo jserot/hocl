@@ -19,7 +19,7 @@ PI2HCL
 - port annotations (vs. expr)
 
 DOC
-- update tutorial with support for bcast nodes and hierarchical graphs
+- update tutorial with support for bcast nodes
 
 BUILD
 - dunify build process
