@@ -33,9 +33,9 @@ INSTALLATION
 
 Pre-requisites :
 
-* [Ocaml](http://ocaml.org/docs/install.html) version >= 4.06.0 with the following packages
-    - [ocamlbuild](https://opam.ocaml.org/packages/ocamlbuild)
-    - [ocamlfind](https://opam.ocaml.org/packages/ocamlfind)
+* [Ocaml](http://ocaml.org/docs/install.html) version >= 4.06.0 with the following package(s)
+    - [menhir](https://opam.ocaml.org/packages/menhir)
+    - [dune](https://opam.ocaml.org/packages/dune)
 
 Download the source tree (`git clone https://github.com/jserot/hocl`).
 

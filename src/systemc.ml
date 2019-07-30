@@ -425,6 +425,7 @@ and dump_box sp oc (i,b) =
       List.iter (dump_box_input oc bname) b.b_ins;
       List.iter (dump_box_output oc bname) b.b_outs
   | DummyB ->  Misc.fatal_error "Systemc.dump_box: dummy box"
+  | _ ->  Misc.fatal_error "Systemc.dump_box: not implemented box kind"
 
 and dump_box_input oc bname (id,(wid,ty,ann)) =
      fprintf oc "  %s.%s(w%d);\n" bname id wid

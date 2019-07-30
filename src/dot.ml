@@ -12,7 +12,6 @@
 
 (* DOT backend *)
 
-open Misc
 open Printf
 open Ssval
 open Static

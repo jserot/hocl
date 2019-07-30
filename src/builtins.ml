@@ -11,8 +11,6 @@
 (**********************************************************************)
 
 open Types
-open Syntax
-open Error
 open Misc
 open Typing
 open Ssval

@@ -21,6 +21,3 @@ PI2HCL
 DOC
 - update tutorial with support for bcast nodes
 
-BUILD
-- dunify build process
-

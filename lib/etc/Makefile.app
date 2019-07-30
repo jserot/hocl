@@ -1,5 +1,5 @@
 HOCL=/Users/jserot/Dev/ml/hocl
-HOCLC=$(HOCL)/src/main.byte
+HOCLC=$(HOCL)/bin/hoclc
 HOCL_OPTS=-prelude $(HOCL)/lib/hocl/prelude.hcl
 DOTVIEWER=graphviz
 PREESM_REP=/Users/jserot/Desktop/SF2/preesm-dev

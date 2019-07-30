@@ -4,8 +4,9 @@ lib/etc/config
 _build/
 src/parser.output
 src/version.ml
-src/grammar.html
+src/grammar.tex
 *.html
+!doc/grammar.html
 /config-stamp
 *.o
 *~
@@ -19,6 +20,6 @@ src/old/
 src/obsolete/
 examples/tofix/
 examples/tosee/
-*.merlin
+.merlin
 tools/pi2hcl/examples/*.hcl
 tools/pi2hcl/examples/*.dot

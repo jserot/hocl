@@ -1,8 +1,8 @@
 EXCLUDE_QUERY_DIR
 B /Users/jserot/.opam/4.06.0/lib/ezxmlm
 B /Users/jserot/.opam/4.06.0/lib/xmlm
-B _build/default/.main.eobjs
+B ../../_build/default/tools/pi2hcl/.main.eobjs
 S /Users/jserot/.opam/4.06.0/lib/ezxmlm
 S /Users/jserot/.opam/4.06.0/lib/xmlm
 S .
-FLG -w @a-4-29-40-41-42-44-45-48-58-59-60-40 -strict-sequence -strict-formats -short-paths -keep-locs -warn-error -A -w @a-4-29-40-41-42-44-45-48-58-59-60-40 -strict-sequence -strict-formats -short-paths -keep-locs -annot
+FLG -w @a-4-29-40-41-42-44-45-48-58-59-60-40 -strict-sequence -strict-formats -short-paths -keep-locs

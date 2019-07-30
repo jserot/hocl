@@ -18,7 +18,6 @@ open Typing
 open Printf
 open Pr_type
 open Ssval
-open Location
 
 type cfg = {
   mutable insert_bcasts: bool;

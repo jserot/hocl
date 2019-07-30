@@ -1,0 +1,26 @@
+(env
+  (dev
+    (flags (:standard -annot))))
+
+(ocamllex lexer)
+
+(menhir (modules parser))
+
+(executable
+  (name main)
+  (flags (:standard -w -9-26-27-35-39) (-annot))
+  (libraries ezxmlm unix))
+
+(rule
+  (targets grammar.html)
+  (deps parser.mly)
+  (mode promote)
+  (action (run obelisk html -i -o %{targets} %{deps})))
+
+(rule
+  (targets grammar.tex)
+  (deps parser.mly)
+  (mode promote)
+  (action (run obelisk latex -i -prefix hocl -o grammar.tex -package grammar-defns parser.mly)))
+
+

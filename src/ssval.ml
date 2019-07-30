@@ -13,7 +13,6 @@
 (* Static semantic domain *)
 
 open Types
-open Location
 
 type ss_val =
   | SVNat of int

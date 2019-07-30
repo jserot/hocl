@@ -13,8 +13,6 @@
 open Printf
 open Misc
 open Location
-open Syntax
-open Parser
 open Builtins
 open Typing
 open Static

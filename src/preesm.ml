@@ -12,7 +12,6 @@
 
 (* Preesm backend *)
 
-open Misc
 open Printf
 open Ssval
 open Static
@@ -129,7 +128,6 @@ let output_actor_box oc sp (i,b) =
     is_param_box (Static.src_box_of_wire sp.boxes w) in
   match b.b_tag with
   | ActorB ->
-     let open Syntax in
      let id = box_name sp (i,b) in 
      let incl_file, loop_fn, init_fn, period = 
        begin match get_pragma_desc "code" b.b_name sp with 
@@ -155,7 +153,6 @@ let output_actor_box oc sp (i,b) =
      List.iter (output_actor_box_port oc "output" false) b.b_outs;
      fprintf oc "    </node>\n"
   | GraphB ->
-     let open Syntax in
      let id = box_name sp (i,b) in 
      let incl_file = 
        begin match get_pragma_desc "code" b.b_name sp with 
@@ -170,7 +167,6 @@ let output_actor_box oc sp (i,b) =
      List.iter (output_actor_box_port oc "output" false) b.b_outs;
      fprintf oc "    </node>\n"
   | BcastB ->
-     let open Syntax in
      let id = box_name sp (i,b) in 
      fprintf oc "    <node id=\"%s\" kind=\"broadcast\">\n" id;
      let param_ins, fifo_ins = List.partition is_param b.b_ins in 
@@ -179,13 +175,11 @@ let output_actor_box oc sp (i,b) =
      List.iter (output_actor_box_port oc "output" false) b.b_outs;
      fprintf oc "    </node>\n"
   | SourceB ->
-     let open Syntax in
      let id = box_name sp (i,b) in 
      fprintf oc "    <node id=\"%s\" kind=\"src\">\n" id;
      List.iter (output_actor_box_port oc "output" false) b.b_outs;
      fprintf oc "    </node>\n"
   | SinkB ->
-     let open Syntax in
      let id = box_name sp (i,b) in 
      fprintf oc "    <node id=\"%s\" kind=\"snk\">\n" id;
      List.iter (output_actor_box_port oc "input" false) b.b_ins;

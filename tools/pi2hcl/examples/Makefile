@@ -14,6 +14,8 @@ bcast.hcl: bcast.pi
 clean:
 	\rm -f *.hcl
 	\rm -f *.dot
+	(cd sift; make clean)
 
 clobber: clean
 	\rm -f *~
+	(cd sift; make clobber)
