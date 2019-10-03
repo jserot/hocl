@@ -36,6 +36,7 @@ Pre-requisites :
 * [Ocaml](http://ocaml.org/docs/install.html) version >= 4.06.0 with the following package(s)
     - [menhir](https://opam.ocaml.org/packages/menhir)
     - [dune](https://opam.ocaml.org/packages/dune)
+    - [ezxmlm](https://opam.ocaml.org/packages/ezxmlm)
 
 Download the source tree (`git clone https://github.com/jserot/hocl`).
 
