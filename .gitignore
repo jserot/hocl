@@ -11,6 +11,7 @@ src/grammar.tex
 *~
 *.dot
 *.pi
+.merlin
 !tools/pi2hcl/examples/*.pi
 !tools/pi2hcl/examples/sift/*.pi
 hocl.output

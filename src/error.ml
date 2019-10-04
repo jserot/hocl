@@ -139,3 +139,6 @@ let invalid_box_wiring what name sel =
   eprintf "Error: %s %d for box %s.\n" what sel name;
   raise Error
 
+let no_pragma_desc id =
+  eprintf "Warning: no #pragma description found for actor %s\n" id
+

@@ -171,7 +171,7 @@ let rec dump_actor_impl sp prefix oc name a =
     begin match get_pragma_desc "code" a.sa_id sp with 
     | [incl_file; loop_fn] -> incl_file, loop_fn, ""
     | [incl_file; loop_fn; init_fn] -> incl_file, loop_fn, init_fn
-    | _ -> raise (Error ("cannot find valid #pragma description for actor " ^ name))
+    | _ -> Error.no_pragma_desc a.sa_id; a.sa_id ^ ".h", a.sa_id, ""
     end in
   let params = List.map (function (id,ty,_) -> id,ty,ParamIn) a.sa_params in
   let inps = List.map (function (id,ty,_) -> id,ty,DataIn) (List.filter is_actual_actor_io a.sa_ins) in

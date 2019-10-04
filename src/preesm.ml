@@ -133,7 +133,7 @@ let output_actor_box oc sp (i,b) =
        begin match get_pragma_desc "code" b.b_name sp with 
        | [incl_file; loop_fn] -> incl_file, loop_fn, "", "0"
        | [incl_file; loop_fn; init_fn] -> incl_file, loop_fn, init_fn, "0"
-       | _ -> raise (Error ("cannot find valid #pragma description for actor " ^ b.b_name))
+       | _ -> Error.no_pragma_desc b.b_name; b.b_name ^ ".h", b.b_name, "", "0"
        end in
      fprintf oc "    <node id=\"%s\" kind=\"actor\" period=\"%s\">\n" id period;
      fprintf oc "      <data key=\"graph_desc\">%s</data>\n" incl_file;
