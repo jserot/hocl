@@ -38,9 +38,12 @@ clobber:
 	\rm -f *~
 
 install:
+	cp ./config ./lib/etc
 	mkdir -p $(INSTALL_LIBDIR)
 	cp -r lib/hocl $(INSTALL_LIBDIR)
-	cp -r lib/etc $(INSTALL_LIBDIR)
+	mkdir -p $(INSTALL_LIBDIR)/etc
+	cat ./platform ./lib/etc/Makefile.templ > $(INSTALL_LIBDIR)/etc/Makefile.app
+	cp $(INSTALL_LIBDIR)/etc/Makefile.app ./lib/etc
 	cp -r lib/systemc $(INSTALL_LIBDIR)
 	cp -r lib/preesm $(INSTALL_LIBDIR)
 	mkdir -p $(INSTALL_BINDIR)
