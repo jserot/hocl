@@ -1,3 +1,12 @@
+HOCL=/Users/jserot/Dev/ml/hocl
+HOCLC=$(HOCL)/bin/hoclc
+HOCL_OPTS=-prelude $(HOCL)/lib/hocl/prelude.hcl
+DOTVIEWER=graphviz
+VCDVIEWER=gtkwave
+TXTVIEWER=nano
+PREESM_REP=/Users/jserot/Desktop/SF2/preesm-dev
+PREESM_PROJ=/Users/jserot/Desktop/SF2/preesm-dev/$(PROJ)
+
 all: dot.show
 
 dot: $(SRCS)
@@ -17,8 +26,8 @@ preesm.proj:
 	if [ ! -d $(PREESM_PROJ)/include ]; then mkdir $(PREESM_PROJ)/include; fi
 	if [ ! -d $(PREESM_PROJ)/src ]; then mkdir $(PREESM_PROJ)/src; fi
 	if [ ! -e $(PREESM_PROJ)/.project ]; then sed -e 's/%%NAME%%/$(PROJ)/' $(HOCL)/lib/preesm/.project.templ > $(PREESM_PROJ)/.project; fi
-	if [ -d ./include ]; then cp include/*.h $(PREESM_PROJ)/include; fi
-	if [ -d ./src ]; then cp src/*.c $(PREESM_PROJ)/src; fi
+	cp include/*.h $(PREESM_PROJ)/include
+	cp src/*.c $(PREESM_PROJ)/src
 	cp preesm/*.pi $(PREESM_PROJ)/Algo
 
 systemc: $(SRCS)
