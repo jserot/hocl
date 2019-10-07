@@ -22,7 +22,9 @@ type preesm_config = {
     mutable top_name: string;
     mutable code_prefix: string;
     mutable algo_dir: string;
-    mutable default_port_ann: string
+    mutable default_port_ann: string;
+    mutable default_incl_dir: string;
+    mutable default_src_dir: string
   }
 
 let cfg = {
@@ -31,7 +33,9 @@ let cfg = {
   top_name = "";
   code_prefix = "";
   algo_dir = "Algo";
-  default_port_ann = "1" 
+  default_port_ann = "1";
+  default_incl_dir = "../include";
+  default_src_dir = "../src"
 }
 
 exception Error of string
@@ -133,7 +137,7 @@ let output_actor_box oc sp (i,b) =
        begin match get_pragma_desc "code" b.b_name sp with 
        | [incl_file; loop_fn] -> incl_file, loop_fn, "", "0"
        | [incl_file; loop_fn; init_fn] -> incl_file, loop_fn, init_fn, "0"
-       | _ -> Error.no_pragma_desc b.b_name; b.b_name ^ ".h", b.b_name, "", "0"
+       | _ -> Error.no_pragma_desc b.b_name; cfg.default_incl_dir ^ "/" ^ b.b_name ^ ".h", b.b_name, "", "0"
        end in
      fprintf oc "    <node id=\"%s\" kind=\"actor\" period=\"%s\">\n" id period;
      fprintf oc "      <data key=\"graph_desc\">%s</data>\n" incl_file;
