@@ -23,3 +23,7 @@ examples/tosee/
 .merlin
 tools/pi2hcl/examples/*.hcl
 tools/pi2hcl/examples/*.dot
+systemc/*.cpp
+systemc/*.h
+systemc/*.o
+systemc/main_sc

@@ -92,10 +92,12 @@ let is_valid_param_value = function
 
 let box_name sp (i,b) =
   match b.b_tag with
+  | BcastB ->
+     b.b_name ^ "_" ^ string_of_int i
   | ActorB ->
      let a =
        try List.assoc b.b_name sp.gacts
-       with Not_found -> Misc.fatal_error "Static.box_name" (* should not happen *) in
+       with Not_found -> Misc.fatal_error ("Static.box_name(" ^ b.b_name ^ ")") (* should not happen *) in
      if List.length a.sa_insts > 1
      then b.b_name ^ "_" ^ string_of_int i
      else b.b_name
@@ -630,7 +632,7 @@ let rec eval_io_decl tp nenv (ne,bs,ws) { io_desc=kind,id,params,ty; io_loc=loc 
 let new_bcast_box ty wid wids =
   let bid = new_bid () in
   let bos = Misc.list_map_index (fun i wid -> "o_" ^ string_of_int (i+1), ([wid],ty,no_annot)) wids in 
-  bid, { b_id=bid; b_tag=ActorB; b_name=cfg.bcast_name; b_params=[]; b_ins=["i",(wid,ty,no_annot)]; b_outs=bos; b_typ=ty; b_val=no_bval }
+  bid, { b_id=bid; b_tag=BcastB; b_name=cfg.bcast_name; b_params=[]; b_ins=["i",(wid,ty,no_annot)]; b_outs=bos; b_typ=ty; b_val=no_bval }
 
 let rec is_bcast_box boxes bid = (find_box boxes bid).b_name = cfg.bcast_name
 
@@ -648,19 +650,29 @@ let rec insert_bcast bid oidx (boxes,wires,box) bout =
       let box' = { box with b_outs = Misc.assoc_replace id (function _ -> [wid'],ty,ann) box.b_outs } in
       let wires' = Misc.foldl_index (update_wires m) wires wids in
       let boxes' = Misc.assoc_replace bid (function b -> box') boxes in
-      (m,mb) :: boxes', (wid',(((bid,oidx),(m,0)),ty,false)) :: wires', box'
+      (m,mb) :: boxes', (wid',(((bid,oidx),(m,0)),ty,is_dep_wire wires (List.hd wids))) :: wires', box'
+
+and is_dep_wire wires wid =
+  try
+    match List.assoc wid wires with
+    | _,_,b -> b
+  with
+  | Not_found -> 
+     Misc.fatal_error "Static.is_dep_wire"
 
 and update_wires s' j wires wid = 
   Misc.assoc_replace wid (function ((s,ss),(d,ds)),ty,b -> ((s',j),(d,ds)),ty,b) wires 
 
 let insert_bcast_after (boxes,wires) (bid,box) = 
   match box.b_tag with
-    LocalParamB | InParamB ->
-      (* Do not insert bcasts after parameters (?) *)
-      boxes, wires
-  | _ ->
+  | LocalParamB
+  | InParamB
+  | SourceB 
+  | ActorB -> (* TO BE FIXED ? *)
       let boxes', wires', box' = Misc.foldl_index (insert_bcast bid) (boxes,wires,box) box.b_outs in
       boxes', wires'
+  | _ ->
+      boxes, wires
 
 let insert_bcasters sp = 
   let boxes', wires' = List.fold_left insert_bcast_after (sp.boxes,sp.wires) sp.boxes in

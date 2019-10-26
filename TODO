@@ -6,7 +6,6 @@ COMPILER
 - support expr-annot for src and snk nodes in subgraphs (cf SIFT/Htop_sift.pi/{image}src for ex)
 - unify specification of IOs for toplevel graph and hierarchical subgraphs (the former are described as actors,
   the latter as "source"/"sink" special nodes
-- automatic insertion of bcast nodes
 - dot backend: show port names for actor boxes (like in pi2hcl)
 - cluster-based drawing of hierarchy graphical in the .dot backend (?)
 - implementation of hierarchy in the SystemC backend

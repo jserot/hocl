@@ -44,7 +44,8 @@ let cfg = {
     "\"hocl.h\"" ];
   sc_top_headers = [
     "<systemc.h>";
-    "<iostream>" ];
+    "<iostream>";
+    "\"bcast.h\"" ];
   sc_bcasters_suffix = "_bcasters";
   sc_trace = false;
   (* sc_dump_fifos = false;
@@ -103,7 +104,6 @@ and is_simple_expr e = match e.Syntax.ne_desc with
   | Syntax.NBool _ -> true
   | Syntax.NVar v -> true
   | _ -> false
-
 
 (* Dumping actor interface and implementation *)
 
@@ -354,7 +354,11 @@ let rec dump_top_module prefix fname sp =
   let headers =
       List.map (header_name cfg.sc_act_suffix) sp.gacts
     @ List.map (header_name cfg.sc_param_suffix) sp.gparams in
-  let bcasters = Static.extract_bcast_boxes sp in
+  let bcasters = [] in
+  (* let bcasters = Static.extract_bcast_boxes sp in *)
+  (* TO FIX : we have to distinguish "implicit" bcasts, used for parameters and inserted automatically
+     with the [-insert_bcasts] option, from the "explicit" bcasts inserted by the programmer btw _actors_.
+     Eventually merge the two cases ? *)
   dump_banner oc;
   List.iter (function h -> fprintf oc "#include %s\n" h) (cfg.sc_top_headers @ headers);
   if bcasters <> [] then fprintf oc "#include \"%s\"\n"  (prefix ^ cfg.sc_bcasters_suffix ^ ".h");
@@ -413,7 +417,16 @@ and dump_box sp oc (i,b) =
       | (_,(_,ty,_))::_ -> ty
       | _ -> failwith "Systemc.dump_box" (* should not happen *) in
   match b.b_tag with
-    ActorB when is_bcast_box sp.boxes i ->
+  | BcastB ->  (* Implicit bcast (for parameters, for now) *)
+      let ty = type_of b.b_ins in
+      fprintf oc "  %s<%s > %s(\"%s\");\n"
+        ("bcast" ^ string_of_int (List.length b.b_outs))
+        (string_of_type ty)
+        bname
+        bname;
+      List.iter (dump_box_input oc bname) b.b_ins;
+      List.iter (dump_box_output oc bname) b.b_outs
+  | ActorB when is_bcast_box sp.boxes i -> (* Explicit bcast (for actors, for now) *) (* TO BE FIXED ? *)
       let ty = type_of b.b_ins in
       fprintf oc "  %s<%s > %s(\"%s\", %b);\n"
         ("bcast" ^ string_of_int (List.length b.b_outs))

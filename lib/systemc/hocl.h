@@ -6,5 +6,6 @@
 #define VERBOSE
 
 typedef int nat;
+typedef unsigned char uchar;
 
 #endif
