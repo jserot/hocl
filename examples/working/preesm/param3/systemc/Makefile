@@ -5,7 +5,14 @@ CXXFLAGS  += -I../include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-
 SC_CXXFLAGS  += -I../../../../../lib/systemc -I../include -I$(SC_DIR)/include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
 LDFLAGS	    = -L$(SC_DIR)/lib-macosx64
 
-CPP_SRCS = inp_act.cpp outp_act.cpp foo_act.cpp baseFactor_act.cpp multFactor_act.cpp main_top.cpp
+CPP_SRCS = \
+	inp_act.cpp \
+	outp_act.cpp \
+	foo_act.cpp \
+	baseFactor_param.cpp \
+	multFactor_param.cpp \
+	main_top.cpp
+
 C_SRCS = input.c output.c foo.c 
 OBJS = $(C_SRCS:.c=.o) $(CPP_SRCS:.cpp=.o)
 CPP_HDRS = $(CPP_SRCS:.cpp=.h)
@@ -32,15 +39,17 @@ run: ./main_sc
 inp_act.o: inp_act.cpp
 outp_act.o: outp_act.cpp
 foo_act.o: foo_act.cpp
+baseFactor_param.o: baseFactor_param.cpp
+multFactor_param.o: multFactor_param.cpp
 main_top.o: main_top.cpp
 input.o: input.c
 output.o: output.c
 foo.o: foo.c
 
 clean:
-	\rm -f $(GEN_SRCS) 
 	\rm -f *.o
 	\rm -f main_sc
 
 clobber: clean
+	\rm -f $(GEN_SRCS) 
 	\rm -f *~

@@ -38,9 +38,9 @@ output.o: output.c
 foo.o: foo.c
 
 clean:
-	\rm -f $(GEN_SRCS) 
 	\rm -f *.o
 	\rm -f main_sc
 
 clobber: clean
+	\rm -f $(GEN_SRCS)
 	\rm -f *~
