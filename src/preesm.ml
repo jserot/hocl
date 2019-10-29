@@ -110,24 +110,28 @@ let output_actor_box_io oc dir is_config id ty =
   fprintf oc "          <param direction=\"%s\" isConfig=\"%s\" name=\"%s\" type=\"%s\"/>\n"
     dir (string_of_bool is_config) id (string_of_type ty)
 
-let output_actor_box_inp oc is_param (id, (wid,ty,ann)) =
+let output_actor_box_inp oc is_param (id, (wid,ty,rate,ann)) =
   output_actor_box_io oc "IN" is_param id ty
 
-let output_actor_box_outp oc (id, (wids,ty,ann)) =
+let output_actor_box_outp oc (id, (wids,ty,rate,ann)) =
   output_actor_box_io oc "OUT" false (* TO FIX *) id ty
 
-let output_actor_box_iinit oc (id, (wid,ty,ann)) =
+let output_actor_box_iinit oc (id, (wid,ty,rate,ann)) =
   fprintf oc "        <param direction=\"IN\" isConfig=\"true\" name=\"%s\" type=\"%s\"/>\n" id (string_of_type ty)
 
-let output_actor_box_port oc dir is_param (id, (wid,ty,ann)) =
+let output_actor_box_port oc dir is_param (id, (wid,ty,rate,ann)) =
   if is_param then
     fprintf oc "      <port kind=\"cfg_%s\" name=\"%s\"/>\n" dir id
   else
-    fprintf oc "      <port kind=\"%s\" name=\"%s\" expr=\"%s\" annotation=\"NONE\"/>\n"
-      dir id (if ann = "" then cfg.default_port_ann else ann)
+    fprintf oc "      <port kind=\"%s\" name=\"%s\" expr=\"%s\" annotation=\"%s\"/>\n"
+      dir
+      id
+      (Syntax.string_of_io_rate rate)  (* TO CHECK !! *)
+      (Syntax.string_of_io_annot ann)  (* TO CHECK !! *)
+      (* (if ann = "" then cfg.default_port_ann else ann) *)
 
 let output_actor_box oc sp (i,b) =
-  let is_param (id, (wid,ty,ann)) = 
+  let is_param (id, (wid,ty,_,_)) = 
     let w = lookup_wire sp.wires wid in
     is_param_box (Static.src_box_of_wire sp.boxes w) in
   match b.b_tag with

@@ -64,15 +64,14 @@ and actor_desc = {
     a_kind: actor_kind;
     a_id: string;
     a_params: (string * type_expression) list;
-    a_ins: (string * type_expression * io_annot) list;
-    a_outs: (string * type_expression * io_annot) list;
+    a_ins: (string * type_expression * rate_expr option * io_annot option) list;
+    a_outs: (string * type_expression * rate_expr option * io_annot option) list;
   }
 
-and actor_kind = A_Regular | A_Bcast | A_Graph
-                           
-(* and io_annot = net_expr *)
 and io_annot = string
              
+and actor_kind = A_Regular | A_Bcast | A_Graph
+                           
 and net_defn =
   { nd_desc: net_defn_desc;
     nd_loc: location }
@@ -125,6 +124,16 @@ and pragma_decl =
     pr_loc: location }
 and pragma_desc = string * string list (* name, args *)
 
+and rate_expr =
+  { re_desc: rate_expr_desc;
+    re_loc: location;
+    mutable re_typ: Types.typ }
+
+and rate_expr_desc =
+   | RVar of string
+   | RConst of int
+   | RBinop of string * rate_expr * rate_expr
+
 (* Aux fns *)
 
 let is_fun_definition = function
@@ -157,6 +166,10 @@ let is_unop op = List.mem op [ "not" ]      (* TO ADJUST WITH PARSER/LEXER *)
 let is_binop op = List.mem op [             (* TO ADJUST WITH PARSER/LEXER *)
   "+"; "-"; "*"; "/"; "%";
   "<"; ">"; "="; "!="; "<>"
+  ]
+
+let is_rbinop op = List.mem op [             (* TO ADJUST WITH PARSER/LEXER *)
+  "+"; "-"; "*"; "/"; "%"
   ]
    
 let rec string_of_ty_expr te = string_of_ty_exp te.te_desc
@@ -202,13 +215,44 @@ and string_of_net_pat = function
   | NPat_unit -> "()"
   | NPat_ignore -> "_"
 
-let string_of_io_annot s = s
+and string_of_rate_expr re = string_of_rate_exp re.re_desc
+
+and string_of_rate_exp = function
+   | RVar v -> v
+   | RConst n -> string_of_int n
+   | RBinop (op,e1,e2) -> string_of_rate_expr e1 ^ op ^ string_of_rate_expr e2 (* TO FIX *)
+
+let is_constant_rate_expr re =
+  match re.re_desc with
+  | RConst _ -> true
+  | _ -> false
+       
+let constant_of_rate_expr re =
+  match re.re_desc with
+  | RConst n -> n
+  | _ -> Misc.fatal_error "Syntax.constant_of_rate_expr"
+  
+let subst_rate_expr vs re = 
+  let rec subst e = match e.re_desc with
+   | RVar v when List.mem_assoc v vs -> { e with re_desc = RVar (List.assoc v vs) }
+   | RBinop (op,e1,e2) -> { e with re_desc = RBinop (op, subst e1, subst e2) }
+   | _ -> e in
+  subst re
+
+let string_of_io_rate r = match r with
+    None -> ""
+  | Some re -> "[" ^ string_of_rate_expr re ^ "]"
+
+let string_of_io_annot r = match r with
+    None -> ""
+  | Some s -> "{" ^ s ^ "}"
        
 (* let string_of_io_annot = function
  *     { ne_desc=NUnit } -> ""
  *   | e -> "{" ^ string_of_net_expr e ^ "}" *)
 
-let string_of_actor_io (id,ty,ann) = id ^ ": " ^ string_of_ty_expr ty ^ string_of_io_annot ann
+let string_of_actor_io (id,ty,rate,ann) =
+  id ^ ": " ^ string_of_ty_expr ty ^ string_of_io_rate rate ^ string_of_io_annot ann
                                
 let string_of_actor_kind = function A_Regular -> "actor" | A_Bcast -> "bcast" | A_Graph -> "graph"
 

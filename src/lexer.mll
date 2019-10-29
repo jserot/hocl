@@ -115,8 +115,8 @@ rule main = parse
   | "]" { RBRACKET }
   | "(" { LPAREN }
   | ")" { RPAREN }
-  (* | "{" { LBRACE }
-   * | "}" { RBRACE } *)
+  | "{" { LBRACE }
+  | "}" { RBRACE }
   | "*" { STAR }
   | "," { COMMA }
   | "->" { ARROW }

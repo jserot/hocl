@@ -31,7 +31,9 @@ type sc_config = {
   mutable sc_param_suffix: string;
   mutable sc_mod_clock: string;
   mutable sc_clock_period_ns: int;
-  mutable sc_fifo_capacity: int;
+  mutable sc_data_fifo_capacity: int;
+  mutable sc_param_fifo_capacity: int;
+  mutable sc_default_io_rate: int;
   mutable sc_stop_time: int;
   (* mutable sc_stop_idle_time: int;
    * mutable sc_tmp_prefix: string;  (\* Prefix for temporary variables in rule actions *\)
@@ -56,7 +58,9 @@ let cfg = {
   sc_param_suffix = "_param";
   sc_mod_clock = "clk";
   sc_clock_period_ns = 10;
-  sc_fifo_capacity = 256;
+  sc_data_fifo_capacity = 256;
+  sc_param_fifo_capacity = 4;  (* TO FIX: 1 *)
+  sc_default_io_rate = 1;
   sc_stop_time = 0;
   (* sc_stop_idle_time = 0;
    * sc_tmp_prefix = "_";
@@ -84,20 +88,21 @@ let rec string_of_type t  = match real_type t with (* TO REFINE *)
 
 (* Expressions *)
 
-let rec string_of_expr e =
+let rec string_of_expr ?(localize_ids=false) e =
   match e.Syntax.ne_desc with
     Syntax.NNat n -> string_of_int n
   | Syntax.NBool b -> string_of_bool b
-  | Syntax.NVar v -> v
+  | Syntax.NVar v -> if localize_ids then localize_id v else v
   | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar op},{Syntax.ne_desc=Syntax.NTuple [e1;e2]}) when Syntax.is_binop op -> 
-      string_of_expr' e1 ^ op ^ string_of_expr' e2
-  | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar op},e) when Syntax.is_unop op -> op ^ "(" ^ string_of_expr e ^ ")"
+      string_of_expr' ~localize_ids e1 ^ op ^ string_of_expr' ~localize_ids e2
+  | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar op},e) when Syntax.is_unop op ->
+     op ^ "(" ^ string_of_expr ~localize_ids e ^ ")"
   (* | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar f}, es) ->
    *     f ^ "(" ^ Misc.string_of_list string_of_expr "," es ^ ")" *)
   | _ -> Misc.not_implemented ("Systemc.string_of_expr: " ^  (Syntax.string_of_net_expr e))
 
-and string_of_expr' e =
-  if is_simple_expr e then string_of_expr e else "(" ^ string_of_expr e ^ ")"
+and string_of_expr' ?(localize_ids=false) e =
+  if is_simple_expr e then string_of_expr ~localize_ids e else "(" ^ string_of_expr ~localize_ids e ^ ")"
 
 and is_simple_expr e = match e.Syntax.ne_desc with
     Syntax.NNat _ -> true
@@ -107,28 +112,44 @@ and is_simple_expr e = match e.Syntax.ne_desc with
 
 (* Dumping actor interface and implementation *)
 
-let is_actual_actor_io (id,ty,_) = not (is_unit_type ty)
+let size_of_var_annot ann =
+  (* TO BE REPLACED when the top level parser will accept proper size expressions on IO ports *)
+  match ann with
+  | "" ->
+     Some 1
+  | _ ->
+     begin
+       try Some (int_of_string ann)  (* Constant exprs; ex: "8" *)
+       with _ -> None                (* Non constant exprs; ex: "k", "n+2", ... *)
+     end
 
+let is_actual_actor_io (id,ty,_,_) = not (is_unit_type ty)
+
+let string_of_io_rate rate = match rate with
+  | None -> "1"
+  | Some e -> Syntax.string_of_rate_expr e
+            
 let rec dump_actor_intf sp prefix oc modname a =
   let open Ssval in
   let inps = List.filter is_actual_actor_io a.sa_ins in
   let outps = List.filter is_actual_actor_io a.sa_outs in
+  let need_clk = inps = [] && a.sa_params = [] in (* true for parameter-less, source actors *)
   fprintf oc "#ifndef _%s_h\n" modname;
   fprintf oc "#define _%s_h\n" modname;
   fprintf oc "\n";
   List.iter (function h -> fprintf oc "#include %s\n" h) cfg.sc_act_headers;
   fprintf oc "\n";
   fprintf oc "SC_MODULE(%s) {\n" modname;
-  if inps = [] then (* Source actor *)
+  if need_clk then 
     fprintf oc "  sc_in<bool> %s;\n" cfg.sc_mod_clock;
   List.iter
-    (function (id,ty,_) -> fprintf oc "  sc_in<%s > %s;\n" (string_of_type ty) id)
+    (function (id,ty,_) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
     a.sa_params;
   List.iter
-    (function (id,ty,ann) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
+    (function (id,ty,_,_) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
     inps;
   List.iter
-    (function (id,ty,ann) -> fprintf oc "  sc_fifo_out<%s > %s;\n" (string_of_type ty) id)
+    (function (id,ty,_,_) -> fprintf oc "  sc_fifo_out<%s > %s;\n" (string_of_type ty) id)
     outps;
   fprintf oc "\n";
   fprintf oc "  void main(void);\n";
@@ -143,7 +164,7 @@ let rec dump_actor_intf sp prefix oc modname a =
   fprintf oc "\n";
   fprintf oc "  {\n";
   fprintf oc "    SC_THREAD(main);\n";
-  if inps = [] then (* Source actor *)
+  if need_clk then
     fprintf oc "    sensitive << %s.pos();\n" cfg.sc_mod_clock;
   fprintf oc "  }\n";
   fprintf oc "\n";
@@ -151,10 +172,20 @@ let rec dump_actor_intf sp prefix oc modname a =
   fprintf oc "\n";
   fprintf oc "  private:\n";
   fprintf oc "    // Local variables\n";
-  let dump_local_var (id,ty,_) = fprintf oc "    %s %s;\n" (string_of_type ty) (localize_id id) in
+  let dump_local_var (id,ty,_) =
+    fprintf oc "    %s %s;\n" (string_of_type ty) (localize_id id) in
+  let dump_local_var' (id,ty,rate,ann) =
+    let open Syntax in
+    match rate with
+    | None -> (* No rate specified *)
+       fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) cfg.sc_default_io_rate
+    | Some {re_desc=RConst n} -> 
+       fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) n (* Static allocation *)
+    | Some _ ->
+       fprintf oc "    %s *%s;\n" (string_of_type ty) (localize_id id) in (* Dynamic allocation *)
   List.iter dump_local_var a.sa_params;
-  List.iter dump_local_var (List.filter is_actual_actor_io a.sa_ins);
-  List.iter dump_local_var (List.filter is_actual_actor_io a.sa_outs);
+  List.iter dump_local_var' (List.filter is_actual_actor_io a.sa_ins);
+  List.iter dump_local_var' (List.filter is_actual_actor_io a.sa_outs);
   fprintf oc "    // Service\n";
   fprintf oc "    bool trace;\n";
   fprintf oc "    sc_module_name modname;\n";
@@ -163,10 +194,11 @@ let rec dump_actor_intf sp prefix oc modname a =
 
 type io_kind = ParamIn | DataIn | DataOut
                                            
-let string_of_io (id,ty,kind) = match kind with
-  | ParamIn -> localize_id id
-  | DataIn -> "&" ^ localize_id id
-  | DataOut -> "&" ^ localize_id id
+let string_of_io (id,ty,kind) = localize_id id
+  (* match kind with
+   * | ParamIn -> localize_id id
+   * | DataIn -> "&" ^ localize_id id
+   * | DataOut -> "&" ^ localize_id id *)
 
 let rec dump_actor_impl sp prefix oc name a =
   let open Ssval in
@@ -180,8 +212,10 @@ let rec dump_actor_impl sp prefix oc name a =
   let inps = List.filter is_actual_actor_io a.sa_ins in
   let outps = List.filter is_actual_actor_io a.sa_outs in
   let params = List.map (function (id,ty,_) -> id,ty,ParamIn) a.sa_params in
-  let dinps = List.map (function (id,ty,_) -> id,ty,DataIn) inps in
-  let doutps = List.map (function (id,ty,_) -> id,ty,DataOut) outps in
+  let dinps = List.map (function (id,ty,_,_) -> id,ty,DataIn) inps in
+  let doutps = List.map (function (id,ty,_,_) -> id,ty,DataOut) outps in
+  let need_clk = inps = [] && params = [] in (* true for parameter-less, source actors *)
+  let local_params = List.map (function (id,_,_) -> id, localize_id id) params in
   fprintf oc "#include \"%s.h\"\n" modname;
   fprintf oc "#include \"%s\"\n" incl_file;
   fprintf oc "\n" ;
@@ -189,11 +223,43 @@ let rec dump_actor_impl sp prefix oc name a =
   if init_fn <> "" then
   fprintf oc "    %s(%s);\n" init_fn (Misc.string_of_list string_of_io ", " params);
   fprintf oc "    while ( 1 ) { \n";
-  if inps = [] then (* Source actor *)
+  if need_clk then
     fprintf oc "      wait(); // %s\n" cfg.sc_mod_clock;
-  List.iter (fun (id,_,_) -> fprintf oc "      %s = %s.read();\n" (localize_id id) id) (dinps @ params);
+  let localize_rate_expr locals re =
+    match re with
+    | None -> None
+    | Some e -> Some (Syntax.subst_rate_expr locals e) in
+  let string_of_io_rate' re = string_of_io_rate (localize_rate_expr local_params re) in
+  List.iter
+    (fun (id,_,_) -> fprintf oc "      %s = %s.read();\n" (localize_id id) id)
+    params;
+  List.iter  (* Dynamically allocate buffers for non-constant sized IOs *)
+    (fun (id,ty,rate,ann) ->
+      let open Syntax in
+      match rate with 
+     | Some e when not (is_constant_rate_expr e) ->
+        fprintf oc "      %s = new %s[%s];\n" (localize_id id) (string_of_type ty) (string_of_io_rate' rate)
+      | _ -> ())
+    (inps @ outps);
+  List.iter
+    (fun (id,_,rate,ann) ->
+      fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s[__k] = %s.read();\n"
+        (string_of_io_rate' rate) (localize_id id) id)
+    inps;
   fprintf oc "      %s(%s);\n" loop_fn (Misc.string_of_list string_of_io ", " (params @ dinps @ doutps));
-  List.iter (fun (id,_,_) -> fprintf oc "      %s.write(%s);\n" id (localize_id id)) doutps;
+  List.iter
+    (fun (id,_,rate,ann) ->
+      fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
+        (string_of_io_rate' rate) id (localize_id id))
+    outps;
+  List.iter  (* Dynamically de-allocate buffers for non-constant sized IOs *)
+    (fun (id,ty,rate,ann) ->
+      let open Syntax in
+      match rate with 
+     | Some e  when not (is_constant_rate_expr e) ->
+        fprintf oc "      delete [] %s;\n" (localize_id id)
+     | _ -> ())
+    (inps @ outps);
   fprintf oc "    }\n";
   fprintf oc "}\n"
 
@@ -213,7 +279,7 @@ let dump_actor dir prefix sp (id,act) =
           
 (* Dumping parameters *)
 
-let is_actual_param_io (_,(_,ty,_)) = not (is_unit_type ty)
+let is_actual_param_io (_,(_,ty,_,_)) = not (is_unit_type ty)
 
 let rec dump_param_intf prefix oc modname b =
   fprintf oc "#ifndef _%s_h\n" modname;
@@ -227,10 +293,10 @@ let rec dump_param_intf prefix oc modname b =
   if inps = [] then (* Initial (non dep) parameter *)
     fprintf oc "  sc_in<bool> %s;\n" cfg.sc_mod_clock;
   List.iter
-    (function (id,(_,ty,ann)) -> fprintf oc "  sc_in<%s > %s;\n" (string_of_type ty) id)
+    (function (id,(_,ty,rate,ann)) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
     inps;
   List.iter
-    (function (id,(_,ty,ann)) -> fprintf oc "  sc_out<%s > %s;\n" (string_of_type ty) id)
+    (function (id,(_,ty,rate,ann)) -> fprintf oc "  sc_fifo_out<%s > %s;\n" (string_of_type ty) id)
     outps;
   fprintf oc "\n";
   fprintf oc "  void main(void);\n";
@@ -241,23 +307,22 @@ let rec dump_param_intf prefix oc modname b =
   fprintf oc " ) :\n";
   fprintf oc "    modname(name_), sc_module(name_)";
   fprintf oc "  {\n";
-  if inps = [] then (* Initial (non dep) parameter *)
-    begin
-      fprintf oc "    SC_THREAD(main);\n";
-      fprintf oc "    sensitive << %s.pos();\n" cfg.sc_mod_clock
-    end
-  else
-    begin
-      fprintf oc "    SC_METHOD(main);\n";
-      fprintf oc "    sensitive << %s;\n" (Misc.string_of_list (fun (id, _) -> id) " << " inps)
-    end;
+  fprintf oc "    SC_THREAD(main);\n";
+  (* if inps = [] then (\* Initial (non dep) parameter *\)
+   *     fprintf oc "    sensitive << %s.pos();\n" cfg.sc_mod_clock
+   *   end
+   * else
+   *   begin
+   *     fprintf oc "    SC_METHOD(main);\n";
+   *     fprintf oc "    sensitive << %s;\n" (Misc.string_of_list (fun (id, _) -> id) " << " inps)
+   *   end; *)
   fprintf oc "  }\n";
   fprintf oc "\n";
   fprintf oc "  ~%s() { }\n" modname;
   fprintf oc "\n";
   fprintf oc "  private:\n";
   fprintf oc "    // Local variables\n";
-  let dump_local_var (id,(_,ty,_)) = fprintf oc "    %s %s;\n" (string_of_type ty) (localize_id id) in
+  let dump_local_var (id,(_,ty,_,_)) = fprintf oc "    %s %s;\n" (string_of_type ty) (localize_id id) in
   List.iter dump_local_var inps;
   List.iter dump_local_var outps;
   fprintf oc "    // Service\n";
@@ -271,16 +336,14 @@ let rec dump_param_impl prefix oc name b =
   fprintf oc "#include \"%s.h\"\n" modname;
   fprintf oc "\n" ;
   fprintf oc "void %s::main(void) {\n" modname;
+  fprintf oc "    while ( 1 ) { \n";
   if inps = [] then (* Initial (non dep) parameter *)
-    begin
-      fprintf oc "    while ( 1 ) { \n";
-      fprintf oc "      wait(); // %s\n" cfg.sc_mod_clock;
-    end;
-  List.iter (fun (id,_) -> fprintf oc "      %s = %s.read();\n" (localize_id id) id) b.b_ins;
-  fprintf oc "      _o = %s;\n" (string_of_expr b.b_val.bv_sub);
+    fprintf oc "      wait(%s.posedge_event());\n" cfg.sc_mod_clock
+  else
+    List.iter (fun (id,_) -> fprintf oc "      %s = %s.read();\n" (localize_id id) id) b.b_ins;
+  fprintf oc "      _o = %s;\n" (string_of_expr ~localize_ids:true b.b_val.bv_sub);
   List.iter (fun (id,_) -> fprintf oc "      %s.write(%s);\n" id (localize_id id)) b.b_outs;
-  if inps = [] then (* Initial (non dep) parameter *)
-    fprintf oc "    }\n";
+  fprintf oc "    }\n";
   fprintf oc "}\n"
 
 let dump_param dir prefix sp (id,b) =
@@ -404,17 +467,21 @@ let rec dump_top_module prefix fname sp =
 and is_fifo_wire boxes (wid,(_,_,is_dep_wire)) = not is_dep_wire
 
 and dump_wire oc boxes (wid,(((src,_),(dst,_)),ty,is_dep_wire)) =
-  if is_dep_wire then
-      fprintf oc "  sc_signal<%s > w%d(\"w%d\");\n" (string_of_type ty) wid wid
-  else
-      fprintf oc "  sc_fifo<%s > w%d(\"w%d\", %d);\n" (string_of_type ty) wid wid cfg.sc_fifo_capacity;
+  (* if is_dep_wire then
+   *     fprintf oc "  sc_signal<%s > w%d(\"w%d\");\n" (string_of_type ty) wid wid
+   * else *)
+  fprintf oc "  sc_fifo<%s > w%d(\"w%d\", %d);\n"
+    (string_of_type ty)
+    wid
+    wid
+    (if is_dep_wire then cfg.sc_param_fifo_capacity else cfg.sc_data_fifo_capacity)
       (* fprintf oc "  sc_fifo<%s > w%d(\"w%d\", %d, %b, %b);\n"
        *   (string_of_type ty) wid wid cfg.sc_fifo_capacity cfg.sc_dump_fifos cfg.sc_dump_fifo_stats;  *)
 
 and dump_box sp oc (i,b) =
   let bname = box_name sp (i,b) in
   let type_of ios = match ios with 
-      | (_,(_,ty,_))::_ -> ty
+      | (_,(_,ty,_,_))::_ -> ty
       | _ -> failwith "Systemc.dump_box" (* should not happen *) in
   match b.b_tag with
   | BcastB ->  (* Implicit bcast (for parameters, for now) *)
@@ -465,8 +532,8 @@ and dump_box sp oc (i,b) =
   | DummyB ->  Misc.fatal_error "Systemc.dump_box: dummy box"
   | _ ->  Misc.fatal_error "Systemc.dump_box: not implemented box kind"
 
-and dump_box_input oc bname (id,(wid,ty,ann)) =
+and dump_box_input oc bname (id,(wid,ty,rate,ann)) =
      fprintf oc "  %s.%s(w%d);\n" bname id wid
 
-and dump_box_output oc bname (id,(wids,ty,ann)) =
+and dump_box_output oc bname (id,(wids,ty,rate,ann)) =
    List.iter (function wid -> fprintf oc "  %s.%s(w%d);\n" bname id wid) wids

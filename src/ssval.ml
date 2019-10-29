@@ -42,8 +42,8 @@ and sv_act = {
     sa_kind: Syntax.actor_kind;
     sa_id: string;
     sa_params: (string * typ * ss_val option) list;
-    sa_ins: (string * typ * Syntax.io_annot) list;
-    sa_outs: (string * typ * Syntax.io_annot) list;
+    sa_ins: (string * typ * Syntax.rate_expr option * Syntax.io_annot option) list;
+    sa_outs: (string * typ * Syntax.rate_expr option * Syntax.io_annot option) list;
     sa_typ: typ_scheme;
     (* sa_states: (string * typ) list; *)
 }

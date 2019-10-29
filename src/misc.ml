@@ -20,6 +20,7 @@ let fatal_error msg = raise (Internal msg)
 let id x = x
          
 let snd3 (_,x,_) = x
+let snd4 (_,x,_,_) = x
                  
 let not_implemented what = 
   Printf.eprintf "Not implemented: %s.\n" what;

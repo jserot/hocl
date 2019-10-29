@@ -24,8 +24,8 @@
 %token EQUAL          (* "="*)
 %token LPAREN         (* "("*)
 %token RPAREN         (* ")"*)
-(* %token LBRACE         (\* "{"*\)
- * %token RBRACE         (\* "}"*\) *)
+%token LBRACE         (* "{"*)
+%token RBRACE         (* "}"*)
 %token STAR           (* "*"*)
 %token COMMA          (* ","*)
 %token ARROW   (* "->"*)
@@ -104,6 +104,7 @@ let mk_net_defn l desc = { nd_desc = desc; nd_loc = mk_location l }
 let mk_net_expr l desc = { ne_desc = desc; ne_loc = mk_location l; ne_typ = Types.no_type }
 let mk_net_pat l desc = { np_desc = desc; np_loc = mk_location l; np_typ = Types.no_type }
 let mk_net_binding l desc = { nb_desc = desc; nb_loc = mk_location l}
+let mk_rate_expr l desc = { re_desc = desc; re_loc = mk_location l; re_typ = Types.no_type }
 let rec mk_apply l e es = match (e,es) with
   | e1, [] -> e1
   | e1, e2::e2s -> mk_apply l (mk_net_expr l (NApp(e1, e2))) e2s (* TO FIX: location *)
@@ -117,7 +118,11 @@ let mk_binop l (op,l') e1 e2 = mk_net_expr l (NApp (mk_net_expr l' (NVar op), mk
  *   | NInt n -> { e with ne_desc = NInt (-n) }
  *   | _ -> mk_unop l ("~-",l') e *)
 let mk_infix l (op,l') e1 e2 = mk_apply l (mk_net_expr l' (NVar op)) [e1; e2]
-
+let mk_rbinop l (op,l') e1 e2 = mk_rate_expr l (RBinop (op,  e1, e2))
+(* let mk_unop l (op,l') e = mk_net_expr l (NApp (mk_net_expr l' (NVar op),e)) *)
+(* let mk_uminus l l' e = match e.ne_desc with
+ *   | NInt n -> { e with ne_desc = NInt (-n) }
+ *   | _ -> mk_unop l ("~-",l') e *)
 type decl =
   | TyDecl of Syntax.type_decl
   | ParamDecl of Syntax.param_decl
@@ -242,16 +247,39 @@ actor_param:
     { (id, t) }
 
 actor_io:
-   id=IDENT COLON t=simple_type_expr ann=io_annot
-    { (id, t, ann) }
+   id=IDENT COLON t=simple_type_expr rate=io_rate ann=io_annot
+    { (id, t, rate, ann) }
      
+io_rate:
+  | (* Nothing *)
+      { None }
+  | LBRACKET e=rate_expr RBRACKET
+      { Some e }
 io_annot:
   | (* Nothing *)
-      { "" }
-  | s=STRING
-      { s }
-  (* | LBRACE e=net_expr RBRACE
-   *     { e } *)
+      { None }
+  | LBRACE s=STRING RBRACE
+      { Some s }
+
+(* RATE EXPRESSIONS *)
+
+rate_expr:
+        e=simple_rate_expr
+          { e }
+      | e1=rate_expr op=INFIX3 e2=rate_expr
+          { mk_rbinop $loc (op,$loc(op)) e1 e2 }
+      | e1=rate_expr op=INFIX2 e2=rate_expr
+          { mk_rbinop $loc (op,$loc(op)) e1 e2 }
+      | e1=rate_expr op=STAR e2=rate_expr
+          { mk_rbinop $loc ("*",$loc(op)) e1 e2 }
+
+simple_rate_expr:
+      | id=IDENT
+          { mk_rate_expr $loc (RVar id) }
+      | n=INT
+          { mk_rate_expr $loc (RConst n) }
+      | LPAREN e=rate_expr RPAREN
+          { e }
     
 (* TYPE EXPRESSIONS *)
 

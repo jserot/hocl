@@ -1,4 +1,18 @@
+GENERAL
+- find a smarter name
+- describe as hl language for description, simulation and code generation of DF apps
+- backends :
+  . dot (for visu)
+  . systemc (for simulation)
+  . dif (for i/f to anl tools)
+  . preesm (for code generation on HMC platforms)
+  . caph (for code generation on HW platforms (with actors described in VHDL))
+  . cal (?)
+- make all examples simulable in SystemC
+- reorganize examples dir (no separate preesm subdir; the preesm subdir will be in certain examples)
+
 COMPILER
+- check rate expressions on ports when present (type must be int and all vars occuring must be parameters)
 - clarify the description of "src" and "snk" nodes in .pi files concerning the cfg inputs :
   + preesm seems to accept the explicit form ...
   + ... but some examples in the repo (ex: SIFT) seem to omit the decl of cfg input ports in src and snk nodes ..

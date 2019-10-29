@@ -236,27 +236,33 @@ let type_type_decl tenv { td_desc=t } = match t with
 (* Typing actor decls *)
 
 type typed_actor = {
-   at_params: (string * typ) list;                          (* params *)
-   at_ins: (string * typ * Syntax.io_annot) list;           (* inputs *)
-   at_outs: (string * typ * Syntax.io_annot) list;          (* outputs *)
+   at_params: (string * typ) list;                                                                 (* params *)
+   at_ins: (string * typ * Syntax.rate_expr option * Syntax.io_annot option) list;                 (* inputs *)
+   at_outs: (string * typ * rate_expr option * Syntax.io_annot option) list;                       (* outputs *)
    at_sig: typ_scheme;         (* external type signature: [t_ins -> t_outs] or [t_params -> t_ins -> t_outs] *)
   }
 
 let type_actor_decl tenv { ad_desc=a } =
   let type_io = function
-      [] -> ["_", type_unit, no_annot]
-    | ios -> List.map (fun (id,te,ann) -> id, type_of_type_expression tenv te, ann) ios in
+      [] ->
+       ["_", type_unit, None, None]
+    | ios ->
+       List.map
+         (fun (id,te,rate,ann) ->
+           (* let _ = check_rate_expression rate in  (\* TO BE ADDED ? *\) *)
+           id, type_of_type_expression tenv te, rate, ann)
+         ios in
   let ty_ins = type_io a.a_ins in
   let ty_outs = type_io a.a_outs in
   let ty_params = List.map (fun (id,te) -> id, type_of_type_expression tenv te) a.a_params in
   let ty = match ty_params with
     | [] -> type_arrow
-              (type_product (List.map Misc.snd3 ty_ins))
-              (type_product (List.map Misc.snd3 ty_outs))
+              (type_product (List.map Misc.snd4 ty_ins))
+              (type_product (List.map Misc.snd4 ty_outs))
     | _ -> type_arrow2
              (type_product (List.map snd ty_params))
-             (type_product (List.map Misc.snd3 ty_ins))
-             (type_product (List.map Misc.snd3 ty_outs)) in
+             (type_product (List.map Misc.snd4 ty_ins))
+             (type_product (List.map Misc.snd4 ty_outs)) in
   a.a_id,
   { at_params = ty_params;
     at_ins = ty_ins;
