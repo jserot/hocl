@@ -13,6 +13,7 @@ GENERAL
 - reorganize examples dir (no separate preesm subdir; the preesm subdir will be in certain examples)
 
 COMPILER
+- show port names in .dot files
 - check rate expressions on ports when present (type must be int and all vars occuring must be parameters)
 - clarify the description of "src" and "snk" nodes in .pi files concerning the cfg inputs :
   + preesm seems to accept the explicit form ...

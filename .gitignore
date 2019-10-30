@@ -14,6 +14,11 @@ src/grammar.tex
 .merlin
 !tools/pi2hcl/examples/*.pi
 !tools/pi2hcl/examples/sift/*.pi
+tools/yuvutils/bin/*
+tools/yuvutils/lib/*
+tools/yuvutils/include/*
+tools/yuvutils/src/*.a
+tools/yuvutils/src/yuv2ppm
 hocl.output
 bin/
 src/old/

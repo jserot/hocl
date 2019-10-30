@@ -112,36 +112,31 @@ and is_simple_expr e = match e.Syntax.ne_desc with
 
 (* Dumping actor interface and implementation *)
 
-let size_of_var_annot ann =
-  (* TO BE REPLACED when the top level parser will accept proper size expressions on IO ports *)
-  match ann with
-  | "" ->
-     Some 1
-  | _ ->
-     begin
-       try Some (int_of_string ann)  (* Constant exprs; ex: "8" *)
-       with _ -> None                (* Non constant exprs; ex: "k", "n+2", ... *)
-     end
-
 let is_actual_actor_io (id,ty,_,_) = not (is_unit_type ty)
 
 let string_of_io_rate rate = match rate with
   | None -> "1"
   | Some e -> Syntax.string_of_rate_expr e
+
+let get_pragma_fns sp id =
+    match get_pragma_desc "code" id sp with 
+    | [incl_file; loop_fn] -> incl_file, loop_fn, ""
+    | [incl_file; loop_fn; init_fn] -> incl_file, loop_fn, init_fn
+    | _ -> Error.no_pragma_desc id; id ^ ".h", id, ""
             
 let rec dump_actor_intf sp prefix oc modname a =
   let open Ssval in
   let inps = List.filter is_actual_actor_io a.sa_ins in
   let outps = List.filter is_actual_actor_io a.sa_outs in
-  let need_clk = inps = [] && a.sa_params = [] in (* true for parameter-less, source actors *)
+  let _, _, init_fn = get_pragma_fns sp a.sa_id in
+  let clocked = inps = [] && a.sa_params = [] in            (* parameter-less, source actors *)
   fprintf oc "#ifndef _%s_h\n" modname;
   fprintf oc "#define _%s_h\n" modname;
   fprintf oc "\n";
   List.iter (function h -> fprintf oc "#include %s\n" h) cfg.sc_act_headers;
   fprintf oc "\n";
   fprintf oc "SC_MODULE(%s) {\n" modname;
-  if need_clk then 
-    fprintf oc "  sc_in<bool> %s;\n" cfg.sc_mod_clock;
+  fprintf oc "  sc_in<bool> %s;\n" cfg.sc_mod_clock;
   List.iter
     (function (id,ty,_) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
     a.sa_params;
@@ -164,8 +159,8 @@ let rec dump_actor_intf sp prefix oc modname a =
   fprintf oc "\n";
   fprintf oc "  {\n";
   fprintf oc "    SC_THREAD(main);\n";
-  if need_clk then
-    fprintf oc "    sensitive << %s.pos();\n" cfg.sc_mod_clock;
+  (* if need_clk then
+   *   fprintf oc "    sensitive << %s.pos();\n" cfg.sc_mod_clock; *)
   fprintf oc "  }\n";
   fprintf oc "\n";
   fprintf oc "  ~%s() { }\n" modname;
@@ -203,28 +198,30 @@ let string_of_io (id,ty,kind) = localize_id id
 let rec dump_actor_impl sp prefix oc name a =
   let open Ssval in
   let modname = name in 
-  let incl_file, loop_fn, init_fn = 
-    begin match get_pragma_desc "code" a.sa_id sp with 
-    | [incl_file; loop_fn] -> incl_file, loop_fn, ""
-    | [incl_file; loop_fn; init_fn] -> incl_file, loop_fn, init_fn
-    | _ -> Error.no_pragma_desc a.sa_id; a.sa_id ^ ".h", a.sa_id, ""
-    end in
+  let incl_file, loop_fn, init_fn = get_pragma_fns sp a.sa_id in
   let inps = List.filter is_actual_actor_io a.sa_ins in
   let outps = List.filter is_actual_actor_io a.sa_outs in
   let params = List.map (function (id,ty,_) -> id,ty,ParamIn) a.sa_params in
   let dinps = List.map (function (id,ty,_,_) -> id,ty,DataIn) inps in
   let doutps = List.map (function (id,ty,_,_) -> id,ty,DataOut) outps in
-  let need_clk = inps = [] && params = [] in (* true for parameter-less, source actors *)
+  let clocked = inps = [] && params = [] in (* true for parameter-less, source actors *)
   let local_params = List.map (function (id,_,_) -> id, localize_id id) params in
   fprintf oc "#include \"%s.h\"\n" modname;
   fprintf oc "#include \"%s\"\n" incl_file;
   fprintf oc "\n" ;
   fprintf oc "void %s::main(void) {\n" modname;
-  if init_fn <> "" then
-  fprintf oc "    %s(%s);\n" init_fn (Misc.string_of_list string_of_io ", " params);
+  if init_fn <> "" then begin
+      if  params <> [] then begin (* We need to wait for one clk event so that parameter values are available.. *)
+        fprintf oc "    wait(%s.posedge_event());\n" cfg.sc_mod_clock;
+        List.iter
+          (fun (id,_,_) -> fprintf oc "    %s = %s.read();\n" (localize_id id) id)
+          params
+        end;
+      fprintf oc "    %s(%s);\n" init_fn (Misc.string_of_list string_of_io ", " params);
+    end;
   fprintf oc "    while ( 1 ) { \n";
-  if need_clk then
-    fprintf oc "      wait(); // %s\n" cfg.sc_mod_clock;
+  if clocked then
+    fprintf oc "      wait(%s.posedge_event());\n" cfg.sc_mod_clock;
   let localize_rate_expr locals re =
     match re with
     | None -> None
@@ -514,8 +511,8 @@ and dump_box sp oc (i,b) =
         (* (string_of_param_values ir bname b.ib_params)
          * (string_of_var_init_values bname b.ib_vars) *)
         cfg.sc_trace;
-      if b.b_ins = [] then (* Source actor *)
-        fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
+      (* if b.b_ins = [] then (\* Source actor *\) *)
+      fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
       List.iter (dump_box_input oc bname) b.b_ins;
       List.iter (dump_box_output oc bname) b.b_outs
   | LocalParamB ->
