@@ -9,4 +9,4 @@ actor h in (i1: t, i2: t) out (o: t);
 actor o in (i: t) out ();
 
 let m (x,y) = h (g x, g y);
-let _ = i |> f >> m >> o;
+let () = i |> f >> m >> o;

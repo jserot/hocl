@@ -1,6 +1,9 @@
+PROJ=mini
 SRCS=main.hcl
 MAIN=main
-DOT_OPTS=-dump_typed -dot_simple_boxes -dot_unlabeled_edges
-XDF_OPTS=-xdf_package mypack
+DOT_OPTS=-insert_bcasts
+PREESM_REP=/Users/jserot/Desktop/SF2/preesm-dev
+PREESM_OPTS=-target_dir preesm
+SYSTEMC_OPTS=-target_dir systemc -sc_stop_time 100
 
 include ../../../../lib/etc/Makefile.app

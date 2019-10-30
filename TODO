@@ -1,5 +1,6 @@
 GENERAL
-- find a smarter name
+- move examples/working/apps/vip/libyuv to tools
+- find a smarter name (DeDAL ? higher orDEr DAtaflow Language) 
 - describe as hl language for description, simulation and code generation of DF apps
 - backends :
   . dot (for visu)
