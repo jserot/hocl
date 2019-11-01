@@ -220,8 +220,18 @@ and string_of_rate_expr re = string_of_rate_exp re.re_desc
 and string_of_rate_exp = function
    | RVar v -> v
    | RConst n -> string_of_int n
-   | RBinop (op,e1,e2) -> string_of_rate_expr e1 ^ op ^ string_of_rate_expr e2 (* TO FIX *)
+   | RBinop (op,e1,e2) -> string_of_rate_expr' e1 ^ op ^ string_of_rate_expr' e2
 
+and string_of_rate_expr' re =
+  if is_simple_rate_expr re
+  then string_of_rate_expr re
+  else "(" ^ string_of_rate_expr re ^ ")"
+
+and is_simple_rate_expr re = match re.re_desc with
+  | RVar _ -> true
+  | RConst _ -> true
+  | RBinop _ -> false
+              
 let is_constant_rate_expr re =
   match re.re_desc with
   | RConst _ -> true

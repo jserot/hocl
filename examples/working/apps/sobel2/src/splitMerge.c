@@ -2,6 +2,7 @@
 ============================================================================
 Name        : splitMerge.c
 Author      : kdesnos
+Modified by : jserot (draw a white line btw slices)
 Version     : 1.2
 Copyright   : CECILL-C
 Description :
@@ -10,10 +11,12 @@ Description :
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "splitMerge.h"
 
 void split(int nbSlice, int width, int height, unsigned char *input, unsigned char *output){
+    printf("split: nbSlice=%d width=%d height=%d\n", nbSlice, width, height);
 	if(output != NULL){
 		int i;
 		int sliceSize =  width*height/nbSlice;
@@ -46,6 +49,7 @@ void split(int nbSlice, int width, int height, unsigned char *input, unsigned ch
 		// Last line
 		memset(input + height*width,0,width);
 	}
+    printf("split: done\n");
 }
 
 
@@ -56,5 +60,8 @@ void merge(int nbSlice, int width, int height, unsigned char *input, unsigned ch
     for(i = 0; i< nbSlice; i++){
         int idx = i*(sliceSize+2*width);
         memcpy(output+i*sliceSize, input+idx+width, sliceSize);
+    }
+    for(i = 0; i< nbSlice; i++){
+      memset(output+i*sliceSize, 255, width);
     }
 }

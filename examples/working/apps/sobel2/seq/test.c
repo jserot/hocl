@@ -1,0 +1,36 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include "yuvRead.h"
+#include "yuvDisplay.h"
+#include "sobel.h"
+#include "splitMerge.h"
+
+int main(int argc, char **argv)
+{
+  int width = WIDTH;
+  int height = HEIGHT;
+  int nbSlices = 4;
+  int sliceWidth = width;
+  int sliceHeight = height/nbSlices+2; // two extra rows for overlaping
+  int sliceSize = sliceWidth*sliceHeight;
+  int id = 0;
+  int cnt = 0;
+  unsigned char* yi = (unsigned char*)malloc(sizeof(char)*height*width);
+  unsigned char* ys = (unsigned char*)malloc(sizeof(char)*nbSlices*sliceSize); // Slices
+  unsigned char* yr = (unsigned char*)malloc(sizeof(char)*nbSlices*sliceSize); // Processed slices
+  unsigned char* yo = (unsigned char*)malloc(sizeof(char)*height*width);
+  unsigned char* u = (unsigned char*)malloc(sizeof(char)*height/2*width/2);
+  unsigned char* v = (unsigned char*)malloc(sizeof(char)*height/2*width/2);
+  initReadYUV(width, height);
+  yuvDisplayInit(id, width, height);
+  while ( ! quitViewer ) {
+    readYUV(width, height, yi, u, v);
+    //printf("Read %dx%d frame #%3d\n", width, height, cnt); 
+    split(nbSlices, width, height, yi, ys);
+    for ( int i=0; i<nbSlices; i++ ) 
+      sobel(sliceWidth, sliceHeight, ys+i*sliceSize, yr+i*sliceSize);
+    merge(nbSlices, width, height, yr, yo);
+    yuvDisplay(id, width, height, yo, u, v);
+    cnt++;
+    }
+}

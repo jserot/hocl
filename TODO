@@ -9,7 +9,6 @@ GENERAL
   . caph (for code generation on HW platforms (with actors described in VHDL))
   . cal (?)
 - make all examples simulable in SystemC
-- reorganize examples dir (no separate preesm subdir; the preesm subdir will be in certain examples)
 
 COMPILER
 - check rate expressions on ports when present (type must be int and all vars occuring must be parameters)
