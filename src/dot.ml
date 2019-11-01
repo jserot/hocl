@@ -24,6 +24,7 @@ type dot_config = {
     mutable srcsnk_box_shape: string;
     mutable slotted_boxes: bool;
     mutable show_wire_annots: bool;
+    mutable show_io_rates: bool;
     mutable rank_dir: string
   }
 
@@ -35,6 +36,7 @@ let cfg = {
   srcsnk_box_shape = "cds";
   slotted_boxes = true;
   show_wire_annots = false;
+  show_io_rates = true;
   rank_dir = "LR"
 }
 
@@ -53,12 +55,17 @@ let cfg = {
  *   | _ -> "?" *)
 
 let output_box ch (i,b) =
-  let ioslots c n =
-    let rec h = function
-        0 -> ""
-      | 1 -> "<" ^ c ^ string_of_int (n-1) ^ ">"
-      | i -> "<" ^ c ^ string_of_int (n-i) ^ ">|" ^ h (i-1) in
-    h n in
+  (* let ioslots c n =
+   *   let rec h = function
+   *       0 -> ""
+   *     | 1 -> "<" ^ c ^ string_of_int (n-1) ^ ">"
+   *     | i -> "<" ^ c ^ string_of_int (n-i) ^ ">|" ^ h (i-1) in
+   *   h n in *)
+  let string_of_bio_rate r = match cfg.show_io_rates, r with
+    | false, _ -> ""
+    | true, None -> ""
+    | true, Some e -> "[" ^ Syntax.string_of_rate_expr e ^ "]" in
+  let string_of_bio_slot (id,(_,ty,rate,ann)) = "<" ^ id ^ ">" ^ id ^ string_of_bio_rate rate in
   let bid =
     if cfg.show_indexes
     then string_of_int i ^ ":" ^ b.b_name
@@ -74,8 +81,10 @@ let output_box ch (i,b) =
         fprintf ch "n%d [shape=record,style=rounded,label=\"<id>%s|{{%s}|{%s}}\"];\n"
           i
           bid
-          (ioslots "e" (List.length b.b_ins))
-          (ioslots "s" (List.length b.b_outs))
+          (Misc.string_of_list string_of_bio_slot "|" b.b_ins)
+          (Misc.string_of_list string_of_bio_slot "|" b.b_outs)
+          (* (ioslots "e" (List.length b.b_ins))
+           * (ioslots "s" (List.length b.b_outs)) *)
       else
         fprintf ch "n%d [shape=box,style=rounded,label=\"%s\"];\n" i  bid
   | GraphB ->

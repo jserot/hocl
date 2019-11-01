@@ -62,6 +62,7 @@ let do_systemc () = begin cfg.output_fmt <- Systemc; Static.cfg.Static.insert_bc
 let do_dot_unlabeled_edges () = Dot.cfg.Dot.labeled_edges <- false
 let do_dot_show_indexes () = Dot.cfg.Dot.show_indexes <- true
 let do_dot_wire_annots () = Dot.cfg.Dot.show_wire_annots <- true
+let do_dot_no_io_rates () = Dot.cfg.Dot.show_io_rates <- false
 let do_dot_simple_boxes () = Dot.cfg.Dot.slotted_boxes <- false
 let set_dot_rank_dir s = Dot.cfg.Dot.rank_dir <- s
 (* let do_phantom_types () = () Pr_type.print_type_repr := true *)
@@ -104,6 +105,7 @@ let options_spec = [
 "-dot_rank_dir", Arg.String (set_dot_rank_dir), "set rank direction for DOT output graph (default: LR)";
 "-dot_unlabeled_edges", Arg.Unit (do_dot_unlabeled_edges), "do not annotate graph edges";
 "-dot_wire_annots", Arg.Unit (do_dot_wire_annots), "print wire annotations (phase/fifo_size) when available (implies [-dot_show_indexes])";
+"-dot_no_io_rates", Arg.Unit (do_dot_no_io_rates), "do not annotate ports with resp. rates";
 "-dot_show_indexes", Arg.Unit (do_dot_show_indexes), "print box and wire indexes";
 "-dot_simple_boxes", Arg.Unit (do_dot_simple_boxes), "print boxes without i/o slots";
 "-preesm_top_name", Arg.String (set_preesm_name), "set top level name for Preesm graph (default: base name of input file";
