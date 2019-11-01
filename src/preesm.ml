@@ -198,7 +198,7 @@ let output_actor_box oc sp (i,b) =
 let output_parameter oc sp (i,b) =
   match b.b_tag, b.b_val with
   | LocalParamB, v ->
-     fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (string_of_expr v.bv_lit) b.b_name 
+     fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (Syntax.string_of_param_expr v.bv_lit) b.b_name 
   | InParamB, _ ->
      fprintf oc "    <node id=\"%s\" kind=\"cfg_in_iface\"/>\n" b.b_name 
   | _ -> ()

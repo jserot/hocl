@@ -44,8 +44,7 @@ and tdecl_desc =
 and param_decl =
   { pd_desc: pdecl_desc;
     pd_loc: location }
-and pdecl_desc = string * param_kind * type_expression * net_expr  (* Name, type, initial value (Unit for input params *)
-  (* Note: ideally, parameter expressions should be a strict subset of network expression *)
+and pdecl_desc = string * param_kind * type_expression * param_expr  (* Name, type, initial value (Unit for input params *)
 
 and param_kind = P_Local | P_Input
 
@@ -124,15 +123,19 @@ and pragma_decl =
     pr_loc: location }
 and pragma_desc = string * string list (* name, args *)
 
-and rate_expr =
-  { re_desc: rate_expr_desc;
-    re_loc: location;
-    mutable re_typ: Types.typ }
+and param_expr = core_expr
+and rate_expr = core_expr
+(* TO BE EXTENDED : param (and rate ?) expressions should also include fn application for ex. *)
+              
+and core_expr =
+  { ce_desc: core_expr_desc;
+    ce_loc: location;
+    mutable ce_typ: Types.typ }
 
-and rate_expr_desc =
-   | RVar of string
-   | RConst of int
-   | RBinop of string * rate_expr * rate_expr
+and core_expr_desc =
+   | EVar of string
+   | EConst of int
+   | EBinop of string * core_expr * core_expr
 
 (* Aux fns *)
 
@@ -215,39 +218,52 @@ and string_of_net_pat = function
   | NPat_unit -> "()"
   | NPat_ignore -> "_"
 
-and string_of_rate_expr re = string_of_rate_exp re.re_desc
+and string_of_core_expr e = string_of_core_exp e.ce_desc
 
-and string_of_rate_exp = function
-   | RVar v -> v
-   | RConst n -> string_of_int n
-   | RBinop (op,e1,e2) -> string_of_rate_expr' e1 ^ op ^ string_of_rate_expr' e2
+and string_of_core_exp = function
+   | EVar v -> v
+   | EConst n -> string_of_int n
+   | EBinop (op,e1,e2) -> string_of_core_expr' e1 ^ op ^ string_of_core_expr' e2
 
-and string_of_rate_expr' re =
-  if is_simple_rate_expr re
-  then string_of_rate_expr re
-  else "(" ^ string_of_rate_expr re ^ ")"
+and string_of_core_expr' e =
+  if is_simple_core_expr e
+  then string_of_core_expr e
+  else "(" ^ string_of_core_expr e ^ ")"
 
-and is_simple_rate_expr re = match re.re_desc with
-  | RVar _ -> true
-  | RConst _ -> true
-  | RBinop _ -> false
+and is_simple_core_expr e = match e.ce_desc with
+  | EVar _ -> true
+  | EConst _ -> true
+  | EBinop _ -> false
               
-let is_constant_rate_expr re =
-  match re.re_desc with
-  | RConst _ -> true
+let is_constant_core_expr e =
+  match e.ce_desc with
+  | EConst _ -> true
   | _ -> false
        
-let constant_of_rate_expr re =
-  match re.re_desc with
-  | RConst n -> n
-  | _ -> Misc.fatal_error "Syntax.constant_of_rate_expr"
+let constant_of_core_expr e =
+  match e.ce_desc with
+  | EConst n -> n
+  | _ -> Misc.fatal_error "Syntax.constant_of_core_expr"
   
-let subst_rate_expr vs re = 
-  let rec subst e = match e.re_desc with
-   | RVar v when List.mem_assoc v vs -> { e with re_desc = RVar (List.assoc v vs) }
-   | RBinop (op,e1,e2) -> { e with re_desc = RBinop (op, subst e1, subst e2) }
+let subst_core_expr vs e = 
+  let rec subst e = match e.ce_desc with
+   | EVar v when List.mem_assoc v vs -> { e with ce_desc = EVar (List.assoc v vs) }
+   | EBinop (op,e1,e2) -> { e with ce_desc = EBinop (op, subst e1, subst e2) }
    | _ -> e in
-  subst re
+  subst e
+
+let string_of_param_expr = string_of_core_expr
+let is_simple_param_expr = is_simple_core_expr
+let is_constant_param_expr = is_constant_core_expr
+let constant_of_param_expr = constant_of_core_expr
+let subst_param_expr = subst_core_expr
+
+let string_of_rate_expr = string_of_core_expr
+let is_simple_rate_expr = is_simple_core_expr
+let is_constant_rate_expr = is_constant_core_expr
+let constant_of_rate_expr = constant_of_core_expr
+let subst_rate_expr = subst_core_expr
+
 
 let string_of_io_rate r = match r with
     None -> ""
@@ -277,7 +293,7 @@ let string_of_type_decl d = match d.td_desc with
 
 let string_of_param_decl d = match d.pd_desc with
   | name, P_Input, ty, _ -> name ^ ": " ^ string_of_ty_expr ty
-  | name, P_Local, ty, e -> name ^ ": " ^ string_of_ty_expr ty ^ " = " ^ string_of_net_expr e
+  | name, P_Local, ty, e -> name ^ ": " ^ string_of_ty_expr ty ^ " = " ^ string_of_param_expr e
 
 let rec string_of_net_defn d = match d.nd_desc with
     r, bs -> string_of_rec r ^ Misc.string_of_list string_of_net_binding " and " bs

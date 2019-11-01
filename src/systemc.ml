@@ -86,29 +86,18 @@ let rec string_of_type t  = match real_type t with (* TO REFINE *)
  *   | Expr.Val_float v, _ -> string_of_float v
  *      failwith ("Systemc.string_of_val: no sensible SystemC representation for value " ^ (Expr.string_of_val v)) *)
 
-(* Expressions *)
+(* Param and rate expressions *)
 
-let rec string_of_expr ?(localize_ids=false) e =
-  match e.Syntax.ne_desc with
-    Syntax.NNat n -> string_of_int n
-  | Syntax.NBool b -> string_of_bool b
-  | Syntax.NVar v -> if localize_ids then localize_id v else v
-  | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar op},{Syntax.ne_desc=Syntax.NTuple [e1;e2]}) when Syntax.is_binop op -> 
-      string_of_expr' ~localize_ids e1 ^ op ^ string_of_expr' ~localize_ids e2
-  | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar op},e) when Syntax.is_unop op ->
-     op ^ "(" ^ string_of_expr ~localize_ids e ^ ")"
-  (* | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar f}, es) ->
-   *     f ^ "(" ^ Misc.string_of_list string_of_expr "," es ^ ")" *)
-  | _ -> Misc.not_implemented ("Systemc.string_of_expr: " ^  (Syntax.string_of_net_expr e))
+let rec string_of_core_expr ?(localize_ids=false) e =
+  match e.Syntax.ce_desc with
+    Syntax.EConst n -> string_of_int n
+  | Syntax.EVar v -> if localize_ids then localize_id v else v
+  | Syntax.EBinop (op, e1, e2) -> string_of_core_expr' ~localize_ids e1 ^ op ^ string_of_core_expr' ~localize_ids e2
 
-and string_of_expr' ?(localize_ids=false) e =
-  if is_simple_expr e then string_of_expr ~localize_ids e else "(" ^ string_of_expr ~localize_ids e ^ ")"
-
-and is_simple_expr e = match e.Syntax.ne_desc with
-    Syntax.NNat _ -> true
-  | Syntax.NBool _ -> true
-  | Syntax.NVar v -> true
-  | _ -> false
+and string_of_core_expr' ?(localize_ids=false) e =
+  if Syntax.is_simple_core_expr e
+  then string_of_core_expr ~localize_ids e
+  else "(" ^ string_of_core_expr ~localize_ids e ^ ")"
 
 (* Dumping actor interface and implementation *)
 
@@ -174,7 +163,7 @@ let rec dump_actor_intf sp prefix oc modname a =
     match rate with
     | None -> (* No rate specified *)
        fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) cfg.sc_default_io_rate
-    | Some {re_desc=RConst n} -> 
+    | Some {ce_desc=EConst n} -> 
        fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) n (* Static allocation *)
     | Some _ ->
        fprintf oc "    %s *%s;\n" (string_of_type ty) (localize_id id) in (* Dynamic allocation *)
@@ -338,7 +327,7 @@ let rec dump_param_impl prefix oc name b =
     fprintf oc "      wait(%s.posedge_event());\n" cfg.sc_mod_clock
   else
     List.iter (fun (id,_) -> fprintf oc "      %s = %s.read();\n" (localize_id id) id) b.b_ins;
-  fprintf oc "      _o = %s;\n" (string_of_expr ~localize_ids:true b.b_val.bv_sub);
+  fprintf oc "      _o = %s;\n" (string_of_core_expr ~localize_ids:true b.b_val.bv_sub);
   List.iter (fun (id,_) -> fprintf oc "      %s.write(%s);\n" id (localize_id id)) b.b_outs;
   fprintf oc "    }\n";
   fprintf oc "}\n"

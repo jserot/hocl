@@ -61,8 +61,8 @@ and wid = int
 and bid = int
 
 and b_val = { 
-    bv_lit: net_expr;     (* Original expression *)
-    bv_sub: net_expr;     (* After dependency binding *)
+    bv_lit: core_expr;     (* Original expression *)
+    bv_sub: core_expr;     (* After dependency binding *)
     bv_val: ss_val        (* Statically computed value - SVUnit if N/A *)
   }
 
@@ -115,7 +115,7 @@ let new_wid =
   function () -> incr cnt; !cnt
 
 let no_bval =
-  let no_expr = {ne_desc=NUnit; ne_loc=Location.no_location; ne_typ=no_type } in
+  let no_expr = {ce_desc=EConst 0; ce_loc=Location.no_location; ce_typ=no_type } in
   { bv_lit=no_expr; bv_sub=no_expr; bv_val=SVUnit }
           
 let new_box kind name ty params ins outs =
@@ -145,6 +145,26 @@ let boxes_of_wire boxes (((s,ss),(d,ds)),ty,_) =
 
 let src_box_of_wire boxes (w:ss_wire) = fst (boxes_of_wire boxes w)
 let dst_box_of_wire boxes (w:ss_wire) = snd (boxes_of_wire boxes w)
+
+(*** CORE LEVEL ***)
+
+let rec eval_core_expr tp nenv expr =
+  (* TBW. Strictly speaking the core and net environments shoudl be distinct.. *)
+  let lookup id = 
+      if List.mem_assoc id nenv then List.assoc id nenv
+      else unbound_value_err id expr.ce_loc in
+  match expr.ce_desc with
+  | EConst n -> SVNat n
+  | EVar v -> lookup v
+  | EBinop (op, e1,e2) ->
+     begin match lookup op with
+     | SVPrim f ->
+        let v1 = eval_core_expr tp nenv e1 in
+        let v2 = eval_core_expr tp nenv e2 in
+        f (SVTuple [v1;v2])
+     | _ ->
+        illegal_application expr.ce_loc (* should not happen thx to TC *)
+     end
 
 (*** NETWORK LEVEL ***)
 
@@ -185,8 +205,6 @@ let rec matching pat v = match pat.np_desc, v with
   | NPat_cons _, SVTuple vs ->
      matching pat (cons_of_list (SVList vs))
   | _, _ -> raise Matching_fail
-
-(* Rule: NE |- NExp => rho,B,W *)
 
 let rec eval_net_expr tp nenv expr =
   match expr.ne_desc with
@@ -549,16 +567,14 @@ let eval_net_decl tp (nenv,boxes,wires) { nd_desc = isrec, defns; nd_loc=loc } =
   wires @ wires'
 
 let subst_deps names e =
-  let rec subst e = match e.ne_desc with
-  | NVar v ->
+  let rec subst e = match e.ce_desc with
+  | EVar v ->
      begin match Misc.list_pos v names with
      | None -> e
-     | Some k -> { e with ne_desc = NVar ("i" ^ string_of_int (k+1)) }
+     | Some k -> { e with ce_desc = EVar ("i" ^ string_of_int (k+1)) }
      end
-  | NNat _ | NBool _ | NUnit -> e
-  | NTuple es -> { e with ne_desc = NTuple (List.map subst es) }
-  | NApp (fn, arg) -> { e with ne_desc = NApp (subst fn, subst arg) }
-  | _ -> Misc.fatal_error "Static.subst_deps" 
+  | EConst _ -> e
+  | EBinop (op, e1, e2) -> { e with ce_desc = EBinop (op, subst e1, subst e2) }
   in
   subst e
   
@@ -567,8 +583,8 @@ let rec eval_param_decl tp nenv (ne,bs,ws) { pd_desc=id,kind,ty,e; pd_loc=loc } 
   let bv, dep_params = match kind with
     | P_Local ->
        begin
-         match eval_net_expr tp (nenv @ ne) e with
-         | v, _, _' when is_valid_param_value v -> 
+         match eval_core_expr tp (nenv @ ne) e with
+         | v when is_valid_param_value v -> 
             let dep_params = extract_dep_params tp ne e in 
             { bv_lit = e;
               bv_sub = subst_deps (List.map fst dep_params) e;
@@ -587,18 +603,15 @@ let rec eval_param_decl tp nenv (ne,bs,ws) { pd_desc=id,kind,ty,e; pd_loc=loc } 
   (id,SVLoc (l,0,ty,bv.bv_val)) :: ne, (l,b) :: bs, ws'@ws
 
 and extract_dep_params tp env e =
-  let rec extract e = match e.ne_desc with
-  | NNat n -> []
-  | NBool b -> []
-  | NApp (fn, arg) -> extract fn @ extract arg
-  | NVar v ->
+  let rec extract e = match e.ce_desc with
+  | EConst _ -> []
+  | EBinop (op, e1, e2) -> extract e1 @ extract e2
+  | EVar v ->
      if List.mem_assoc v tp.tp_params then
        try [v, List.assoc v env]
        with Not_found -> fatal_error "Static.extract_dep_params" (* should not happen *)
      else
-       []
-  | NTuple es -> List.concat (List.map extract es)
-  | _ -> invalid_param_expr e.ne_loc in
+       [] in
   extract e
 
 let rec eval_io_decl tp nenv (ne,bs,ws) { io_desc=kind,id,params,ty; io_loc=loc } =
@@ -874,7 +887,7 @@ let string_of_typed_param (id,ty,v) = id ^ ":" ^ string_of_type ty ^ " = " ^ str
 let print_param (n,b) =
   Printf.printf "%s: val=\"%s\"=%s ins=[%s] outs=[%s]\n"
         n
-        (string_of_net_expr (b.b_val.bv_lit))
+        (string_of_core_expr (b.b_val.bv_lit))
         (string_of_ssval (b.b_val.bv_val))
         (Misc.string_of_list string_of_typed_bin ","  b.b_ins)
         (Misc.string_of_list string_of_typed_bout ","  b.b_outs)
@@ -908,7 +921,7 @@ let print_box (i,b) =
         b.b_name
         (Misc.string_of_list string_of_typed_bin ","  b.b_ins)
         (Misc.string_of_list string_of_typed_bout ","  b.b_outs)
-        (match b.b_tag with LocalParamB -> "val=" ^ string_of_net_expr b.b_val.bv_lit | _ -> "")
+        (match b.b_tag with LocalParamB -> "val=" ^ string_of_core_expr b.b_val.bv_lit | _ -> "")
 
 let print_wire (i,(((s,ss),(d,ds)),ty,b)) =
   Printf.printf "W%d: %s: (B%d,%d) %s (B%d,%d)\n" i (string_of_type ty) s ss (if b then "+>" else "->") d ds

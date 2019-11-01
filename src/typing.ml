@@ -92,7 +92,27 @@ let rec type_pattern tenv p =
   p.np_typ <- ty;
   ty, tenv'
 
-(* Typing expressions *)
+(* Typing core expressions *)
+  
+let rec type_core_expression tenv expr =
+  let lookup id = 
+    try type_instance (List.assoc id tenv.te_values)
+    with Not_found -> unbound_value_err id expr.ce_loc in
+  let ty = match expr.ce_desc with
+  | EVar id ->
+     lookup id 
+  | EConst n ->  type_nat
+  | EBinop (op, e1, e2) ->
+     let ty_op = lookup op in
+     let ty_e1 = type_core_expression tenv e1 in
+     let ty_e2 = type_core_expression tenv e2 in
+     let ty_result = new_type_var () in
+     try_unify "expression" ty_op (type_arrow (type_pair ty_e1 ty_e2) ty_result) expr.ce_loc;
+     ty_result in
+  expr.ce_typ <- ty;
+  ty
+
+(* Typing net expressions *)
   
 let rec type_expression tenv expr =
   let ty = match expr.ne_desc with
@@ -272,7 +292,7 @@ let type_actor_decl tenv { ad_desc=a } =
 let type_param_decl tenv { pd_desc=(id,kind,te,e); pd_loc=loc } =
   let ty = type_of_type_expression tenv te in
   if kind = Syntax.P_Local then begin
-    let ty' = type_expression tenv e in
+    let ty' = type_core_expression tenv e in
      try_unify "parameter" ty ty' loc
     end;
   (id, (* type_param *) ty)
