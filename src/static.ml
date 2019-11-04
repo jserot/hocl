@@ -41,6 +41,7 @@ type box_tag =
   | SourceB
   | SinkB
   | GraphB
+  | DelayB
   | LocalParamB 
   | InParamB 
   | DummyB  (* Temporary boxes used for handling recursive defns *)
@@ -120,7 +121,7 @@ let no_bval =
           
 let new_box kind name ty params ins outs =
   let bid = new_bid () in
-  let tag = match kind with A_Regular -> ActorB | A_Bcast -> BcastB | A_Graph -> GraphB in
+  let tag = match kind with A_Regular -> ActorB | A_Bcast -> BcastB | A_Graph -> GraphB | A_Delay -> DelayB in
   bid, { b_id=bid; b_tag=tag; b_name=name; b_params=params; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
 
 let new_io_box kind name ty (*params*) =
@@ -754,7 +755,7 @@ let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * bool)) list) (
   try
     bid,
     (match b.b_tag with
-     | ActorB | BcastB | GraphB ->
+     | ActorB | BcastB | GraphB | DelayB ->
         { b with
           b_ins = List.mapi
                         (fun sel (id,(_,ty,rate,ann)) -> id, (find_src_wire wires bid sel, ty, rate, ann))
@@ -905,10 +906,11 @@ let print_actor (id,ac) =
 
 let box_prefix b = match b.b_tag with
     BcastB -> "Y"
+  | DelayB -> "D"
   | SourceB -> "I"
   | SinkB -> "O"
   | ActorB -> "B"
-  | DummyB -> "D"
+  | DummyB -> "_"
   | LocalParamB -> "L"
   | InParamB -> "P"
   | GraphB -> "G"

@@ -30,6 +30,7 @@ let keyword_table = [
   "bool", TY_BOOL;
   "unit", TY_UNIT;
   "bcast", BCAST;
+  "delay", DELAY;
   "actor", ACTOR;
   "parameter", PARAMETER;
   "param", PARAM;

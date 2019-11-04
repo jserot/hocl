@@ -55,17 +55,12 @@ let cfg = {
  *   | _ -> "?" *)
 
 let output_box ch (i,b) =
-  (* let ioslots c n =
-   *   let rec h = function
-   *       0 -> ""
-   *     | 1 -> "<" ^ c ^ string_of_int (n-1) ^ ">"
-   *     | i -> "<" ^ c ^ string_of_int (n-i) ^ ">|" ^ h (i-1) in
-   *   h n in *)
+  let slot_id pfx k = pfx ^ string_of_int k in
   let string_of_bio_rate r = match cfg.show_io_rates, r with
     | false, _ -> ""
     | true, None -> ""
     | true, Some e -> "[" ^ Syntax.string_of_rate_expr e ^ "]" in
-  let string_of_bio_slot (id,(_,ty,rate,ann)) = "<" ^ id ^ ">" ^ id ^ string_of_bio_rate rate in
+  let string_of_bio_slot pfx k (id,(_,ty,rate,ann)) = "<" ^ slot_id pfx k ^ ">" ^ id ^ string_of_bio_rate rate in
   let bid =
     if cfg.show_indexes
     then string_of_int i ^ ":" ^ b.b_name
@@ -76,13 +71,14 @@ let output_box ch (i,b) =
     if s1 = s2 then s1 else s1 ^ "=" ^ s2 in
   match b.b_tag with
   | ActorB
-  | BcastB ->
+  | BcastB
+  | DelayB ->
       if cfg.slotted_boxes then
         fprintf ch "n%d [shape=record,style=rounded,label=\"<id>%s|{{%s}|{%s}}\"];\n"
           i
           bid
-          (Misc.string_of_list string_of_bio_slot "|" b.b_ins)
-          (Misc.string_of_list string_of_bio_slot "|" b.b_outs)
+          (Misc.string_of_ilist (string_of_bio_slot "e") "|" b.b_ins)
+          (Misc.string_of_ilist (string_of_bio_slot "s") "|" b.b_outs)
           (* (ioslots "e" (List.length b.b_ins))
            * (ioslots "s" (List.length b.b_outs)) *)
       else

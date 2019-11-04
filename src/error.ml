@@ -142,3 +142,14 @@ let invalid_box_wiring what name sel =
 let no_pragma_desc id =
   eprintf "Warning: no #pragma description found for actor %s\n" id
 
+let missing_param what name msg =
+  eprintf "Error: no parameter for %s %s%s.\n" what name msg;
+  raise Error
+
+let missing_ival_param id =
+  eprintf "Warning: no parameter named \"ival\" for actor %s; assuming last one\n" id
+
+let illegal_interface what name msg =
+  eprintf "Error: invalid interface for %s %s%s.\n" what name msg;
+  raise Error
+

@@ -71,6 +71,10 @@ let string_of_list f sep l =
   let rec h = function [] -> "" | [x] -> f x | x::xs -> f x ^ sep ^ h xs in
   h l
 
+let string_of_ilist f sep l =
+  let rec h = function _,[] -> "" | k,[x] -> f k x | k,x::xs -> f k x ^ sep ^ h (k+1,xs) in
+  h (0,l)
+
 let list_make_index n f =
   let rec h i = if i >= n then [] else f i :: h (i+1) in
   h 0

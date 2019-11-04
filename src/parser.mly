@@ -41,6 +41,7 @@
 %token TY_BOOL        (* "bool"*)
 %token TY_UNIT        (* "unit"*)
 %token BCAST          (* "bcast"*)
+%token DELAY          (* "delay"*)
 %token GRAPH          (* "graph"*)
 %token ACTOR          (* "actor"*)
 %token PARAMETER      (* "parameter"*)
@@ -236,6 +237,7 @@ actor_decl:
 actor_kind:
   | ACTOR { A_Regular }
   | BCAST { A_Bcast }
+  | DELAY { A_Delay }
   | GRAPH { A_Graph }
     
 actor_params:

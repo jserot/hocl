@@ -69,7 +69,7 @@ and actor_desc = {
 
 and io_annot = string
              
-and actor_kind = A_Regular | A_Bcast | A_Graph
+and actor_kind = A_Regular | A_Bcast | A_Graph | A_Delay
                            
 and net_defn =
   { nd_desc: net_defn_desc;
@@ -280,7 +280,7 @@ let string_of_io_annot r = match r with
 let string_of_actor_io (id,ty,rate,ann) =
   id ^ ": " ^ string_of_ty_expr ty ^ string_of_io_rate rate ^ string_of_io_annot ann
                                
-let string_of_actor_kind = function A_Regular -> "actor" | A_Bcast -> "bcast" | A_Graph -> "graph"
+let string_of_actor_kind = function A_Regular -> "actor" | A_Bcast -> "bcast" | A_Graph -> "graph" | A_Delay -> "delay"
 
 let string_of_actor_decl d =
   let a = d.ad_desc in

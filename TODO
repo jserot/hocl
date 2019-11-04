@@ -11,6 +11,7 @@ GENERAL
 - make all examples simulable in SystemC
 
 COMPILER
+- translation of delays in the Preesm backend
 - check rate expressions on ports when present (type must be int and all vars occuring must be parameters)
 - clarify the description of "src" and "snk" nodes in .pi files concerning the cfg inputs :
   + preesm seems to accept the explicit form ...
