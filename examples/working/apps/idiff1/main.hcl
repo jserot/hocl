@@ -1,5 +1,6 @@
 -- This application computes and displays the image difference (Ik-Ik-1) on a YUV video stream
--- Monolithic version
+-- This is a HoCL reformulation of the Preesm example available at :
+--   https://github.com/preesm/preesm-apps/tree/master/org.ietr.preesm.difference
 
 type uchar;
 
@@ -23,7 +24,7 @@ actor Display_YUV
 actor Diff
   param (width: nat, height: nat)
   in (input: uchar[height*width], previous: uchar[height*width])
-  out (result: uchar[height*width], output: uchar[height*width])
+  out (output: uchar[height*width], result: uchar[height*width])
 ;
 
 delay Delay
@@ -40,6 +41,5 @@ let () = Display_YUV(index, width, height) (yo,u,v);
 
 #pragma code("Read_YUV", "include/yuvRead.h", "readYUV", "initReadYUV")
 #pragma code("Diff", "include/difference.h", "difference")
--- #pragma code("Delay", "include/delay.h", "delay")
 #pragma code("Display_YUV", "include/yuvDisplay.h", "yuvDisplay", "yuvDisplayInit")
 

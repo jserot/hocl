@@ -1,5 +1,7 @@
 -- Basic edge extraction on the Y channel using the Sobel operator
 -- Parallel version (as available in the Preesm tutorial directory)
+-- This is a HoCL reformulation of the Preesm example available at :
+--   https://github.com/preesm/preesm-apps/tree/master/tutorials/org.ietr.preesm.sobel
 
 type uchar;
 

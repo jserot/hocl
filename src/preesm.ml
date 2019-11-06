@@ -182,6 +182,19 @@ let output_actor_box oc sp (i,b) =
      List.iter (output_actor_box_port oc "input" false) fifo_ins;
      List.iter (output_actor_box_port oc "output" false) b.b_outs;
      fprintf oc "    </node>\n"
+  | DelayB ->
+     let id = box_name sp (i,b) in 
+     let param_ins, fifo_ins = List.partition is_param b.b_ins in 
+     let rate = match fifo_ins with
+         [_,(_,_,r,_)] -> r
+       | _ -> Error.illegal_interface "delay" b.b_name " (there should be exactly one input)" in
+     fprintf oc "    <node id=\"%s\" kind=\"delay\" getter=\"\" setter=\"\" level=\"permanent\" expr=\"%s\">\n"
+       id
+       (Syntax.string_of_io_rate rate);
+     (* List.iter (output_actor_box_port oc "input" true) param_ins; *) (* No explicit parameters for delays ? *)
+     List.iter (output_actor_box_port oc "input" false) fifo_ins; 
+     List.iter (output_actor_box_port oc "output" false) b.b_outs;
+     fprintf oc "    </node>\n"
   | SourceB ->
      let id = box_name sp (i,b) in 
      fprintf oc "    <node id=\"%s\" kind=\"src\">\n" id;
@@ -203,29 +216,62 @@ let output_parameter oc sp (i,b) =
      fprintf oc "    <node id=\"%s\" kind=\"cfg_in_iface\"/>\n" b.b_name 
   | _ -> ()
 
-let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
+let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,kind))=
   let src_name, src_slot =
     let b = lookup_box sp.boxes s in
     match b.b_tag with
-    | ActorB | BcastB | GraphB -> box_name sp (s,b), fst (List.nth b.b_outs ss)
+    | ActorB | BcastB | GraphB | DelayB -> box_name sp (s,b), fst (List.nth b.b_outs ss)
     | LocalParamB | InParamB  -> box_name sp (s,b), ""
     | SourceB -> box_name sp (s,b), box_name sp (s,b)
     | _ -> Misc.fatal_error "Preesm.output_connexion" in
   let dst_name, dst_slot =
     let b = lookup_box sp.boxes d in
     match b.b_tag with
-    | ActorB | BcastB | GraphB -> box_name sp (d,b), fst (List.nth b.b_ins ds)
+    | ActorB | BcastB | GraphB | DelayB -> box_name sp (d,b), fst (List.nth b.b_ins ds)
     | LocalParamB -> box_name sp (d,b), ""
     | SinkB | SourceB -> box_name sp (d,b), box_name sp (d,b) 
     | _ -> Misc.fatal_error "Preesm.output_connexion" in
   let mk_field name v = if v = "" then "" else Printf.sprintf "%s=\"%s\"" name v in
-  fprintf oc "    <edge kind=\"%s\" source=\"%s\" %s target=\"%s\" %s %s/>\n"
-    (if is_param_dep then "dependency" else "fifo")
-    src_name
-    (mk_field "sourceport" src_slot)
-    dst_name
-    (mk_field "targetport" dst_slot)
-    (mk_field "type" (if is_param_dep then "" else string_of_type ty))
+  match kind with
+  | RegularW | ParamW ->
+     fprintf oc "    <edge kind=\"%s\" source=\"%s\" %s target=\"%s\" %s %s/>\n"
+       (match kind with ParamW -> "dependency" | _ -> "fifo")
+       src_name
+       (mk_field "sourceport" src_slot)
+       dst_name
+       (mk_field "targetport" dst_slot)
+       (mk_field "type" (match kind with RegularW | DelayW -> string_of_type ty | ParamW -> ""))
+  | DelayW ->
+     fprintf oc "    <edge kind=\"%s\" source=\"%s\" %s target=\"%s\" %s %s>\n"
+       "fifo"
+       src_name
+       (mk_field "sourceport" src_slot)
+       dst_name
+       (mk_field "targetport" dst_slot)
+       (mk_field "type" (match kind with RegularW | DelayW -> string_of_type ty | ParamW -> ""));
+     fprintf oc "      <data key=\"delay\">%s</data>\n" "Delay";
+     fprintf oc "    </edge>\n"
+
+let is_regular_connexion sp (wid,(((s,ss),(d,ds)),ty,kind))=
+  (* Note: [kind] is still [RegularW] before [shorten_delay_connexions] *) 
+    let bs = lookup_box sp.boxes s in
+    let bd = lookup_box sp.boxes d in
+    bs.b_tag <> DelayB && bd.b_tag <> DelayB
+
+let shorten_delay_connexions sp cnxs =
+  (* ActorB1 -w1<regular>-> DelayB -w2<regular>-> ActorB2 ==> ActorB1 -w<delay>-> ActorB2 *)
+  let scan acc (wid,(((s,ss),(d,ds)),ty,kind)) =
+    let b = lookup_box sp.boxes d in
+    if b.b_tag = DelayB && kind=RegularW then (* For each DelayB box *)
+      let b1,bs1 = s,ss in   (* Get source box *)
+      let _,(((_,_),(b2,bs2)),_,_) = (* Get destination box *)
+        try List.find (function (wid,(((s,ss),(_,_)),ty,kind)) -> s=d) cnxs 
+        with Not_found -> Misc.fatal_error "Preesm.shorten_delay_connexions" in (* Should not happen *)
+      let w' = ((b1,bs1),(b2,bs2)), ty, DelayW in (* Created wire *)
+      (new_wid(),w') :: acc
+    else
+      acc in
+  List.fold_left scan [] cnxs
 
 let output oc name sp = 
   fprintf oc "<?xml version=\"%s\" encoding=\"%s\"?>\n" cfg.xml_version cfg.xml_encoding;
@@ -235,11 +281,23 @@ let output oc name sp =
   fprintf oc "  <key attr.name=\"arguments\" for=\"node\" id=\"arguments\"/>\n";
   fprintf oc "  <key attr.name=\"name\" attr.type=\"string\" for=\"graph\"/>\n";
   fprintf oc "  <key attr.name=\"graph_desc\" attr.type=\"string\" for=\"node\"/>\n";
+  fprintf oc "  <key attr.name=\"delay\" attr.type=\"string\" for=\"edge\"/>\n";
   fprintf oc "  <graph edgedefault=\"directed\">\n";
   fprintf oc "    <data key=\"name\">%s</data>\n" name;
   List.iter (output_parameter oc sp) sp.boxes;
   List.iter (output_actor_box oc sp) sp.boxes;
-  List.iter (output_connexion oc sp) sp.wires;
+  let regular_cnxs, delay_cnxs =
+    List.fold_left
+      (fun (acc,acc') ((wid,(((s,ss),(d,ds)),ty,kind)) as w) ->
+        match (lookup_box sp.boxes s).b_tag, (lookup_box sp.boxes d).b_tag, kind with
+        | DelayB, _, RegularW -> acc, w::acc' (* DelayB-> *)
+        | _, DelayB, RegularW -> acc, w::acc' (* ->DelayB *)
+        | _, _, _ -> w::acc, acc')            (* other *)
+      ([],[])
+      sp.wires in
+  List.iter (output_connexion oc sp) regular_cnxs;
+  let delay_cnxs' = shorten_delay_connexions sp delay_cnxs in
+  List.iter (output_connexion oc sp) delay_cnxs';
   fprintf oc "  </graph>\n";
   fprintf oc "</graphml>\n"
 

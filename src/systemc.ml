@@ -486,9 +486,9 @@ let rec dump_top_module prefix fname sp =
   Logfile.write fname;
   close_out oc
 
-and is_fifo_wire boxes (wid,(_,_,is_dep_wire)) = not is_dep_wire
+and is_fifo_wire boxes (wid,(_,_,kind)) = kind=RegularW
 
-and dump_wire oc boxes (wid,(((src,_),(dst,_)),ty,is_dep_wire)) =
+and dump_wire oc boxes (wid,(((src,_),(dst,_)),ty,kind)) =
   (* if is_dep_wire then
    *     fprintf oc "  sc_signal<%s > w%d(\"w%d\");\n" (string_of_type ty) wid wid
    * else *)
@@ -496,7 +496,7 @@ and dump_wire oc boxes (wid,(((src,_),(dst,_)),ty,is_dep_wire)) =
     (string_of_type ty)
     wid
     wid
-    (if is_dep_wire then cfg.sc_param_fifo_capacity else cfg.sc_data_fifo_capacity)
+    (match kind with ParamW -> cfg.sc_param_fifo_capacity | _ -> cfg.sc_data_fifo_capacity)
       (* fprintf oc "  sc_fifo<%s > w%d(\"w%d\", %d, %b, %b);\n"
        *   (string_of_type ty) wid wid cfg.sc_fifo_capacity cfg.sc_dump_fifos cfg.sc_dump_fifo_stats;  *)
 

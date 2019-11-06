@@ -106,11 +106,11 @@ let output_box ch (i,b) =
 
 let string_of_wtype ty = ":" ^ Pr_type.string_of_type ty
 
-let output_wire ch (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
+let output_wire ch (wid,(((s,ss),(d,ds)),ty,kind))=
   let wire_annot wid =
     (* try Interm.string_of_wire_annot (List.assoc wid wire_annots)
     with Not_found -> *) "" in
-  let style = if is_param_dep then "dashed" else "plain" in
+  let style = match kind with ParamW -> "dashed" | _ -> "plain" in
   match cfg.labeled_edges, cfg.show_indexes, cfg.show_wire_annots with
   | true, _, true ->
      fprintf ch "n%d:s%d -> n%d:e%d [label=\" w%d:%s\"; style=%s];\n" s ss d ds wid (wire_annot wid) style

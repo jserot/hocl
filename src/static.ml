@@ -67,7 +67,12 @@ and b_val = {
     bv_val: ss_val        (* Statically computed value - SVUnit if N/A *)
   }
 
-type ss_wire = (sv_loc * sv_loc) * typ * bool   (* src, dest, type, is parameter dependency *)
+type wire_kind =
+  | RegularW
+  | ParamW  (* Parameter dependency *)
+  | DelayW  (* Special case for handling delays in the Preesm backend *)
+  
+type ss_wire = (sv_loc * sv_loc) * typ * wire_kind   (* src, dest, type, kind *)
 
 (* The result of the static analysis *)
 
@@ -315,19 +320,19 @@ and eval_net_application tp (bs,ws) nenv loc val_fn val_arg ty_arg =
      []
   | SVLoc (l, s, TyArrow(ty'', TyArrow(ty, ty')), SVUnit), SVLoc (l1,s1,_,_) when is_unit_type ty ->
      (* Special case for parameterized source boxes *)
-     let w = ((l1,s1),(l,s)), ty'', true in
+     let w = ((l1,s1),(l,s)), ty'', ParamW in
      SVLoc (l, s, TyArrow(ty,ty'), val_arg),
      [],
      [new_wid(),w]
   | SVLoc (l, s, TyArrow(ty, ty'), v), SVLoc (l1,s1,_,_) when is_unit_type ty' ->
      (* Special case for parameter-less sink boxes *)
-     let w = ((l1,s1),(l,s)), ty, false in
+     let w = ((l1,s1),(l,s)), ty, RegularW in
      SVUnit,
      [],
      [new_wid(),w]
   | SVLoc (l, s, TyArrow(ty'', TyArrow(ty, ty')), SVUnit), SVLoc (l1,s1,_,_) when is_unit_type ty' ->
      (* Special case for parameterized sink boxes *)
-     let w = ((l1,s1),(l,s)), ty'', true in
+     let w = ((l1,s1),(l,s)), ty'', ParamW in
      SVLoc (l, s, TyArrow(ty,ty'), val_arg),
      [],
      [new_wid(),w]
@@ -455,14 +460,14 @@ and instanciate_actor tp nenv loc a args =
     List.map (function (id,ty,v) -> id,(ty, static_value v)) a.sa_params in
   let bouts = List.map (fun (id,ty,rate,ann) -> (id,([0],ty,rate,ann))) a.sa_outs in
   let l, b = new_box a.sa_kind a.sa_id tyact bparams bins bouts in
-  let mk_wire b l v = match v with
-    SVLoc(i,j,ty,_) -> new_wid(), (((i,j),l),ty,b)
+  let mk_wire kind l v = match v with
+    SVLoc(i,j,ty,_) -> new_wid(), (((i,j),l),ty,kind)
   | _ -> illegal_application loc in
   let tyins' = list_of_types tyins in
   let tyouts' = list_of_types tyouts in
   let wps =
     List.mapi
-      (fun i p -> match p with (id,ty,Some v) -> mk_wire true (l,i) v | _ -> illegal_application loc)
+      (fun i p -> match p with (id,ty,Some v) -> mk_wire ParamW (l,i) v | _ -> illegal_application loc)
       a.sa_params in
   let np = List.length a.sa_params in
   let args' = match tyins', args with
@@ -478,12 +483,12 @@ and instanciate_actor tp nenv loc a args =
      [l,b],
      wps
   | [t], [_], [], [_], SVLoc(l1,s1,ty,_) ->                                     (* APP_1_0 *)
-     let w = ((l1,s1),(l,np)), t, false in
+     let w = ((l1,s1),(l,np)), t, RegularW in
      SVUnit,
      [l,b],
      wps @ [new_wid(),w]
   | ts, _, [], [_], SVTuple vs when List.length ts > 1 ->                       (* APP_m_0 *)
-     let ws'' = Misc.list_map_index (fun i v -> mk_wire false (l,np+i) v) vs in
+     let ws'' = Misc.list_map_index (fun i v -> mk_wire RegularW (l,np+i) v) vs in
      SVUnit,
      [l,b],
      wps @ ws''
@@ -496,22 +501,22 @@ and instanciate_actor tp nenv loc a args =
       [l,b],
       wps
   | [t], _, [t'], _, SVLoc(l1,s1,ty,_) ->                                       (* APP_1_1 *)
-      let w = ((l1,s1),(l,np)), t, false in
+      let w = ((l1,s1),(l,np)), t, RegularW in
       SVLoc (l,0,t',SVUnit),
       [l,b],
       wps @ [new_wid(),w]
   | [t], _, ts', _, SVLoc(l1,s1,ty,_) when List.length ts' > 1 ->               (* APP_1_n *)
-      let w = ((l1,s1),(l,np)), t, false in
+      let w = ((l1,s1),(l,np)), t, RegularW in
       SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,SVUnit)) ts'),
       [l,b],
       wps @ [new_wid(),w]
   | ts, _, [t'], _, SVTuple vs when List.length ts > 1 ->                       (* APP_m_1 *)
-      let ws'' = Misc.list_map_index (fun i v -> mk_wire false (l,np+i) v) vs in
+      let ws'' = Misc.list_map_index (fun i v -> mk_wire RegularW (l,np+i) v) vs in
       SVLoc (l,0,t',SVUnit),
       [l,b],
       wps @ ws''
   | ts, _, ts', _, SVTuple vs when List.length ts > 1 && List.length ts' > 1 -> (* APP_m_n *)
-      let ws'' = Misc.list_map_index (fun i v -> mk_wire false (l,np+i) v) vs in
+      let ws'' = Misc.list_map_index (fun i v -> mk_wire RegularW (l,np+i) v) vs in
       SVTuple (Misc.list_map_index (fun i ty -> SVLoc(l,i,ty,SVUnit)) ts'),
       [l,b],
       wps @ ws''
@@ -598,7 +603,7 @@ let rec eval_param_decl tp nenv (ne,bs,ws) { pd_desc=id,kind,ty,e; pd_loc=loc } 
   let ws' =
     List.map 
       (function
-       | id, SVLoc (l',s',ty,_) -> new_wid (), (((l',s'),(l,0)),ty,true)
+       | id, SVLoc (l',s',ty,_) -> new_wid (), (((l',s'),(l,0)),ty,ParamW)
        | _, _ -> invalid_param_value id loc)
       dep_params in
   (id,SVLoc (l,0,ty,bv.bv_val)) :: ne, (l,b) :: bs, ws'@ws
@@ -675,7 +680,7 @@ and is_dep_wire wires wid =
      Misc.fatal_error "Static.is_dep_wire"
 
 and update_wires s' j wires wid = 
-  Misc.assoc_replace wid (function ((s,ss),(d,ds)),ty,b -> ((s',j),(d,ds)),ty,b) wires 
+  Misc.assoc_replace wid (function ((s,ss),(d,ds)),ty,kind -> ((s',j),(d,ds)),ty,kind) wires 
 
 let insert_bcast_after (boxes,wires) (bid,box) = 
   match box.b_tag with
@@ -751,7 +756,7 @@ let insert_bcasters sp =
 
 exception BoxWiring of string * bid * wid
 
-let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * bool)) list) (bid,b) =
+let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * wire_kind)) list) (bid,b) =
   try
     bid,
     (match b.b_tag with
@@ -798,14 +803,14 @@ and add_sink_inputs wires bname bid =
 and add_param_inputs wires bid =
   let ws =
     List.filter
-      (function (wid, (((s,ss),(d,ds)), ty, is_dep_wire)) -> d=bid && ds=0 && is_dep_wire)
+      (function (wid, (((s,ss),(d,ds)), ty, kind)) -> d=bid && ds=0 && kind=ParamW)
       wires in
   List.mapi (fun i (wid,(_,ty,_)) -> "i" ^ string_of_int (i+1), (wid, ty, None, None)) ws
 
 and add_param_outputs wires bid =
   let ws =
     List.filter
-      (function (wid, (((s,ss),(d,ds)), ty, is_dep_wire)) -> s=bid && ss=0 && is_dep_wire)
+      (function (wid, (((s,ss),(d,ds)), ty, kind)) -> s=bid && ss=0 && kind=ParamW)
       wires in
   match ws with
     [] -> []
@@ -875,6 +880,7 @@ let get_pragma_desc cat name sp =
 
 (* Printing *)
 
+let string_of_wire_kind = function RegularW -> "regular" | ParamW -> "param" | DelayW -> "delay"
 let string_of_typed_bin (id,(wid,ty,_,_)) = id ^ ":" ^ string_of_type ty ^ "(<-W" ^ string_of_int wid ^ ")"
 let string_of_typed_bout (id,(wids,ty,_,_)) = 
     id ^ ":" ^ string_of_type ty ^ "(->["
@@ -925,8 +931,8 @@ let print_box (i,b) =
         (Misc.string_of_list string_of_typed_bout ","  b.b_outs)
         (match b.b_tag with LocalParamB -> "val=" ^ string_of_core_expr b.b_val.bv_lit | _ -> "")
 
-let print_wire (i,(((s,ss),(d,ds)),ty,b)) =
-  Printf.printf "W%d: %s: (B%d,%d) %s (B%d,%d)\n" i (string_of_type ty) s ss (if b then "+>" else "->") d ds
+let print_wire (i,(((s,ss),(d,ds)),ty,kind)) =
+  Printf.printf "W%d: %s: %s: (B%d,%d) -> (B%d,%d)\n" i (string_of_wire_kind kind) (string_of_type ty) s ss d ds
 
 let dump_static sp =
   printf "Static environment ---------------\n";

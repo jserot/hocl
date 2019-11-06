@@ -267,7 +267,7 @@ let subst_rate_expr = subst_core_expr
 
 let string_of_io_rate r = match r with
     None -> ""
-  | Some re -> "[" ^ string_of_rate_expr re ^ "]"
+  | Some re -> string_of_rate_expr re 
 
 let string_of_io_annot r = match r with
     None -> ""
