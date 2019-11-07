@@ -40,10 +40,10 @@ let parse fname =
 let compile p = 
   let tp = type_program builtin_typing_env p in
   if Options.cfg.dump_typed then dump_typed_program builtin_typing_env tp;
-  if Options.cfg.output_fmt = Systemc then begin
-      Static.cfg.Static.insert_bcasts <- true;
-      (* Static.cfg.Static.insert_fifos <- true *)
-      end;
+  (* if Options.cfg.output_fmt = Systemc then begin
+   *     Static.cfg.Static.insert_bcasts <- true;
+   *     (\* Static.cfg.Static.insert_fifos <- true *\)
+   *     end; *)
   let sp = build_static tp builtin_static_env p in
   if Options.cfg.dump_static then dump_static sp;
   sp
@@ -55,19 +55,15 @@ let output pfx sp =
   begin match Options.cfg.output_fmt with
   | NoOutput -> ()
   | Dot ->
-     check_dir Options.cfg.target_dir;
      let fname = mk_fname pfx ".dot" in
      Dot.dump fname sp
   | Preesm ->
-     check_dir Options.cfg.target_dir;
      let fname = mk_fname pfx ".pi" in
      Preesm.dump fname sp
   | Xdf ->
-     check_dir Options.cfg.target_dir;
      let fname = mk_fname pfx ".xdf" in
      Xdf.dump fname sp
   | Systemc ->
-     check_dir Options.cfg.target_dir;
      let top_fname = mk_fname pfx "_top.cpp" in
      Systemc.dump_top_module Options.cfg.output_prefix top_fname sp;
      List.iter (Systemc.dump_actor Options.cfg.target_dir Options.cfg.output_prefix sp) sp.gacts;
@@ -76,6 +72,17 @@ let output pfx sp =
       *   Systemc.dump_split_actors sp; *)
      (* if !Misc.generate_makefiles then Genmake.dump_systemc_makefile () *)
     end
+
+let insert_bcasts sp = 
+  if cfg.insert_bcasts then
+    let after_boxes = match Options.cfg.output_fmt with
+      | Dot -> [LocalParamB; InParamB; SourceB; ActorB; DelayB]
+      | Systemc -> [LocalParamB; InParamB; SourceB; ActorB; DelayB]
+      | Preesm -> [SourceB; ActorB; DelayB]
+      | _ -> [] in
+    Static.insert_bcasters after_boxes sp
+  else
+    sp
 
 let process_file f =
   Printf.printf "Processing file %s\n" f; flush stdout;
@@ -86,7 +93,8 @@ let process_file f =
       Syntax.empty_program
       fs in
   (* Syntax.dump_program p; *)
-  let sp = compile p in
+  let sp = p |> compile |> insert_bcasts in
+  if Options.cfg.output_fmt <> NoOutput then check_dir Options.cfg.target_dir;
   let pfx = Misc.file_prefix f in
   output pfx sp
 

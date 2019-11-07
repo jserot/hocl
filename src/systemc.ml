@@ -506,7 +506,7 @@ and dump_box sp oc (i,b) =
       | (_,(_,ty,_,_))::_ -> ty
       | _ -> failwith "Systemc.dump_box" (* should not happen *) in
   match b.b_tag with
-  | BcastB ->  (* Implicit bcast (for parameters, for now) *)
+  | IBcastB ->  (* Implicit bcast *)
       let ty = type_of b.b_ins in
       fprintf oc "  %s<%s > %s(\"%s\");\n"
         ("bcast" ^ string_of_int (List.length b.b_outs))
@@ -515,19 +515,20 @@ and dump_box sp oc (i,b) =
         bname;
       List.iter (dump_box_input oc bname) b.b_ins;
       List.iter (dump_box_output oc bname) b.b_outs
-  | ActorB when is_bcast_box sp.boxes i -> (* Explicit bcast (for actors, for now) *) (* TO BE FIXED ? *)
-      let ty = type_of b.b_ins in
-      fprintf oc "  %s<%s > %s(\"%s\", %b);\n"
-        ("bcast" ^ string_of_int (List.length b.b_outs))
-        (string_of_type ty)
-        bname
-        bname
-        (* (string_of_param_values ir bname b.ib_params) *)
-        cfg.sc_trace;
-      fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
-      List.iter (dump_box_input oc bname) b.b_ins;
-      List.iter (dump_box_output oc bname) b.b_outs
+  (* | ActorB when is_bcast_box sp.boxes i -> (\* Explicit bcast (for actors, for now) *\) (\* TO BE FIXED ? *\)
+   *     let ty = type_of b.b_ins in
+   *     fprintf oc "  %s<%s > %s(\"%s\", %b);\n"
+   *       ("bcast" ^ string_of_int (List.length b.b_outs))
+   *       (string_of_type ty)
+   *       bname
+   *       bname
+   *       (\* (string_of_param_values ir bname b.ib_params) *\)
+   *       cfg.sc_trace;
+   *     fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
+   *     List.iter (dump_box_input oc bname) b.b_ins;
+   *     List.iter (dump_box_output oc bname) b.b_outs *)
   | ActorB
+  | EBcastB
   | DelayB ->
       let modname = bname ^ cfg.sc_act_suffix in
       fprintf oc "  %s %s(\"%s\", %b);\n"

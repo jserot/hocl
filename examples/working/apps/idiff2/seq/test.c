@@ -13,9 +13,8 @@ int main(int argc, char **argv)
   int cnt = 0;
   unsigned char ival = 0;
   unsigned char* yi = (unsigned char*)malloc(sizeof(char)*height*width);
-  unsigned char* yo = (unsigned char*)malloc(sizeof(char)*height*width);
-  unsigned char* yr = (unsigned char*)malloc(sizeof(char)*height*width);
   unsigned char* yp = (unsigned char*)malloc(sizeof(char)*height*width);
+  unsigned char* yo = (unsigned char*)malloc(sizeof(char)*height*width);
   unsigned char* u = (unsigned char*)malloc(sizeof(char)*height/2*width/2);
   unsigned char* v = (unsigned char*)malloc(sizeof(char)*height/2*width/2);
   initReadYUV(width, height);
@@ -24,8 +23,8 @@ int main(int argc, char **argv)
   while ( ! quitViewer ) {
     readYUV(width, height, yi, u, v);
     //printf("Read %dx%d frame #%3d\n", width, height, cnt); 
-    difference(width, height, yi, yp, yr, yo);
-    memcpy(yp, yr, height*width); // Current -> previous
+    difference(width, height, yi, yp, yo);
+    memcpy(yp, yi, height*width); // Current -> previous
     yuvDisplay(id, width, height, yo, u, v);
     cnt++;
     }

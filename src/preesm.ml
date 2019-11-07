@@ -22,6 +22,7 @@ type preesm_config = {
     mutable top_name: string;
     mutable code_prefix: string;
     mutable algo_dir: string;
+    mutable default_port_rate: string;
     mutable default_port_ann: string;
     mutable default_incl_dir: string;
     mutable default_src_dir: string
@@ -33,7 +34,8 @@ let cfg = {
   top_name = "";
   code_prefix = "";
   algo_dir = "Algo";
-  default_port_ann = "1";
+  default_port_rate = "1";
+  default_port_ann = "";
   default_incl_dir = "../include";
   default_src_dir = "../src"
 }
@@ -126,14 +128,15 @@ let output_actor_box_port oc dir is_param (id, (wid,ty,rate,ann)) =
     fprintf oc "      <port kind=\"%s\" name=\"%s\" expr=\"%s\" annotation=\"%s\"/>\n"
       dir
       id
-      (Syntax.string_of_io_rate rate)  (* TO CHECK !! *)
-      (Syntax.string_of_io_annot ann)  (* TO CHECK !! *)
-      (* (if ann = "" then cfg.default_port_ann else ann) *)
+      (match rate with Some _ -> Syntax.string_of_io_rate rate | None -> cfg.default_port_rate)
+      (match ann with Some _ -> Syntax.string_of_io_annot ann | None -> cfg.default_port_ann)
 
 let output_actor_box oc sp (i,b) =
-  let is_param (id, (wid,ty,_,_)) = 
-    let w = lookup_wire sp.wires wid in
-    is_param_box (Static.src_box_of_wire sp.boxes w) in
+  let is_param (id, (wid,ty,_,kind)) = 
+    match lookup_wire sp.wires wid with
+      _, _, ParamW -> true
+    | _, _, _ -> false in
+    (* is_param_box (Static.src_box_of_wire sp.boxes w) in *)
   match b.b_tag with
   | ActorB ->
      let id = box_name sp (i,b) in 
@@ -174,7 +177,8 @@ let output_actor_box oc sp (i,b) =
      List.iter (output_actor_box_port oc "input" false) fifo_ins;
      List.iter (output_actor_box_port oc "output" false) b.b_outs;
      fprintf oc "    </node>\n"
-  | BcastB ->
+  | EBcastB
+  | IBcastB ->
      let id = box_name sp (i,b) in 
      fprintf oc "    <node id=\"%s\" kind=\"broadcast\">\n" id;
      let param_ins, fifo_ins = List.partition is_param b.b_ins in 
@@ -220,14 +224,14 @@ let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,kind))=
   let src_name, src_slot =
     let b = lookup_box sp.boxes s in
     match b.b_tag with
-    | ActorB | BcastB | GraphB | DelayB -> box_name sp (s,b), fst (List.nth b.b_outs ss)
+    | ActorB | EBcastB | IBcastB | GraphB | DelayB -> box_name sp (s,b), fst (List.nth b.b_outs ss)
     | LocalParamB | InParamB  -> box_name sp (s,b), ""
     | SourceB -> box_name sp (s,b), box_name sp (s,b)
     | _ -> Misc.fatal_error "Preesm.output_connexion" in
   let dst_name, dst_slot =
     let b = lookup_box sp.boxes d in
     match b.b_tag with
-    | ActorB | BcastB | GraphB | DelayB -> box_name sp (d,b), fst (List.nth b.b_ins ds)
+    | ActorB | EBcastB | IBcastB | GraphB | DelayB -> box_name sp (d,b), fst (List.nth b.b_ins ds)
     | LocalParamB -> box_name sp (d,b), ""
     | SinkB | SourceB -> box_name sp (d,b), box_name sp (d,b) 
     | _ -> Misc.fatal_error "Preesm.output_connexion" in

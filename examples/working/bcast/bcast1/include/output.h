@@ -3,7 +3,7 @@
 
 #include "defs.h"
 
-void output(IN int *i);
+void output(IN int *i1, IN int *i2);
 
 void outputInit(void);
 

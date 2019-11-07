@@ -1,6 +1,6 @@
 (env
   (dev
-    (flags (:standard -annot))))
+    (flags (:standard -bin-annot))))
 
 (ocamllex lexer)
 
@@ -8,7 +8,7 @@
 
 (executable
   (name main)
-  (flags (:standard -w -9-26-27-35-39) (-annot))
+  (flags (:standard -w -9-26-27-35-39) (-bin-annot))
   (libraries ezxmlm unix))
 
 (rule

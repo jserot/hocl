@@ -71,7 +71,8 @@ let output_box ch (i,b) =
     if s1 = s2 then s1 else s1 ^ "=" ^ s2 in
   match b.b_tag with
   | ActorB
-  | BcastB
+  | EBcastB
+  | IBcastB
   | DelayB ->
       if cfg.slotted_boxes then
         fprintf ch "n%d [shape=record,style=rounded,label=\"<id>%s|{{%s}|{%s}}\"];\n"

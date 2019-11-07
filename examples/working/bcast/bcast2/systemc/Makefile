@@ -1,0 +1,49 @@
+SC_DIR		= /usr/local/systemc-2.3.1
+SC_CXX      = g++
+SC_LD	 	= g++
+CXXFLAGS  += -I../include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
+SC_CXXFLAGS  += -I../../../../../lib/systemc -I../include -I$(SC_DIR)/include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
+LDFLAGS	    = -L$(SC_DIR)/lib-macosx64
+
+CPP_SRCS = inp_act.cpp outp_act.cpp foo1_act.cpp foo2_act.cpp bc_act.cpp k1_param.cpp main_top.cpp
+C_SRCS = input.c output.c foo.c my_bcast.c
+OBJS = $(C_SRCS:.c=.o) $(CPP_SRCS:.cpp=.o)
+CPP_HDRS = $(CPP_SRCS:.cpp=.h)
+GEN_SRCS = $(CPP_SRCS) $(CPP_HDRS)
+
+all: run
+
+%.o: %.cpp
+	$(SC_CXX) $(SC_CXXFLAGS) -c $<
+
+%.o: %.c
+	$(SC_CXX) $(CXXFLAGS) -c $<
+
+.PHONY: run exe clean clobber
+
+exe: ./main_sc
+
+./main_sc: $(OBJS)
+	$(SC_LD) $(LDFLAGS) $(OBJS) -o main_sc -lsystemc  2>&1 | c++filt
+
+run: ./main_sc 
+	./main_sc
+
+inp_act.o: inp_act.cpp
+outp_act.o: outp_act.cpp
+foo1_act.o: foo1_act.cpp
+foo2_act.o: foo2_act.cpp
+bc_act.o: bc_act.cpp
+k1_param.o: k1_param.cpp
+main_top.o: main_top.cpp
+input.o: input.c
+output.o: output.c
+my_cast.o: my_cast.c
+
+clean:
+	\rm -f $(GEN_SRCS) 
+	\rm -f *.o
+	\rm -f main_sc
+
+clobber: clean
+	\rm -f *~

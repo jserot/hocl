@@ -32,12 +32,13 @@ let cfg = {
   bcast_name = "bcast";
   fifo_name = "fifo";
   }
-         
+
 type static_env = (string * ss_val) list
 
 type box_tag = 
     ActorB
-  | BcastB
+  | IBcastB (* Implicit bcast (inserted automatically) *)
+  | EBcastB (* Explicit bcast *)
   | SourceB
   | SinkB
   | GraphB
@@ -98,9 +99,10 @@ let is_valid_param_value = function
 
 let box_name sp (i,b) =
   match b.b_tag with
-  | BcastB ->
+  | IBcastB ->
      b.b_name ^ "_" ^ string_of_int i
-  | ActorB ->
+  | ActorB
+  | EBcastB ->
      let a =
        try List.assoc b.b_name sp.gacts
        with Not_found -> Misc.fatal_error ("Static.box_name(" ^ b.b_name ^ ")") (* should not happen *) in
@@ -126,7 +128,7 @@ let no_bval =
           
 let new_box kind name ty params ins outs =
   let bid = new_bid () in
-  let tag = match kind with A_Regular -> ActorB | A_Bcast -> BcastB | A_Graph -> GraphB | A_Delay -> DelayB in
+  let tag = match kind with A_Regular -> ActorB | A_Bcast -> EBcastB | A_Graph -> GraphB | A_Delay -> DelayB in
   bid, { b_id=bid; b_tag=tag; b_name=name; b_params=params; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
 
 let new_io_box kind name ty (*params*) =
@@ -629,7 +631,7 @@ let rec eval_io_decl tp nenv (ne,bs,ws) { io_desc=kind,id,params,ty; io_loc=loc 
 
 (* Network transformations *)
 
-(* Insert BCASTers 
+(* Insert (implicit) BCASTs 
  * 
  *        +--------+         +--------+          +--------+         +---------+          +--------+
  *        |        |         |        |          |        |         |         |    w1'   |        |
@@ -651,7 +653,7 @@ let rec eval_io_decl tp nenv (ne,bs,ws) { io_desc=kind,id,params,ty; io_loc=loc 
 let new_bcast_box ty wid wids =
   let bid = new_bid () in
   let bos = Misc.list_map_index (fun i wid -> "o_" ^ string_of_int (i+1), ([wid],ty,None,None)) wids in 
-  bid, { b_id=bid; b_tag=BcastB; b_name=cfg.bcast_name; b_params=[]; b_ins=["i",(wid,ty,None,None)]; b_outs=bos; b_typ=ty; b_val=no_bval }
+  bid, { b_id=bid; b_tag=IBcastB; b_name=cfg.bcast_name; b_params=[]; b_ins=["i",(wid,ty,None,None)]; b_outs=bos; b_typ=ty; b_val=no_bval }
 
 let rec is_bcast_box boxes bid = (find_box boxes bid).b_name = cfg.bcast_name
 
@@ -669,32 +671,28 @@ let rec insert_bcast bid oidx (boxes,wires,box) bout =
       let box' = { box with b_outs = Misc.assoc_replace id (function _ -> [wid'],ty,rate,ann) box.b_outs } in
       let wires' = Misc.foldl_index (update_wires m) wires wids in
       let boxes' = Misc.assoc_replace bid (function b -> box') boxes in
-      (m,mb) :: boxes', (wid',(((bid,oidx),(m,0)),ty,is_dep_wire wires (List.hd wids))) :: wires', box'
+      (m,mb) :: boxes', (wid',(((bid,oidx),(m,0)),ty,get_wire_kind wires (List.hd wids))) :: wires', box'
 
-and is_dep_wire wires wid =
+and get_wire_kind wires wid =
   try
     match List.assoc wid wires with
-    | _,_,b -> b
+    | _,_,k -> k
   with
   | Not_found -> 
-     Misc.fatal_error "Static.is_dep_wire"
+     Misc.fatal_error "Static.get_wire_kind"
 
 and update_wires s' j wires wid = 
   Misc.assoc_replace wid (function ((s,ss),(d,ds)),ty,kind -> ((s',j),(d,ds)),ty,kind) wires 
 
-let insert_bcast_after (boxes,wires) (bid,box) = 
-  match box.b_tag with
-  | LocalParamB
-  | InParamB
-  | SourceB 
-  | ActorB -> (* TO BE FIXED ? *)
-      let boxes', wires', box' = Misc.foldl_index (insert_bcast bid) (boxes,wires,box) box.b_outs in
-      boxes', wires'
-  | _ ->
-      boxes, wires
+let insert_bcast_after after_boxes (boxes,wires) (bid,box) = 
+  if List.mem box.b_tag after_boxes then 
+    let boxes', wires', box' = Misc.foldl_index (insert_bcast bid) (boxes,wires,box) box.b_outs in
+    boxes', wires'
+  else
+    boxes, wires
 
-let insert_bcasters sp = 
-  let boxes', wires' = List.fold_left insert_bcast_after (sp.boxes,sp.wires) sp.boxes in
+let insert_bcasters after_boxes sp = 
+  let boxes', wires' = List.fold_left (insert_bcast_after after_boxes) (sp.boxes,sp.wires) sp.boxes in
   { sp with boxes = boxes'; wires = wires' }
 
 (* Insert FIFOs - not used here 
@@ -760,7 +758,7 @@ let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * wire_kind)) li
   try
     bid,
     (match b.b_tag with
-     | ActorB | BcastB | GraphB | DelayB ->
+     | ActorB | IBcastB | EBcastB | GraphB | DelayB ->
         { b with
           b_ins = List.mapi
                         (fun sel (id,(_,ty,rate,ann)) -> id, (find_src_wire wires bid sel, ty, rate, ann))
@@ -859,8 +857,8 @@ let build_static tp senv p =
         (fun (_,b) -> b.b_name, b)
         (List.filter (fun (_,b) -> b.b_tag=LocalParamB || b.b_tag=InParamB) bs'');
     pragmas = List.map (fun d -> d.Syntax.pr_desc) p.pragmas }
-  |> (if cfg.insert_bcasts then insert_bcasters else Misc.id)
-  (* |> (if cfg.insert_fifos then insert_fifos else Misc.id) *)
+  (* |> (if cfg.insert_bcasts then insert_bcasters else Misc.id)
+   * (\* |> (if cfg.insert_fifos then insert_fifos else Misc.id) *\) *)
   
 let extract_special_boxes name sp =
   List.fold_left
@@ -911,7 +909,8 @@ let print_actor (id,ac) =
     (Misc.string_of_list (function bid -> "B" ^ string_of_int bid) "," ac.sa_insts)
 
 let box_prefix b = match b.b_tag with
-    BcastB -> "Y"
+    IBcastB -> "Y"
+  | EBcastB -> "X"
   | DelayB -> "D"
   | SourceB -> "I"
   | SinkB -> "O"

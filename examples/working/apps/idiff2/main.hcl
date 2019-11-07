@@ -1,6 +1,7 @@
 -- This application computes and displays the image difference (Ik-Ik-1) on a YUV video stream
 -- This is a HoCL reformulation of the Preesm example available at :
---   https://github.com/preesm/preesm-apps/tree/master/org.ietr.preesm.difference (difference1)
+--   https://github.com/preesm/preesm-apps/tree/master/org.ietr.preesm.difference (difference2)
+-- Note : the use of an explicit broadcast actor is required by the Preesm backend here
 
 type uchar;
 
@@ -24,7 +25,7 @@ actor Display_YUV
 actor Diff
   param (width: nat, height: nat)
   in (input: uchar[height*width], previous: uchar[height*width])
-  out (output: uchar[height*width], result: uchar[height*width])
+  out (result: uchar[height*width])
 ;
 
 delay Delay
@@ -33,13 +34,20 @@ delay Delay
   out (output: uchar[height*width])
 ;
 
-let (yi,u,v) = Read_YUV(width, height) ();
-let yo = 
-  let rec (output,result) = Diff (width, height) (yi, Delay (width,height,ival) output) in
-  result;
+bcast Bc1
+  param (width: nat, height: nat)
+  in (i: uchar[height*width])
+  out (o1: uchar[height*width], o2:uchar[height*width])
+;
+
+let (y,u,v) = Read_YUV(width, height) ();
+let (y1,y2) = Bc1 (width,height) y;
+let yp = Delay (width,height,ival) y1;
+let yo = Diff (width, height) (y2,yp); 
 let () = Display_YUV(index, width, height) (yo,u,v);
 
 #pragma code("Read_YUV", "include/yuvRead.h", "readYUV", "initReadYUV")
 #pragma code("Diff", "include/difference.h", "difference")
 #pragma code("Display_YUV", "include/yuvDisplay.h", "yuvDisplay", "yuvDisplayInit")
+#pragma code("Bc1", "include/broadcast.h", "bcast")
 

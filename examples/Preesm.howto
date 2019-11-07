@@ -1,4 +1,4 @@
-Test generated Preesm code 
+Check generated Preesm code 
 - set project name in $(CWD)/Makefile
 - make preesm
 - make preesm.proj

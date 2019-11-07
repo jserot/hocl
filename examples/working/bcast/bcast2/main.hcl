@@ -1,5 +1,5 @@
--- A simple graph with a broadcast node
--- Note : the generation of bcast nodes should really be automatized in some way
+-- A simple graph with an explicit broadcast node
+-- As opposed to implicit bcast nodes explicit bcasts can take parameters
 
 type int;
 
@@ -9,6 +9,7 @@ parameter k1: nat = 2;
 #pragma code("outp", "include/output.h", "output", "outputInit")
 #pragma code("foo1", "include/foo.h", "foo")
 #pragma code("foo2", "include/foo.h", "foo")
+#pragma code("bc", "include/my_bcast.h", "bcast")
 
 actor inp in () out(o: int);
 actor foo1 in (i: int) out (o: int);

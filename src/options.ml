@@ -54,7 +54,7 @@ let do_dump_boxes () = cfg.dump_boxes <- true
 let do_insert_bcasts () = Static.cfg.Static.insert_bcasts <- true
 (* let do_insert_fifos () = Static.cfg.Static.insert_fifos <- true *)
 let do_dot () = cfg.output_fmt <- Dot
-let do_preesm () = cfg.output_fmt <- Preesm
+let do_preesm () = begin cfg.output_fmt <- Preesm; Static.cfg.Static.insert_bcasts <- true end
 let do_systemc () = begin cfg.output_fmt <- Systemc; Static.cfg.Static.insert_bcasts <- true end
 (* let do_xdf () = cfg.output_fmt <- Xdf *)
 (* let do_dif () = output_fmt := Dif
