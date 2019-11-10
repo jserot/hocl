@@ -31,7 +31,7 @@ PI2HCL
 - port annotations (vs. expr)
 
 DOC
-- update tutorial with support for bcast nodes
+- update tutorial with support for bcast and bcast nodes
 
 DIST
 - build lib/etc/Makefile.app by instantiating a template with paths obtained from configure
