@@ -1,6 +1,6 @@
 -- A simple graph with an implicit broadcast node on the data flow
 -- Insertion of bcast nodes is automatic when using the SystemC and the Preesm backends
--- When using the Dot, it is triggered by the [-insert_bcast] option
+-- When using the Dot backend, it is triggered by the [-insert_bcast] option
 
 type int;
 

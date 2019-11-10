@@ -1,4 +1,4 @@
--- A simple graph with an explicit broadcast node
+-- A simple graph with an explicit broadcast node on the data flow
 -- As opposed to implicit bcast nodes explicit bcasts can take parameters
 
 type int;

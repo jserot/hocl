@@ -1,6 +1,8 @@
--- Broadcasted parameter
--- Insertion of bcast actors is turned off by default. Use option [-insert_bcasts] to insert them.
--- Insertion is automatic when using the SystemC backend 
+-- Parameters are implicitely broadcasted (IOW, the output port of a parameter box 
+-- can be directly wired to several distinct input ports)
+-- This interpretation is naturally supported by the Preesm backend
+-- When using the SystemC backend, explicit bcast nodes are automatically inserted 
+-- Inserted bcast nodes wan be viewed with the Dot backend by passing the [-insert_bcasts] option
 
 type int;
 

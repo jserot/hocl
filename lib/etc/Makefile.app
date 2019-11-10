@@ -40,6 +40,10 @@ clean:
 	@\rm -f *.dot
 	@\rm -f *.xdf
 	@\rm -f *.output
+	@if [ -d ./systemc ]; then (cd ./systemc; make clean); fi
+	@if [ -d ./preesm ]; then (cd ./preesm; rm *.pi); fi
 
 clobber: clean
 	@\rm -f *~
+	@if [ -d ./systemc ]; then (cd ./systemc; make clobber); fi
+	@if [ -d ./src ]; then (cd ./src; rm *~); fi
