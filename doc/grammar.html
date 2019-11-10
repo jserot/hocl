@@ -17,13 +17,13 @@
           white-space: nowrap;
       }
       .specification th::after {
-          content: "\a0::=\a0";
+          content: "\\a0::=\\a0";
       }
       .specification th.bar {
           text-align: right;
       }
       .specification th.bar::after {
-          content: "|\a0";
+          content: "|\\a0";
       }
       .rule th, td {
           padding-top: .5em;
@@ -113,7 +113,7 @@
         COLON
         <span class="nonterminal">simple_type_expr</span>
         EQUAL
-        <span class="nonterminal">net_expr</span></td>
+        <span class="nonterminal">core_expr</span></td>
       </tr>
       
       <tr class="rule">
@@ -166,6 +166,10 @@
       </tr>
       <tr>
         <th class="bar"></th>
+        <td>DELAY</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
         <td>GRAPH</td>
       </tr>
       
@@ -181,7 +185,50 @@
         <td>IDENT
         COLON
         <span class="nonterminal">simple_type_expr</span>
-        <span class="option">STRING</span></td>
+        <span class="option">LBRACKET
+        <span class="nonterminal">core_expr</span>
+        RBRACKET</span>
+        <span class="option">LBRACE
+        STRING
+        RBRACE</span></td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">core_expr</span></th>
+        <td><span class="nonterminal">simple_core_expr</span></td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td><span class="nonterminal">core_expr</span>
+        INFIX3
+        <span class="nonterminal">core_expr</span></td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td><span class="nonterminal">core_expr</span>
+        INFIX2
+        <span class="nonterminal">core_expr</span></td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td><span class="nonterminal">core_expr</span>
+        STAR
+        <span class="nonterminal">core_expr</span></td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">simple_core_expr</span></th>
+        <td>IDENT</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td>INT</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td>LPAREN
+        <span class="nonterminal">core_expr</span>
+        RPAREN</td>
       </tr>
       
       <tr class="rule">
