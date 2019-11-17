@@ -1,4 +1,4 @@
--- Recursive wiring - ex1
+-- Describing cyclic wiring (feedback) - ex1
 
 type int;
 
