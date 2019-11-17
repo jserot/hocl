@@ -1,4 +1,4 @@
--- Recursive wiring - ex 3
+-- Describing cyclic wiring (feedback) - ex3
 
 type t;
 type t';

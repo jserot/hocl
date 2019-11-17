@@ -32,6 +32,7 @@ PI2HCL
 
 DOC
 - update tutorial with support for bcast and bcast nodes
+- add a section on recursive fns/graphs (with example [misc/recfilt])
 
 DIST
 - build lib/etc/Makefile.app by instantiating a template with paths obtained from configure
