@@ -29,6 +29,7 @@ and type_expression_desc =
                 
 type program =
   { types: type_decl list;
+    gvals: gval_decl list;
     actors: actor_decl list ;
     graphs: graph_decl list }
 
@@ -38,6 +39,8 @@ and type_decl =
 and tdecl_desc =
   | Opaque_type_decl of string                                   (* name *)
 
+and gval_decl = net_defn
+              
 and actor_decl = 
   { ad_desc: actor_desc;
     ad_loc: location }
@@ -189,10 +192,11 @@ let no_annot = ""
 
 (* Program manipulation *)
 
-let empty_program = { types=[]; actors=[]; graphs=[] }
+let empty_program = { types=[]; gvals=[]; actors=[]; graphs=[] }
 
 let add_program p1 p2 = { (* TODO : Flag redefinitions ? *)
     types= p1.types @ p2.types;
+    gvals= p1.gvals @ p2.gvals;
     actors= p1.actors @ p2.actors;
     graphs= p1.graphs @ p2.graphs;
   }
@@ -242,7 +246,7 @@ and string_of_net_exp = function
 
 and string_of_net_binding nb = string_of_net_bind nb.nb_desc
 
-and string_of_net_bind ?(pfx="val") (np,ne) = pfx ^ " " ^ string_of_net_pattern np ^ " = " ^ string_of_net_expr ne
+and string_of_net_bind (np,ne) = string_of_net_pattern np ^ " = " ^ string_of_net_expr ne
 
 and string_of_net_pattern np = string_of_net_pat np.np_desc
 
@@ -364,13 +368,16 @@ and string_of_net_defn d = match d.nd_desc with
 and string_of_rec = function true -> " rec " | false -> ""
 
 let dump_type d = Printf.printf "type %s\n" (string_of_type_decl d)
+let dump_gval d = Printf.printf "val %s\n" (string_of_net_defn d)
 let dump_actor d = Printf.printf "%s\n" (string_of_actor_decl d)
 let dump_graph d = Printf.printf "%s\n" (string_of_graph_decl d)
 
 let rec dump_program p =
   Printf.printf "Types ---------------\n";
   List.iter dump_type p.types;
-  Printf.printf "Actors ---------------\n";
+  Printf.printf "Global values -------\n";
+  List.iter dump_gval p.gvals;
+  Printf.printf "Actors --------------\n";
   List.iter dump_actor p.actors;
-  Printf.printf "Graphs ---------------\n";
+  Printf.printf "Graphs --------------\n";
   List.iter dump_graph p.graphs

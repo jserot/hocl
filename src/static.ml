@@ -46,6 +46,7 @@ let augment_env env' env = env' @ env
  * let augment_net_senv env senv = { senv with net_se = env @ senv.net_se } *)
 
 type static_program = {
+  sp_gfuns: (string * ss_val) list;
   sp_actors: (string * sa_desc) list;
   sp_graphs: (string * sg_desc) list;
   }
@@ -979,15 +980,25 @@ let eval_graph_decl tp (acc,senv) { g_desc=g } =
   let senv' = senv |> augment_env [g.g_id, SVGraph (build_static_box g.g_id intf)] in
   acc', senv'
   
+let eval_gval_decl senv { nd_desc=d; nd_loc=loc } = match d with
+  | isrec, [b] ->  
+     begin match eval_net_defns loc isrec senv [b] with
+     | [(id,SVClos c) as v], [], [] -> v :: senv
+     | _, _, _ -> illegal_global_value loc 
+     end
+  | _, _ -> illegal_global_value loc 
+    
 let build_static tp senv p =
+  let senv_f = List.fold_left eval_gval_decl senv p.gvals in
   let actors  = List.map (build_actor_desc tp) p.actors in
-  let senv_a = senv |> augment_env (List.map (fun (id,a) -> id, SVAct a.sa_desc) actors) in
+  let senv_a = senv_f |> augment_env (List.map (fun (id,a) -> id, SVAct a.sa_desc) actors) in
   let graphs, senv_g =
     List.fold_left 
       (eval_graph_decl tp)
       ([], senv_a)
       p.graphs in
-  { sp_actors = actors;
+  { sp_gfuns = senv_f;
+    sp_actors = actors;
     sp_graphs = graphs }
 
 (* let extract_special_boxes name sp =
@@ -1001,6 +1012,8 @@ let build_static tp senv p =
 
 (* Printing *)
 
+let dump_gfun (id,v) = Printf.printf "%s: %s\n" id (string_of_ssval v)
+                      
 let string_of_typed_bin (id,(wid,ty,_,_)) = id ^ ":" ^ string_of_type ty ^ "(<-W" ^ string_of_int wid ^ ")"
 let string_of_typed_bout (id,(wids,ty,_,_)) = 
     id ^ ":" ^ string_of_type ty ^ "(->["
@@ -1059,6 +1072,8 @@ let dump_graph (id,gd) =
 
 let dump_static sp =
   printf "Static environment ---------------\n";
+  printf "- Global functions ---------------\n";
+  List.iter dump_gfun sp.sp_gfuns;
   printf "- Actors --------------------------\n";
   List.iter dump_actor sp.sp_actors;
   printf "- Graphs --------------------------\n";

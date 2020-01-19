@@ -138,14 +138,17 @@ let mk_cbinop l (op,l') e1 e2 = mk_core_expr l (EBinop (op,  e1, e2))
 
 type top_decl =
   | TyDecl of Syntax.type_decl
+  | GvalDecl of Syntax.gval_decl
   | ActorDecl of Syntax.actor_decl
   | GraphDecl of Syntax.graph_decl
 
 let is_type_decl = function TyDecl _ -> true | _ -> false             
+let is_gval_decl = function GvalDecl _ -> true | _ -> false             
 let is_actor_decl = function ActorDecl _ -> true | _ -> false             
 let is_graph_decl = function GraphDecl _ -> true | _ -> false             
 
 let type_decl_of = function TyDecl d -> d | _ -> Misc.fatal_error "Parser.type_decl_of"             
+let gval_decl_of = function GvalDecl d -> d | _ -> Misc.fatal_error "Parser.gval_decl_of"             
 let actor_decl_of = function ActorDecl d -> d | _ -> Misc.fatal_error "Parser.actor_decl_of"             
 let graph_decl_of = function GraphDecl d -> d | _ -> Misc.fatal_error "Parser.graph_decl_of"             
 
@@ -195,6 +198,7 @@ let node_decl_of = function NodeDecl d -> d | _ -> Misc.fatal_error "Parser.node
 program:
   | decls = my_list(decl) EOF
       { { Syntax.types = decls |> List.filter is_type_decl |> List.map type_decl_of;
+          Syntax.gvals = decls |> List.filter is_gval_decl |> List.map gval_decl_of;
           Syntax.actors = decls |> List.filter is_actor_decl |> List.map actor_decl_of;
           Syntax.graphs = decls |> List.filter is_graph_decl |> List.map graph_decl_of } }
 
@@ -202,6 +206,7 @@ program:
 
 decl:
     d = type_decl SEMI { TyDecl d }
+  | d = gval_decl SEMI { GvalDecl d }
   | d = actor_decl SEMI { ActorDecl d }
   | d = graph_decl SEMI { GraphDecl d }
           
@@ -210,6 +215,12 @@ decl:
 type_decl:
   | TYPE id=IDENT 
       { mk_type_decl $loc (Syntax.Opaque_type_decl id) }
+
+(* GLOBAL FUNCTION DECLARATION (in prelude file typically) *)
+
+gval_decl:
+  | VAL r=optional(REC) b=net_binding
+      { mk_net_defn $loc (r, [b]) }
 
 (* ACTOR DECLARATION *)
 

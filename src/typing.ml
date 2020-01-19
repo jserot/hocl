@@ -69,6 +69,7 @@ and dump_value tag (name, ty_sch) =
 
 type typed_program = {
   (* tp_types: (string * type_desc) list;     (\* Type constructors *\) *)
+  tp_gvals: (string * typ_scheme) list;
   tp_actors: (string * typed_intf) list;
   tp_graphs: (string * (typed_intf * typed_desc)) list;
   }
@@ -467,25 +468,34 @@ let type_graph_decl (acc,genv) { g_desc=g } =
 
 let rec type_program genv p = 
   (* Typing programs consists in
-     1. Typing type decls and adding the resulting types to the typing environment
+     1. Typing type and global fns decls and adding the resulting types to the typing environment
      2. Typing each actor decl and, when done, adding all the resulting signatures (as a type scheme) to the TE
      3. Typing each graph declaration, adding each resulting signature to the TE (so that a given graph declaration
         can refer to previously defined actor or graph declaration) *)
-  let typed_types = List.map (type_type_decl genv) p.types in
-  let genv_a = genv |> augment_types typed_types in
+  let typed_types = p.types |> List.map (type_type_decl genv) in
+  let genv_f = genv |> augment_types typed_types in
+  let typed_gvals = p.gvals |> List.map (type_net_defn genv_f) |> List.concat in
+  let genv_a = genv_f |> augment_values typed_gvals in
   let typed_actors =  List.map (type_actor_decl genv_a) p.actors in
   let genv_g = genv_a |> augment_values (List.map (function (id,a) -> id,a.t_sig) typed_actors) in
   let typed_graphs, _ = List.fold_left type_graph_decl ([],genv_g) p.graphs in
-  { tp_actors = typed_actors;
+  { tp_gvals = typed_gvals;
+    tp_actors = typed_actors;
     tp_graphs = typed_graphs }
 
 (* Printing *)
 
 let rec dump_typed_program tp =
   Printf.printf "Typed program ---------------\n";
+  List.iter dump_typed_gval tp.tp_gvals;
   List.iter dump_typed_actor tp.tp_actors;
   List.iter dump_typed_graph tp.tp_graphs;
   Printf.printf "----------------------------------\n"
+
+and dump_typed_gval (name, ts) =
+  Pr_type.reset_type_var_names ();
+  Printf.printf "val %s : %s\n" name (Pr_type.string_of_type_scheme ts);
+  flush stdout
 
 and dump_typed_actor (name, ti) =
   Pr_type.reset_type_var_names ();

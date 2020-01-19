@@ -33,6 +33,11 @@ let application_of_non_function_err exp =
       output_location exp.ne_loc;
   raise Error
 
+let illegal_global_value loc =
+  eprintf "%aThis global value definition is illegal. Only functions can be declared.\n"
+      output_location loc;
+  raise Error
+
 let illegal_application loc =
   eprintf "%aThis application is not a valid application.\n"
       output_location loc;
