@@ -29,15 +29,15 @@ let keyword_table = [
   "nat", TY_NAT;
   "bool", TY_BOOL;
   "unit", TY_UNIT;
-  "bcast", BCAST;
-  "delay", DELAY;
   "actor", ACTOR;
-  "parameter", PARAMETER;
-  "param", PARAM;
-  "source", SOURCE;
-  "sink", SINK;
   "graph", GRAPH;
+  "param", PARAM;
+  "struct", STRUCT;
+  "end", END;
+  "node", NODE;
+  "wire", WIRE;
   "fun", FUN;
+  "val", VAL;
   "let", LET;
   "and", AND;
   "in", IN;
@@ -116,37 +116,40 @@ rule main = parse
   | "]" { RBRACKET }
   | "(" { LPAREN }
   | ")" { RPAREN }
-  | "{" { LBRACE }
-  | "}" { RBRACE }
+  (* | "{" { LBRACE }
+   * | "}" { RBRACE } *)
   | "*" { STAR }
   | "," { COMMA }
   | "->" { ARROW }
   | ";" { SEMI }
   | ":" { COLON }
   | "=" { EQUAL }
+  | "!=" { NOTEQUAL }
   | "::" { COLONCOLON }
   | "|>"    { INFIX0 "|>" }
   | ">>"    { INFIX0 ">>" }
-  | "!="    { INFIX1 "!=" }
-  | [ '=' '<' '>' ]
-            { INFIX1(Lexing.lexeme lexbuf) }
+  | ">" { GREATER }
+  | "<" { LESS }
+  | "=" { EQUAL }
+  (* | [ '=' '<' '>' ]
+   *           { INFIX1(Lexing.lexeme lexbuf) } *)
+  (* | "!="    { INFIX1 "!=" } *)
   | [ '+' '-' ] 
             { INFIX2(Lexing.lexeme lexbuf) }
   | [ '*' '/' '%' ]
             { INFIX3(Lexing.lexeme lexbuf) }
-  | "\""
-      { reset_string_buffer();
-        let string_start = lexbuf.Lexing.lex_start_pos + lexbuf.Lexing.lex_abs_pos in
-        begin try
-          string lexbuf
-        with Lexical_error(Unterminated_string, _, string_end) ->
-          raise(Lexical_error(Unterminated_string, string_start, string_end))
-        end;
-        lexbuf.Lexing.lex_start_pos <- string_start - lexbuf.Lexing.lex_abs_pos;
-        STRING (Bytes.to_string (get_stored_string())) }
+  (* | "\""
+   *     { reset_string_buffer();
+   *       let string_start = lexbuf.Lexing.lex_start_pos + lexbuf.Lexing.lex_abs_pos in
+   *       begin try
+   *         string lexbuf
+   *       with Lexical_error(Unterminated_string, _, string_end) ->
+   *         raise(Lexical_error(Unterminated_string, string_start, string_end))
+   *       end;
+   *       lexbuf.Lexing.lex_start_pos <- string_start - lexbuf.Lexing.lex_abs_pos;
+   *       STRING (Bytes.to_string (get_stored_string())) } *)
   | "--"
       { comment !Location.input_lexbuf; main !Location.input_lexbuf }
-  | "#pragma" { PRAGMA }
   | eof { EOF }
   | _
       { raise (Lexical_error(Illegal_character,

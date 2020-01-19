@@ -16,21 +16,21 @@ open Typing
 open Ssval
 
 let type_arithm = trivial_scheme
-  (type_arrow (type_pair type_nat type_nat) type_nat)
+  (type_arrow (type_pair type_int type_int) type_int)
 and type_compar = trivial_scheme
-  (type_arrow (type_pair type_nat type_nat) type_bool)
+  (type_arrow (type_pair type_int type_int) type_bool)
 
-let encode_nat n =
-    SVNat n
-let rec decode_nat = function
-  | SVNat n -> n
-  | SVLoc (_,_,_,SVNat n) -> n (* Special case for parameters *)
-  | _ -> fatal_error "Builtins.decode_nat" (* should not happen *)
+let encode_int n =
+    SVInt n
+let rec decode_int = function
+  | SVInt n -> n
+  (* | SVLoc (_,_,_,SVInt n) -> n (\* Special case for parameters *\) *)
+  | _ -> fatal_error "Builtins.decode_int" (* should not happen *)
 let encode_bool b =
     SVBool b
 let rec decode_bool = function
   | SVBool b -> b
-  | SVLoc (_,_,_,SVBool b) -> b (* Special case for parameters *)
+  (* | SVLoc (_,_,_,SVBool b) -> b (\* Special case for parameters *\) *)
   | _ -> fatal_error "Builtins.decode bool" (* should not happen *)
 
 let prim1 encode op decode =
@@ -43,53 +43,33 @@ let prim2 encode op decode1 decode2 =
 
 let builtin_primitives = [
     (* Id, type, static value *)
-    "+",  (type_arithm, prim2 encode_nat  ( + ) decode_nat decode_nat);
-    "-",  (type_arithm, prim2 encode_nat  ( - ) decode_nat decode_nat);
-    "*",  (type_arithm, prim2 encode_nat  ( * ) decode_nat decode_nat);
-    "/",  (type_arithm, prim2 encode_nat  ( / ) decode_nat decode_nat);
-    "%",  (type_arithm, prim2 encode_nat  ( mod ) decode_nat decode_nat);
-    "=",  (type_compar, prim2 encode_bool ( = ) decode_nat decode_nat);
-    "!=",  (type_compar, prim2 encode_bool ( <> ) decode_nat decode_nat);
-    "<",  (type_compar, prim2 encode_bool ( < ) decode_nat decode_nat);
-    ">",  (type_compar, prim2 encode_bool ( > ) decode_nat decode_nat);
+    "+",  (type_arithm, prim2 encode_int  ( + ) decode_int decode_int);
+    "-",  (type_arithm, prim2 encode_int  ( - ) decode_int decode_int);
+    "*",  (type_arithm, prim2 encode_int  ( * ) decode_int decode_int);
+    "/",  (type_arithm, prim2 encode_int  ( / ) decode_int decode_int);
+    "%",  (type_arithm, prim2 encode_int  ( mod ) decode_int decode_int);
+    "=",  (type_compar, prim2 encode_bool ( = ) decode_int decode_int);
+    "!=",  (type_compar, prim2 encode_bool ( <> ) decode_int decode_int);
+    "<",  (type_compar, prim2 encode_bool ( < ) decode_int decode_int);
+    ">",  (type_compar, prim2 encode_bool ( > ) decode_int decode_int);
     "not",  (trivial_scheme (type_arrow type_bool type_bool), prim1 encode_bool ( not ) decode_bool);
   ]
 
-(* Initial (builtin) typing environment *)
+(* Initial typing environment *)
 
 let builtin_typing_env = {
-  te_types = [  (* type constructors (name, arity) *)
-      "nat", 0;
+    te_types = [  (* type constructors (name, arity) *)
+      "int", 0;
       "bool", 0;
       "unit", 0;
       "bundle", 1
-      ];
-  te_values =
-    List.map (fun (id,(ty,_)) -> id, ty) builtin_primitives
+    ];
+    te_values =
+      List.map (fun (id,(ty,_)) -> id, ty) builtin_primitives
   }
 
-let dump_type (name, arity) =
-  Printf.printf "type %s (arity=%d)\n" name arity
+(* Initial static environment *)
 
-and dump_value tag (name, ty_sch) =
-  Pr_type.reset_type_var_names ();
-  Printf.printf "%s %s : %s\n" tag name (Pr_type.string_of_type_scheme ty_sch);
-  flush stdout
-  
-let dump_typing_environment () = 
-  Printf.printf "Typing environment ---------------\n";
-  List.iter dump_type builtin_typing_env.te_types;
-  List.iter (dump_value "val") builtin_typing_env.te_values;
-  Printf.printf "----------------------------------\n"
-
-(* Initial (builtin) static environment *)
-
-let builtin_static_env =List.map (function (n,(t,v)) -> n,v) builtin_primitives
-
-and dump_static_value (name, ty_sch) =
-  dump_value "prim" (name, List.assoc name builtin_typing_env.te_values)
-
-let dump_static_environment () = 
-  Printf.printf "Static environment ---------------\n";
-  List.iter dump_static_value builtin_static_env;
-  Printf.printf "----------------------------------\n"
+let builtin_static_env =
+  List.map (function (n,(t,v)) -> n,v) builtin_primitives
+  (* Values such as [map], [pipe], ... will be defined explicitely in the prelude file *)

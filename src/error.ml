@@ -23,6 +23,11 @@ let unbound_value_err name loc =
     output_location loc output_string name;
   raise Error
 
+let unbound_type_err name loc =
+  eprintf "%aThe type identifier %a is unbound.\n" 
+    output_location loc output_string name;
+  raise Error
+
 let application_of_non_function_err exp =
   eprintf "%aThis expression is not a function, it cannot be applied.\n"
       output_location exp.ne_loc;
@@ -30,6 +35,11 @@ let application_of_non_function_err exp =
 
 let illegal_application loc =
   eprintf "%aThis application is not a valid application.\n"
+      output_location loc;
+  raise Error
+
+let illegal_node_instanciation loc =
+  eprintf "%aThis node instanciation is not valid.\n"
       output_location loc;
   raise Error
 
@@ -137,6 +147,14 @@ let initial_value_mismatch v v' =
 
 let invalid_box_wiring what name sel =
   eprintf "Error: %s %d for box %s.\n" what sel name;
+  raise Error
+
+let multiply_connected_wire gid wid  =
+  eprintf "Error: the wire %s in graph %s is multiply connected.\n" wid gid;
+  raise Error
+
+let incomplete_wire gid wid  =
+  eprintf "Error: the wire %s in graph %s is not fully connected.\n" wid gid;
   raise Error
 
 let no_pragma_desc id =

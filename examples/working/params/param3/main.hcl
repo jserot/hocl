@@ -1,17 +1,20 @@
 -- Dependant parameters
 
-type int;
+type t;
 
-parameter baseFactor: nat = 2;
-parameter multFactor: nat = baseFactor+1;
+actor foo param (k: int) in (i: t) out (o: t);
 
-actor inp in () out(o: int);
-actor foo param (k: nat) in (i: int) out (o: int);
-actor outp in (i: int) out ();
+graph top_s param (k: int) in (i: t) out (o: t)
+struct
+  node n: foo<k+1>(i)(o)
+end;
 
-let _ = inp |> foo multFactor >> outp;
+graph top_f param (k: int) in (i: t) out (o: t)
+fun
+  val o = foo<k+1> i
+end;
 
-#pragma code("inp", "include/input.h", "input", "inputInit")
-#pragma code("outp", "include/output.h", "output", "outputInit")
-#pragma code("foo", "include/foo.h", "foo")
+-- #pragma code("inp", "include/input.h", "input", "inputInit")
+-- #pragma code("outp", "include/output.h", "output", "outputInit")
+-- #pragma code("foo", "include/foo.h", "foo")
 

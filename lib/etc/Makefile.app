@@ -1,13 +1,17 @@
 HOCL=/Users/jserot/Dev/ml/hocl
 HOCLC=$(HOCL)/bin/hoclc
-HOCL_OPTS=-prelude $(HOCL)/lib/hocl/prelude.hcl
+HOCL_OPTS=#-prelude $(HOCL)/lib/vitriolc/prelude.hcl
 DOTVIEWER=graphviz
 VCDVIEWER=gtkwave
 TXTVIEWER=nano
 PREESM_REP=/Users/jserot/Desktop/SF2/preesm-dev
 PREESM_PROJ=/Users/jserot/Desktop/SF2/preesm-dev/$(PROJ)
 
-all: dot.show
+all: check
+#all: dot.show
+
+check: $(SRCS)
+	$(HOCLC) $(HOCL_OPTS) $(GEN_OPTS) $(SRCS)
 
 dot: $(SRCS)
 	$(HOCLC) $(HOCL_OPTS) $(GEN_OPTS) -dot $(DOT_OPTS) $(SRCS)

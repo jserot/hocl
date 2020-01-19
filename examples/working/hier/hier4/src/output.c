@@ -6,8 +6,8 @@ void outputInit(void)
   // Nothing here
 }
 
-void output(nat k, IN int *i)
+void output(IN int *i)
 {
-  printf("output(%d): got %d\n", k, *i);
+  printf("output: got %d\n", *i);
   fflush(stdout);
 }

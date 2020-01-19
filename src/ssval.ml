@@ -13,9 +13,10 @@
 (* Static semantic domain *)
 
 open Types
+open Pr_type
 
 type ss_val =
-  | SVNat of int
+  | SVInt of int
   | SVBool of bool
   | SVUnit
   | SVTuple of ss_val list
@@ -24,9 +25,17 @@ type ss_val =
   | SVCons of ss_val * ss_val
   | SVList of ss_val list
   | SVNil
-  | SVAct of sv_act
-  | SVLoc of idx * sel * typ * ss_val (* node index, output selector, type, parameter value (when applicable) *)
-                                      (* For source boxes, [typ] will be [unit->ty], for sink boxes [ty->unit] *)
+  | SVAct of sv_box
+  | SVGraph of sv_box
+  | SVLoc of idx * sel * typ * sv_tag (* node index, output selector, type, tag *)
+  (* | SVLoc of idx * sel * typ * ss_val (\* node index, output selector, type, parameter value (when applicable) *\) *)
+  | SVWire of idx * sv_wire
+
+and sv_tag =
+  | SV_Source
+  | SV_Sink
+  | SV_Param
+  | SV_None
 
 and sv_clos =
   { cl_pat: Syntax.net_pattern;
@@ -38,25 +47,34 @@ and sel = int
 
 and sv_loc = idx * sel
 
-and sv_act = {
-    sa_kind: Syntax.actor_kind;
-    sa_id: string;
-    sa_params: (string * typ * ss_val option) list;
-    sa_ins: (string * typ * Syntax.rate_expr option * Syntax.io_annot option) list;
-    sa_outs: (string * typ * Syntax.rate_expr option * Syntax.io_annot option) list;
-    sa_typ: typ_scheme;
-    (* sa_states: (string * typ) list; *)
+and sv_box = {   (* Instanciable "box" (actor or graph) *)
+    sb_id: string;
+    sb_params: (string * typ) list;
+    sb_ins: (string * typ * Syntax.rate_expr option * Syntax.io_annot option) list;
+    sb_outs: (string * typ * Syntax.rate_expr option * Syntax.io_annot option) list;
+    sb_typ: typ_scheme;
 }
 
+and sv_wire = (sv_loc * sv_loc) * typ * wire_kind   (* src, dest, type, kind *)
+
+and wire_kind =
+  | DataW   (* Data dependency *)
+  | ParamW  (* Parameter dependency *)
+  (* | DelayW  (\* Special case for handling delays in the Preesm backend *\) *)
+
+let sv_no_loc = -1, -1
+
+let new_wire ty kind = (sv_no_loc,sv_no_loc), ty, kind
+                     
 let is_static_const = function
-    SVNat _ | SVBool _ | SVUnit | SVNil -> true
+    SVInt _ | SVBool _ -> true
   | _ -> false
 
 let list_of_cons v =
   let rec h = function
     | SVCons (v1,v2) -> v1 :: h v2
     | SVNil -> []
-    | _ -> Misc.fatal_error "Static.list_of_cons" in
+    | _ -> Misc.fatal_error "Ssval.list_of_cons" in
   SVList (h v)
 
 let cons_of_list v =
@@ -65,7 +83,7 @@ let cons_of_list v =
   | v::vs -> SVCons (v, h vs) in
   match v with
   | SVList l -> h l
-  | _ -> Misc.fatal_error "Static.cons_of_list"
+  | _ -> Misc.fatal_error "Ssval.cons_of_list"
 
 let rec size_of_ssval v = match v with
   | SVNil -> 0
@@ -78,16 +96,22 @@ let rec size_of_ssval v = match v with
 let rec output_ss_value oc v = output_string oc (string_of_ssval v)
 
 and  string_of_ssval v = match v with
-  | SVNat v -> string_of_int v
+  | SVInt v -> string_of_int v
   | SVBool v -> string_of_bool v
   | SVUnit -> "()"
   | SVNil -> "[]"
   | SVCons (v1,v2) -> string_of_ssval v1 ^ "::" ^ string_of_ssval v2
-  | SVLoc (l,s,ty,v) -> "Loc(" ^ string_of_int l ^ "," ^ string_of_int s ^ string_of_ssval v ^ ")"
+  | SVLoc (l,s,ty,_) -> "Loc(" ^ string_of_int l ^ "," ^ string_of_int s 
   | SVPrim p -> "Prim(...)"
-  | SVAct a -> "Act(...)"
+  | SVAct a -> "Actor(...)"
+  | SVGraph g -> "Graph(...)"
   | SVClos _ -> "Clos(...)"
   | SVTuple vs -> "(" ^ Misc.string_of_list string_of_ssval "," vs ^ ")"
   | SVList vs -> "[" ^ Misc.string_of_list string_of_ssval "," vs ^ "]"
+  | SVWire (id, ((l,l'),ty,kind)) ->
+     "Wire(" ^ string_of_svloc l ^ "," ^ string_of_svloc l' ^ "," ^ string_of_type ty ^ "," ^ string_of_wire_kind kind  ^ ")"
+
+and string_of_svloc (l,s) =  "(" ^ string_of_int l ^ "," ^ string_of_int s ^ ")"
+and string_of_wire_kind = function DataW -> "data" | ParamW -> "param" (* | DelayW -> "delay" *)
 
 and output_ss_val_list oc sep l = Misc.output_list output_value oc sep l

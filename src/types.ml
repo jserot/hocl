@@ -38,6 +38,7 @@ let type_pair t1 t2 = TyProduct [t1;t2]
 let type_bundle t n = TyConstr("bundle", [t])
 let type_param t = TyConstr("param", [t])
 let type_nat = type_constr "nat" []
+let type_int = type_constr "int" []
 let type_bool = type_constr "bool" []
 let type_unit = type_constr "unit" []
 let no_type = type_constr "unknown" []
@@ -180,9 +181,10 @@ let is_constr_type p t = match real_type t with
 
 let is_unit_type = is_constr_type (fun n -> n="unit")
 let is_nat_type = is_constr_type (fun n -> n="nat")
+let is_int_type = is_constr_type (fun n -> n="int")
 let is_bool_type = is_constr_type (fun n -> n="bool")
 
-let list_of_types ty = match real_type ty with
-  TyProduct ts -> List.map real_type ts
-| TyConstr ("unit", []) -> []
-| _ -> [real_type ty]
+(* let list_of_types ty = match real_type ty with
+ *   TyProduct ts -> List.map real_type ts
+ * | TyConstr ("unit", []) -> []
+ * | _ -> [real_type ty] *)

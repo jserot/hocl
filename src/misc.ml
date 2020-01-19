@@ -19,36 +19,21 @@ let fatal_error msg = raise (Internal msg)
 
 let id x = x
          
+let fst3 (x,_,_) = x
 let snd3 (_,x,_) = x
+let trd3 (_,_,x) = x
+
 let snd4 (_,x,_,_) = x
                  
 let not_implemented what = 
   Printf.eprintf "Not implemented: %s.\n" what;
   raise Error
 
-let rec list_map2 f l1 l2 =
-  match (l1, l2) with
-    ([], []) -> []
-  | (a1::l1, a2::l2) -> f a1 a2 :: list_map2 f l1 l2
-  | (_, _) -> invalid_arg "list_map2"
-
 let rec list_iter3 f l1 l2 l3 =
   match (l1, l2, l3) with
     ([], [], []) -> ()
   | (a1::l1, a2::l2, a3::l3) -> f a1 a2 a3; list_iter3 f l1 l2 l3
   | (_, _, _) -> invalid_arg "list_iter3"
-
-let list_iter_index f l = 
-  let rec h i = function
-    [] -> ()
-  | x::xs -> f i x ; h (i+1) xs in
-  h 0 l
-
-let list_map_index f l = 
-  let rec h i = function
-    [] -> []
-  | x::xs -> f i x :: h (i+1) xs in
-  h 0 l
 
 let rec list_split3 = function
     [] -> ([], [], [])
@@ -137,7 +122,8 @@ let check_dir name =
         Unix.mkdir name 0o777
         end
 
-let assoc_replace i f = List.map (function (j,v) -> j, if i=j then f v else v)
+let assoc_replace k f = List.map (fun (k',v) -> k', if k'=k then f v else v)
+let assoc_update k v = assoc_replace k (fun _ -> v)
 
 let compiler_version = "the HoCL compiler (version " ^ Version.version ^ ")"
 

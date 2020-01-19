@@ -1,0 +1,28 @@
+type t;
+
+actor f in () out (o: t);
+actor g in (i: t) out (o: t);
+actor h in (i: t) out ();
+
+graph top_s in () out ()
+struct
+  wire w1: t 
+  wire w2: t
+  wire w3: t
+  wire w4: t
+  node f: f()(w1)
+  node g1: g(w1)(w2)
+  node g2: g(w2)(w3)
+  node g3: g(w3)(w4)
+  node h: h(w4)()
+end;
+
+graph top_f in () out ()
+fun
+  val rec iter n f x =
+    if n=0 then x
+    else iter (n-1) f (f x)
+  val x = f ()
+  val y = iter 6 g x
+  val () = h y
+end;

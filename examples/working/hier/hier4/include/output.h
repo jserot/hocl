@@ -3,7 +3,7 @@
 
 #include "defs.h"
 
-void output(nat k, IN int *i);
+void output(IN int *i);
 
 void outputInit(void);
 

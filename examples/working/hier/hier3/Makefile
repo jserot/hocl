@@ -1,5 +1,4 @@
-PROJ=hier3
-SRCS=sub.hcl top.hcl
+SRCS=main.hcl
 GEN_OPTS=#-dump_static #-dump_typed
 DOT_OPTS=#-insert_bcasts
 PREESM_OPTS=-target_dir preesm

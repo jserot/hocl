@@ -1,17 +1,20 @@
--- Example with an actor taking two independant parameters
+-- Example with an actor taking two single, local parameters
 
-type int;
+type t;
 
-parameter multFactor: nat = 2;
-parameter incrFactor: nat = 1;
+actor foo param (k: int, l:int) in (i: t) out (o: t);
 
-actor inp in () out(o: int);
-actor foo param (k: nat, l:nat) in (i: int) out (o: int);
-actor outp in (i: int) out ();
+graph top_s in (i: t) out (o: t)
+struct
+  node n: foo<1,2>(i)(o)
+end;
 
-let _ = inp |> foo (multFactor,incrFactor) >> outp;
+graph top_f in (i: t) out (o: t)
+fun
+  val o = foo<1,2> i
+end;
 
-#pragma code("inp", "include/input.h", "input", "inputInit")
-#pragma code("outp", "include/output.h", "output", "outputInit")
-#pragma code("foo", "include/foo.h", "foo")
+-- #pragma code("inp", "include/input.h", "input", "inputInit")
+-- #pragma code("outp", "include/output.h", "output", "outputInit")
+-- #pragma code("foo", "include/foo.h", "foo")
 

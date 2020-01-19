@@ -8,6 +8,6 @@ void outputInit(void)
 
 void output(IN int *i)
 {
-  printf("output(%d): got %d\n", k, *i);
+  printf("output: got %d\n", *i);
   fflush(stdout);
 }

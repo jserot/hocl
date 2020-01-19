@@ -1,4 +1,3 @@
-PROJ=param1
 SRCS=main.hcl
 MAIN=main
 DOT_OPTS=#-dump_static

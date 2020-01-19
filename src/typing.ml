@@ -16,10 +16,99 @@ open Error
 
 let auto_type_decl = ref false
 
+(* type global_typing_env = {
+ *   core_te: typing_env; (\* For symbols occuring in expressions denoting parameter values *\)
+ *   net_te: typing_env;  (\* For symbols denoting graph level values *\)
+ *   } *)
+
 type typing_env = {
   te_types: (string * int) list;           (* type constructors (name, arity) *)
   te_values: (string * typ_scheme) list
   }
+
+let augment_types env tenv = { tenv with te_types = env @ tenv.te_types }
+let augment_values env tenv = { tenv with te_values = env @ tenv.te_values }
+(* let augment_core_types env tenv = { tenv with core_te = augment_types env tenv.core_te }
+ * let augment_net_types env tenv = { tenv with net_te = augment_types env tenv.net_te }
+ * let augment_core_values env tenv = { tenv with core_te = augment_values env tenv.core_te }
+ * let augment_net_values env tenv = { tenv with net_te = augment_values env tenv.net_te } *)
+
+let empty_tenv = { te_types = []; te_values = [] }
+
+let lookup_type loc tenv id = 
+    try List.assoc id tenv.te_types
+    with Not_found -> unbound_type_err id loc
+
+let lookup_value loc tenv id = 
+    try List.assoc id tenv.te_values
+    with Not_found -> unbound_value_err id loc
+
+(* For debug only *)
+    
+let rec dump_global_typing_environment title tenv = 
+  Printf.printf "%s ---------------\n" title;
+  List.iter dump_type tenv.te_types;
+  List.iter (dump_value "val") tenv.te_values;
+  Printf.printf "----------------------------------\n"
+
+(* and dump_typing_environment title tenv = 
+ *   Printf.printf "%s ---------------\n" title;
+ *   List.iter dump_type tenv.te_types;
+ *   List.iter (dump_value "val") tenv.te_values;
+ *   Printf.printf "----------------------------------\n";
+ *   flush stdout *)
+
+and dump_type (name, arity) =
+  Printf.printf "type %s (arity=%d)\n" name arity
+
+and dump_value tag (name, ty_sch) =
+  Pr_type.reset_type_var_names ();
+  Printf.printf "%s %s : %s\n" tag name (Pr_type.string_of_type_scheme ty_sch)
+
+(* Typing programs *)
+
+type typed_program = {
+  (* tp_types: (string * type_desc) list;     (\* Type constructors *\) *)
+  tp_actors: (string * typed_intf) list;
+  tp_graphs: (string * (typed_intf * typed_desc)) list;
+  }
+
+and typed_intf = {   (* Actors and graphs *) 
+   t_params: (string * typ) list;                                                                 (* params *)
+   t_ins: (string * (typ * Syntax.rate_expr option * Syntax.io_annot option)) list;               (* inputs *)
+   t_outs: (string * (typ * rate_expr option * Syntax.io_annot option)) list;                     (* outputs *)
+   t_sig: typ_scheme;         (* external type signature: [t_ins -> t_outs] or [t_params -> t_ins -> t_outs] *)
+  (* TO FIX ? Should we allow actors (and/or resp. graphs) to have a _polymorphic_ interface ? 
+     Example:
+       actor id in (i: 'a) out (o: 'a);
+       graph double_id (i: 'a) out (o: 'a) fun val o = id (id i) end;
+     This does not make sense as soon as a concrete implementation is required for actor [id], does it ? *)
+  }
+
+and typed_desc = (* Only for graphs *)
+  TD_Struct of typed_wire list * typed_node list
+| TD_Fun of typed_defn list
+
+and typed_wire = string * typ
+and typed_node = string * typ
+
+and typed_defn = string * typ_scheme
+  
+let lookup_node (gid,nid) tp =
+  try
+    match List.assoc gid tp.tp_graphs with
+    | intf, TD_Struct (ws, ns) -> List.assoc nid ns
+    | _, _ -> raise Not_found
+  with
+    Not_found -> Misc.fatal_error "Typing.lookup_node"
+
+let lookup_wire (gid,wid) tp =
+  try
+    match List.assoc gid tp.tp_graphs with
+    | intf, TD_Struct (ws, ns) -> List.assoc wid ws
+    | _, _ -> raise Not_found
+  with
+    Not_found -> Misc.fatal_error "Typing.lookup_wire"
 
 (* Unification *)
 
@@ -49,63 +138,96 @@ let rec type_of_type_expression tenv te =
   te.te_typ <- ty;
   ty
 
+(* Typing type decls *)
+
+let type_type_decl tenv { td_desc=t } = match t with
+  | Opaque_type_decl name -> name, 0
+  (* TODO: add at least type synonymes, like [type tau = int] *)
+
+(* Typing actor decls *)
+
+let rec type_actor_decl tenv { ad_desc=a } =
+  let ty_ins = type_io tenv a.a_ins in
+  let ty_outs = type_io tenv a.a_outs in
+  let ty_params = List.map (fun { pm_desc = (id,te) } -> id, type_of_type_expression tenv te) a.a_params in
+  let type_of io = Misc.fst3 (snd io) in
+  a.a_id,
+  { t_params = ty_params;
+    t_ins = ty_ins;
+    t_outs = ty_outs;
+    t_sig =
+      trivial_scheme (type_sig (List.map snd ty_params) (List.map type_of ty_ins) (List.map type_of ty_outs)) }
+
+and type_io tenv = function
+      [] ->
+       ["_", (type_unit, None, None)]
+    | ios ->
+       List.map
+         (fun { io_desc = (id,te,rate,ann) } ->
+           (* let _ = check_rate_expression rate in  (\* TO BE ADDED ? *\) *)
+           id, (type_of_type_expression tenv te, rate, ann))
+         ios
+
+and type_sig ty_params ty_ins ty_outs = 
+ match ty_params with
+    | [] -> type_arrow (type_product ty_ins) (type_product ty_outs)
+    | _ -> type_arrow2 (type_product ty_params) (type_product ty_ins) (type_product ty_outs)
+
 (* Typing patterns *)
                              
 let rec type_pattern tenv p =
-  let ty, tenv' = match p.np_desc with
+  (* Returns the type pattern [p] and the corresponding bindings *)
+  (* Ex: [ type_pattern _ "v" = ('a, ["v",'a]) ]
+         [ type_pattern _ "(x,y)" = ('a*'b, ["x",'a; "y",'b]) ] *)
+  let ty, bs = match p.np_desc with
   | NPat_var id ->
       let ty = new_type_var() in
-      ty, { tenv with te_values = (id, trivial_scheme ty) :: tenv.te_values }
+      ty, [id, trivial_scheme ty]
   | NPat_unit ->
-     type_unit, tenv
+     type_unit, []
   | NPat_ignore ->
       let ty = new_type_var() in
-      ty, tenv
+      ty, []
   | NPat_tuple ps ->
-      let tenv', tys =
-        List.fold_left 
-          (fun (tenv,ts) p -> let t, tenv' = type_pattern tenv p in (tenv', t::ts))
-          (tenv, [])
-          ps in
-      (type_product (List.rev tys), tenv')
+     let r = List.map (type_pattern tenv) ps in
+     type_product (List.map fst r),
+     List.concat (List.map snd r)
   | NPat_nil ->
-      type_bundle (new_type_var ()) None, tenv
+      type_bundle (new_type_var ()) None, []
   | NPat_cons(p1, p2) ->
-      let (ty1, tenv1) = type_pattern tenv p1 in
-      let (ty2, tenv2) = type_pattern tenv1 p2 in
+      let ty1, bs1 = type_pattern tenv p1 in
+      let ty2, bs2 = type_pattern tenv p2 in (* TO FIX : should [tenv] here be augmented with [bs1] ? *)
       try_unify "pattern" (type_bundle ty1 None) ty2 p.np_loc;
-      (ty2, tenv2)
+      (ty2, bs1 @ bs2)
   | NPat_bundle [] ->
       let ty = type_bundle (new_type_var()) None in
-      ty, tenv
+      ty, []
   | NPat_bundle (p::ps) ->
-      let (ty1, tenv1) = type_pattern tenv p in
-      let tenv' =
+      let (ty1, bs1) = type_pattern tenv p in
+      let bs' =
         List.fold_left 
-          (fun tenv p ->
-            let ty', tenv' = type_pattern tenv p in
+          (fun bs p ->
+            let ty', bs' = type_pattern tenv p in
             try_unify "pattern" ty1 ty' p.np_loc;
-            tenv')
-          tenv
+            bs @ bs')
+          []
           ps in
-      (type_bundle ty1 None, tenv') in
+      (type_bundle ty1 None, bs') in
   p.np_typ <- ty;
-  ty, tenv'
+  ty, bs
 
 (* Typing core expressions *)
   
-let rec type_core_expression tenv expr =
-  let lookup id = 
-    try type_instance (List.assoc id tenv.te_values)
-    with Not_found -> unbound_value_err id expr.ce_loc in
+let rec type_core_expression genv expr =
+  let lookup id = type_instance (lookup_value expr.ce_loc genv id) in
   let ty = match expr.ce_desc with
-  | EVar id ->
-     lookup id 
-  | EConst n ->  type_nat
+  | EVar id -> lookup id
+  | EInt _ ->  type_int
+  | EBool _ ->  type_bool
   | EBinop (op, e1, e2) ->
      let ty_op = lookup op in
-     let ty_e1 = type_core_expression tenv e1 in
-     let ty_e2 = type_core_expression tenv e2 in
+     let ty_e1 = type_core_expression genv e1 in
+     let ty_e2 = type_core_expression genv e2 in
      let ty_result = new_type_var () in
      try_unify "expression" ty_op (type_arrow (type_pair ty_e1 ty_e2) ty_result) expr.ce_loc;
      ty_result in
@@ -114,70 +236,77 @@ let rec type_core_expression tenv expr =
 
 (* Typing net expressions *)
   
-let rec type_expression tenv expr =
+let rec type_net_expression genv expr =
   let ty = match expr.ne_desc with
   | NVar id ->
-        begin try type_instance (List.assoc id tenv.te_values)
-        with Not_found -> unbound_value_err id expr.ne_loc end
-  | NTuple es -> type_product (List.map (type_expression tenv) es)
+     type_instance (lookup_value expr.ne_loc genv id)
+  | NTuple es ->
+     type_product (List.map (type_net_expression genv) es)
   | NApp(fn, arg) ->
-      let ty_fn = type_expression tenv fn in
-      let ty_arg = type_expression tenv arg in
+      let ty_fn = type_net_expression genv fn in
+      let ty_arg = type_net_expression genv arg in
       let ty_result = new_type_var () in
       try_unify "expression" ty_fn (type_arrow ty_arg ty_result) expr.ne_loc;
+      ty_result
+  | NApp2(fn, pvs, arg) ->
+      let ty_fn = type_net_expression genv fn in
+      let ty_params = type_product (List.map (type_core_expression genv) pvs) in
+      let ty_arg = type_net_expression genv arg in
+      let ty_result = new_type_var () in
+      try_unify "expression" ty_fn (type_arrow2 ty_params ty_arg ty_result) expr.ne_loc;
       ty_result
   | NFun (pat,exp) ->
       let ty_argument = new_type_var ()
       and ty_result = new_type_var () in
-      let (ty_pat, tenv') = type_pattern tenv pat in
+      let ty_pat, bindings = type_pattern genv pat in
       try_unify "pattern" ty_pat ty_argument pat.np_loc;
-      let ty_expr = type_expression tenv' exp in
+      let ty_expr = type_net_expression (genv |> augment_values bindings) exp in
       try_unify "expression" ty_expr ty_result exp.ne_loc;
       type_arrow ty_argument ty_result
   | NMatch (exp,cases) ->
-      let ty_argument = type_expression tenv exp
+      let ty_argument = type_net_expression genv exp
       and ty_result = new_type_var () in
       let type_case { nb_desc = pat,exp } =
-        let (ty_pat, tenv') = type_pattern tenv pat in
+        let (ty_pat, bindings) = type_pattern genv pat in
         try_unify "pattern" ty_pat ty_argument pat.np_loc;
-        let ty_expr = type_expression tenv' exp in
+        let ty_expr = type_net_expression (genv |> augment_values bindings) exp in
         try_unify "expression" ty_expr ty_result exp.ne_loc in
       List.iter type_case cases;
       ty_result
-  | NLet (rec_flag, [binding], body) ->
-      let tenv' = { tenv with te_values = type_definition rec_flag tenv binding @ tenv.te_values } in
-      type_expression tenv' body
+  | NLet (rec_flag, [defn], body) ->
+      let bindings = type_definition rec_flag genv defn in
+      type_net_expression (genv |> augment_values bindings) body
   | NLet (_, _, _) ->
-     failwith "Typing.type_expression: multi-let"
+     failwith "Typing.type_net_expression: multi-let"
   | NCons (e1, e2) ->
-      let ty_e1 = type_expression tenv e1 in
-      let ty_e2 = type_expression tenv e2 in
+      let ty_e1 = type_net_expression genv e1 in
+      let ty_e2 = type_net_expression genv e2 in
       try_unify "expression" (type_bundle ty_e1 None) ty_e2 expr.ne_loc;
       ty_e2
   | NBundle [] ->
      type_bundle (new_type_var ()) None
   | NBundle (e1::es) ->
-      let ty = type_expression tenv e1 in
+      let ty = type_net_expression genv e1 in
       List.iter 
-        (function e' -> try_unify "expression" ty (type_expression tenv e') expr.ne_loc)
+        (function e' -> try_unify "expression" ty (type_net_expression genv e') expr.ne_loc)
         es;
       type_bundle ty None
   | NBundleElem (l, i) ->
-      let ty_l = type_expression tenv l in
-      let ty_i = type_expression tenv i in
+      let ty_l = type_net_expression genv l in
+      let ty_i = type_net_expression genv i in
       let ty_e = new_type_var () in
       try_unify "expression" ty_l (type_bundle ty_e None) expr.ne_loc;
-      try_unify "expression" ty_i type_nat expr.ne_loc;
+      try_unify "expression" ty_i type_int expr.ne_loc;
       ty_e
   | NNil -> 
       type_bundle (new_type_var ()) None
   | NBool b -> type_bool
-  | NNat n ->  type_nat
+  | NInt n ->  type_int
   | NUnit -> type_unit
   | NIf (e1,e2,e3) ->
-      let ty_e1 = type_expression tenv e1 in
-      let ty_e2 = type_expression tenv e2 in
-      let ty_e3 = type_expression tenv e3 in
+      let ty_e1 = type_net_expression genv e1 in
+      let ty_e2 = type_net_expression genv e2 in
+      let ty_e3 = type_net_expression genv e3 in
       try_unify "expression" ty_e1 type_bool e1.ne_loc;
       try_unify "expression" ty_e2 ty_e3 expr.ne_loc;
       ty_e2 in
@@ -204,12 +333,15 @@ and extract_type_bindings tenv loc pat ty = match (pat.np_desc, Types.real_type 
       []
   | _, _ -> Misc.fatal_error "extract_type_bindings"
 
-and type_definition is_rec tenv { nb_desc=(pat,exp); nb_loc=loc } =
-  let ty_pat, tenv' = type_pattern tenv pat in
-  let augmented_env = if is_rec then tenv' else tenv in
-  let ty_exp = type_expression augmented_env exp in
+and type_definition is_rec genv { nb_desc=(pat,exp); nb_loc=loc } =
+  let ty_pat, bindings = type_pattern empty_tenv pat in (* TO FIX: should we [genv] here instead of [empty] ? *)
+  let genv' =
+    if is_rec
+    then genv |> augment_values bindings
+    else genv in
+  let ty_exp = type_net_expression genv' exp in
   try_unify "definition" ty_pat ty_exp loc;
-  extract_type_bindings tenv loc pat ty_exp
+  extract_type_bindings genv' loc pat ty_exp
 
 let type_application loc ty_fn ty_arg = 
   let ty_fn', tvs = full_type_instance ty_fn in
@@ -248,136 +380,136 @@ let type_application2 loc ty_fn ty_param ty_arg =
  *          ty_exps) in
  *   tenv'' *)
 
-(* Typing type decls *)
-
-let type_type_decl tenv { td_desc=t } = match t with
-  | Opaque_type_decl name -> name, 1
-                           
-(* Typing actor decls *)
-
-type typed_actor = {
-   at_params: (string * typ) list;                                                                 (* params *)
-   at_ins: (string * typ * Syntax.rate_expr option * Syntax.io_annot option) list;                 (* inputs *)
-   at_outs: (string * typ * rate_expr option * Syntax.io_annot option) list;                       (* outputs *)
-   at_sig: typ_scheme;         (* external type signature: [t_ins -> t_outs] or [t_params -> t_ins -> t_outs] *)
-  }
-
-let type_actor_decl tenv { ad_desc=a } =
-  let type_io = function
-      [] ->
-       ["_", type_unit, None, None]
-    | ios ->
-       List.map
-         (fun (id,te,rate,ann) ->
-           (* let _ = check_rate_expression rate in  (\* TO BE ADDED ? *\) *)
-           id, type_of_type_expression tenv te, rate, ann)
-         ios in
-  let ty_ins = type_io a.a_ins in
-  let ty_outs = type_io a.a_outs in
-  let ty_params = List.map (fun (id,te) -> id, type_of_type_expression tenv te) a.a_params in
-  let ty = match ty_params with
-    | [] -> type_arrow
-              (type_product (List.map Misc.snd4 ty_ins))
-              (type_product (List.map Misc.snd4 ty_outs))
-    | _ -> type_arrow2
-             (type_product (List.map snd ty_params))
-             (type_product (List.map Misc.snd4 ty_ins))
-             (type_product (List.map Misc.snd4 ty_outs)) in
-  a.a_id,
-  { at_params = ty_params;
-    at_ins = ty_ins;
-    at_outs = ty_outs;
-    at_sig = trivial_scheme ty }
-
-let type_param_decl tenv { pd_desc=(id,kind,te,e); pd_loc=loc } =
-  let ty = type_of_type_expression tenv te in
-  if kind = Syntax.P_Local then begin
-    let ty' = type_core_expression tenv e in
-     try_unify "parameter" ty ty' loc
-    end;
-  (id, (* type_param *) ty)
-
-let type_io_decl tenv { io_desc=(kind,id,params,te); io_loc=loc } =
-  let ty = type_of_type_expression tenv te in
-  let ty_params = List.map (fun (id,te) -> type_of_type_expression tenv te) params in
-  let ty' = match kind, ty_params with
-  | Io_src, [] -> type_arrow type_unit ty
-  | Io_src, ts -> type_arrow2 (type_product ts) type_unit ty
-  | Io_snk, [] -> type_arrow ty type_unit
-  | Io_snk, ts -> type_arrow2 (type_product ts) ty type_unit in
-  (id, ty')
-
-(* Typing top-level net defns *)
+(* Typing net defns *)
   
-let type_net_defn tenv { nd_desc=d } = match d with
-  | is_rec, [binding] -> type_definition is_rec tenv binding
+let type_net_defn genv { nd_desc=d } = match d with
+  | is_rec, [binding] -> type_definition is_rec genv binding
   | _, _ -> failwith "Typing.type_net_defn(multi-net)"
+
+(* Typing (sub-)graph decls *)
+
+let rec type_struct_graph_desc loc genv intf g =
+  let ty_wires = List.map (type_wire genv) g.gs_wires in
+  let genv' = genv
+              |> augment_values (List.map (fun (id,ty) -> id, trivial_scheme ty) intf.t_params)
+              |> augment_values (List.map (fun (id,(ty,_,_)) -> id, trivial_scheme ty) intf.t_ins)
+              |> augment_values (List.map (fun (id,(ty,_,_)) -> id, trivial_scheme ty) intf.t_outs)
+              |> augment_values (List.map (fun (id,ty) -> id, trivial_scheme ty) ty_wires) in
+  let ty_nodes = List.map (type_node genv') g.gs_nodes in
+  TD_Struct (ty_wires, ty_nodes)
+
+and type_wire tenv { gw_desc = (id,te) } = id, type_of_type_expression tenv te
+
+and type_node genv { gn_desc = (id,g); gn_loc = loc } =
+  (* Typing a node decl such [node n: f (p1:t1,...) (i1:t'1,...) (o1:t''1,...)] gives type
+     [(t1*...) -> (t'1*...) -> (t''1*...)] (just like an actor decl).
+     We also check that the resulting type unifies with the type of [f] obtained from the environment *)
+  let lookup id = type_instance (lookup_value loc genv id) in
+  let ty_ins = List.map lookup g.gn_ins in
+  let ty_outs = List.map lookup g.gn_outs in
+  let ty_params = List.map (type_core_expression genv) g.gn_params in
+  let ty = type_sig ty_params ty_ins ty_outs in
+  let ty_f = lookup g.gn_name in
+  try_unify "node declaration" ty_f ty loc;
+  id, ty 
+
+let rec type_fun_graph_desc genv intf defns =
+  let genv' = genv
+              |> augment_values (List.map (fun (id,ty) -> id, trivial_scheme ty) intf.t_params)
+              |> augment_values (List.map (fun (id,(ty,_,_)) -> id, trivial_scheme ty) intf.t_ins) in
+  (* Printf.printf "** Typing fun graph defn\n";
+   * dump_global_typing_environment "with augmented typing environment" genv'; *)
+  let ty_defns, locs = 
+    List.fold_left
+      (fun (env,locs) d ->
+        let env' = type_net_defn (genv' |> augment_values env) d in
+        env @ env',
+        locs @ List.map (fun (id,_) -> id, d.nd_loc) env')
+          (* For each defined symbol - there may be several for a single defn - we keep track of the location of the enclosing defn *)
+      ([],[])
+      defns in
+  (* TODO : check that the type infered for each symbol occuring in [intf.t_outs] matches that infered for
+     the corresponding definition *)
+  List.iter 
+    (fun (id,ty) ->
+      if List.mem_assoc id intf.t_outs then 
+        let ty' = Misc.fst3 (List.assoc id intf.t_outs) in
+        let loc = try List.assoc id locs with Not_found -> Misc.fatal_error "type_fun_graph_defn" in
+        try_unify "graph output definition" (type_instance ty) ty' loc)
+    ty_defns;
+  TD_Fun ty_defns
+
+let type_graph_decl (acc,genv) { g_desc=g } =
+  (* Typing a graph declaration consists in
+     - typing its interface, and adding the corresponding signature to the current NTE 
+     - typing its definition, collecting the result and checking that it matches the interface *)
+  (* Printf.printf "** Typing graph decl %s\n" g.g_id;
+   * dump_global_typing_environment "current typing environment" genv; *)
+  let type_of io = Misc.fst3 (snd io) in
+  let ty_params = List.map (fun { pm_desc = (id,te) } -> id, type_of_type_expression genv te) g.g_params in
+  let ty_ins = type_io genv g.g_ins in
+  let ty_outs = type_io genv g.g_outs in
+  let ty_intf =
+    { t_params = ty_params;
+      t_ins = ty_ins;
+      t_outs = ty_outs;
+      t_sig =
+        trivial_scheme (type_sig (List.map snd ty_params) (List.map type_of ty_ins) (List.map type_of ty_outs)) } in
+  let ty_desc = 
+    begin match g.g_defn.gd_desc with
+    | GD_Struct desc -> type_struct_graph_desc g.g_defn.gd_loc genv ty_intf desc
+    | GD_Fun desc -> type_fun_graph_desc genv ty_intf desc
+    end in
+  let acc' = (g.g_id, (ty_intf, ty_desc)) :: acc in
+  let genv' = genv |> augment_values [g.g_id,ty_intf.t_sig] in
+  List.rev acc', genv'
   
-(* Typing programs *)
 
-type typed_program = {
-  (* tp_types: (string * type_desc) list;     (\* Type constructors *\) *)
-  tp_ios: (string * typ) list;
-  tp_params: (string * typ) list;
-  tp_actors: (string * typed_actor) list;
-  tp_defns: (string * typ_scheme) list;
-  }
-
-let rec type_program tenv p = 
-  let typed_types = List.map (type_type_decl tenv) p.types in
-  let tenv_t = { tenv with te_types = tenv.te_types @ typed_types } in 
-  let typed_params, tenv_p =
-    List.fold_left
-      (fun (tps,tenv) p ->
-        let id, ty = type_param_decl tenv p in
-        (id,ty)::tps, { tenv with te_values = tenv.te_values @ [id, generalize [] ty] })
-      ([], tenv_t)
-      p.params in
-  let typed_ios = List.map (type_io_decl tenv_p) p.ios in
-  let typed_actors =  List.map (type_actor_decl tenv_p) p.actors in
-  let tenv_d = {
-      tenv_p with te_values = List.map (fun (id,ty) -> id, generalize [] ty) typed_ios
-                              @ List.map (function (id,a) -> id,a.at_sig) typed_actors
-                              @ tenv.te_values } in
-  let typed_defns =
-    List.fold_left
-      (fun env d ->
-        let env' = type_net_defn { tenv_p with te_values = tenv_p.te_values @ env } d in
-        env @ env')
-      tenv_d.te_values
-      p.defns in
-  { tp_params = typed_params;
-    tp_ios = typed_ios;
-    tp_actors = typed_actors;
-    tp_defns = typed_defns }
+let rec type_program genv p = 
+  (* Typing programs consists in
+     1. Typing type decls and adding the resulting types to the typing environment
+     2. Typing each actor decl and, when done, adding all the resulting signatures (as a type scheme) to the TE
+     3. Typing each graph declaration, adding each resulting signature to the TE (so that a given graph declaration
+        can refer to previously defined actor or graph declaration) *)
+  let typed_types = List.map (type_type_decl genv) p.types in
+  let genv_a = genv |> augment_types typed_types in
+  let typed_actors =  List.map (type_actor_decl genv_a) p.actors in
+  let genv_g = genv_a |> augment_values (List.map (function (id,a) -> id,a.t_sig) typed_actors) in
+  let typed_graphs, _ = List.fold_left type_graph_decl ([],genv_g) p.graphs in
+  { tp_actors = typed_actors;
+    tp_graphs = typed_graphs }
 
 (* Printing *)
 
-let rec dump_typed_program builtins tp =
+let rec dump_typed_program tp =
   Printf.printf "Typed program ---------------\n";
   List.iter dump_typed_actor tp.tp_actors;
-  List.iter dump_typed_io tp.tp_ios;
-  List.iter dump_typed_param tp.tp_params;
-  List.iter (dump_typed_value builtins) tp.tp_defns;
+  List.iter dump_typed_graph tp.tp_graphs;
   Printf.printf "----------------------------------\n"
 
-and dump_typed_io (name, ty) =
-  Printf.printf "io %s : %s\n" name (Pr_type.string_of_type ty);
-  flush stdout
-
-and dump_typed_param (name, ty) =
-  Printf.printf "parameter %s : %s\n" name (Pr_type.string_of_type ty);
-  flush stdout
-
-and dump_typed_actor (name, a) =
+and dump_typed_actor (name, ti) =
   Pr_type.reset_type_var_names ();
-  Printf.printf "actor %s : %s\n" name (Pr_type.string_of_type_scheme a.at_sig);
+  Printf.printf "actor %s : %s\n" name (Pr_type.string_of_type_scheme ti.t_sig);
   flush stdout
 
-and dump_typed_value builtins (name, ty_sch) =
-  if not (List.mem_assoc name builtins.te_values ) then begin
-      Pr_type.reset_type_var_names ();
-      Printf.printf "val %s : %s\n" name (Pr_type.string_of_type_scheme ty_sch);
-      flush stdout
-    end
+and dump_typed_graph (name, (ti,td)) =
+  Pr_type.reset_type_var_names ();
+  Printf.printf "graph %s : %s\n" name (Pr_type.string_of_type_scheme ti.t_sig);
+  dump_typed_graph_desc td;
+  flush stdout
 
+and dump_typed_graph_desc td = match td with
+  | TD_Struct (ty_wires, ty_nodes) ->
+     List.iter (fun (id,ty) -> Printf.printf "  wire %s: %s\n" id (Pr_type.string_of_type ty)) ty_wires;
+     List.iter (fun (id,ty) -> Printf.printf "  node %s: %s\n" id (Pr_type.string_of_type ty)) ty_nodes
+  | TD_Fun ty_defns ->
+     List.iter (fun (id,ty) -> Printf.printf "  val %s: %s\n" id (Pr_type.string_of_type_scheme ty)) ty_defns
+  
+(* and dump_typed_value builtins (name, ty_sch) =
+ *   if not (List.mem_assoc name builtins.te_values ) then begin
+ *       Pr_type.reset_type_var_names ();
+ *       Printf.printf "val %s : %s\n" name (Pr_type.string_of_type_scheme ty_sch);
+ *       flush stdout
+ *     end *)
+
+  

@@ -13,14 +13,15 @@
 (* DOT backend *)
 
 open Printf
-open Ssval
 open Static
 
 type dot_config = {
     mutable labeled_edges: bool;
     mutable show_indexes: bool;
-    mutable local_param_box_shape: string;
+    mutable actor_box_style: string;
+    mutable graph_box_style: string;
     mutable input_param_box_shape: string;
+    mutable local_param_box_shape: string;
     mutable srcsnk_box_shape: string;
     mutable slotted_boxes: bool;
     mutable show_wire_annots: bool;
@@ -31,10 +32,12 @@ type dot_config = {
 let cfg = {
   labeled_edges = true;
   show_indexes = false;
+  actor_box_style = "rounded";
+  graph_box_style = "solid";
   local_param_box_shape = "invhouse";
-  input_param_box_shape = "invtriangle";
+  input_param_box_shape = "cds";
   srcsnk_box_shape = "cds";
-  slotted_boxes = true;
+  slotted_boxes = false;
   show_wire_annots = false;
   show_io_rates = true;
   rank_dir = "LR"
@@ -67,38 +70,38 @@ let output_box ch (i,b) =
     else b.b_name in
   let bval = 
     let s1 = Syntax.string_of_core_expr b.b_val.bv_lit in
-    let s2 = string_of_ssval b.b_val.bv_val in
-    if s1 = s2 then s1 else s1 ^ "=" ^ s2 in
-  match b.b_tag with
-  | ActorB
-  | EBcastB
-  | IBcastB
-  | DelayB ->
-      if cfg.slotted_boxes then
-        fprintf ch "n%d [shape=record,style=rounded,label=\"<id>%s|{{%s}|{%s}}\"];\n"
+    let s2 = Ssval.string_of_ssval b.b_val.bv_val in
+    if b.b_val.bv_val <> Ssval.SVUnit && s1 <> s2 then s1 ^ "=" ^ s2 else s1 in
+  let output_regular_box style =
+       if cfg.slotted_boxes then
+        fprintf ch "n%d [shape=record,style=%s,label=\"<id>%s|{{%s}|{%s}}\"];\n"
           i
+          style
           bid
           (Misc.string_of_ilist (string_of_bio_slot "e") "|" b.b_ins)
           (Misc.string_of_ilist (string_of_bio_slot "s") "|" b.b_outs)
           (* (ioslots "e" (List.length b.b_ins))
            * (ioslots "s" (List.length b.b_outs)) *)
       else
-        fprintf ch "n%d [shape=box,style=rounded,label=\"%s\"];\n" i  bid
-  | GraphB ->
-        fprintf ch "n%d [shape=box,label=\"%s\"];\n" i  bid
+        fprintf ch "n%d [shape=box,style=%s,label=\"%s\"];\n" i style bid in
+  match b.b_tag with
+  | ActorB -> output_regular_box cfg.actor_box_style 
+  | GraphB -> output_regular_box cfg.graph_box_style 
+  (* | EBcastB
+   * | IBcastB
+   * | DelayB -> *)
   | SourceB | SinkB -> 
      fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
        i
        cfg.srcsnk_box_shape
        bid
   | LocalParamB -> 
-     fprintf ch "n%d [shape=%s,label=\"%s\n(%s)\"];\n"
+     fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
        i
        cfg.local_param_box_shape
-       bid
        bval
   | InParamB -> 
-     fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
+     fprintf ch "n%d [shape=%s,style=\"dashed\",label=\"%s\"];\n"
        i
        cfg.input_param_box_shape
        bid
@@ -111,7 +114,7 @@ let output_wire ch (wid,(((s,ss),(d,ds)),ty,kind))=
   let wire_annot wid =
     (* try Interm.string_of_wire_annot (List.assoc wid wire_annots)
     with Not_found -> *) "" in
-  let style = match kind with ParamW -> "dashed" | _ -> "plain" in
+  let style = match kind with Ssval.ParamW -> "dashed" | _ -> "plain" in
   match cfg.labeled_edges, cfg.show_indexes, cfg.show_wire_annots with
   | true, _, true ->
      fprintf ch "n%d:s%d -> n%d:e%d [label=\" w%d:%s\"; style=%s];\n" s ss d ds wid (wire_annot wid) style
@@ -122,15 +125,19 @@ let output_wire ch (wid,(((s,ss),(d,ds)),ty,kind))=
   | false, _, _ ->
      fprintf ch "n%d:s%d -> n%d:e%d [style=%s];\n" s ss d ds style
 
-let output ch boxes wires = 
-  fprintf ch "digraph g {\n";
-  fprintf ch "rankdir=%s;\n" cfg.rank_dir;
-  List.iter (output_box ch) boxes;
-  List.iter (output_wire ch) wires;
-  fprintf ch "}\n"
+let output_graph oc boxes wires = 
+  fprintf oc "digraph g {\n";
+  fprintf oc "rankdir=%s;\n" cfg.rank_dir;
+  List.iter (output_box oc) boxes;
+  List.iter (output_wire oc) wires;
+  fprintf oc "}\n"
 
-let dump fname sp =
-    let oc = open_out fname  in
-    output oc sp.boxes sp.wires;
-    Logfile.write fname;
-    close_out oc
+let dump_graph pfx (id,gd) =
+  let fname = pfx ^ "_" ^ id ^ ".dot" in 
+  let oc = open_out fname  in
+  output_graph oc gd.sg_boxes gd.sg_wires;
+  Logfile.write fname;
+  close_out oc
+
+let dump pfx sp =
+  List.iter (dump_graph pfx) sp.sp_graphs
