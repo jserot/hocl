@@ -127,7 +127,7 @@ rule main = parse
   | "!=" { NOTEQUAL }
   | "::" { COLONCOLON }
   | "|>"    { INFIX0 "|>" }
-  | ">>"    { INFIX0 ">>" }
+  | "|->"    { INFIX0 "|->" }
   | ">" { GREATER }
   | "<" { LESS }
   | "=" { EQUAL }

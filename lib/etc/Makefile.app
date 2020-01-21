@@ -1,6 +1,5 @@
 HOCL=/Users/jserot/Dev/ml/hocl
 HOCLC=$(HOCL)/bin/hoclc
-HOCL_OPTS=#-prelude $(HOCL)/lib/vitriolc/prelude.hcl
 DOTVIEWER=graphviz
 VCDVIEWER=gtkwave
 TXTVIEWER=nano
@@ -11,10 +10,10 @@ all: check
 #all: dot.show
 
 check: $(SRCS)
-	$(HOCLC) $(HOCL_OPTS) $(GEN_OPTS) $(SRCS)
+	$(HOCLC) $(GEN_OPTS) $(SRCS)
 
 dot: $(SRCS)
-	$(HOCLC) $(HOCL_OPTS) $(GEN_OPTS) -dot $(DOT_OPTS) $(SRCS)
+	$(HOCLC) $(GEN_OPTS) -dot $(DOT_OPTS) $(SRCS)
 
 dot.show: dot
 	@for f in *.dot; do $(DOTVIEWER) $$f; done
@@ -22,7 +21,7 @@ dot.show: dot
 .PHONY: preesm systemc preesm.proj
 
 preesm: $(SRCS)
-	$(HOCLC) $(HOCL_OPTS) $(GEN_OPTS) -preesm $(PREESM_OPTS) $(SRCS)
+	$(HOCLC) $(GEN_OPTS) -preesm $(PREESM_OPTS) $(SRCS)
 
 preesm.proj: 
 	if [ ! -d $(PREESM_PROJ) ]; then mkdir $(PREESM_PROJ); fi
@@ -35,10 +34,10 @@ preesm.proj:
 	cp preesm/*.pi $(PREESM_PROJ)/Algo
 
 systemc: $(SRCS)
-	$(HOCLC) $(HOCL_OPTS) $(GEN_OPTS) -systemc $(SYSTEMC_OPTS) $(SRCS)
+	$(HOCLC) $(GEN_OPTS) -systemc $(SYSTEMC_OPTS) $(SRCS)
 
 xdf: $(SRCS)
-	$(HOCLC) $(HOCL_OPTS) $(GEN_OPTS) -xdf $(XDF_OPTS) $(SRCS)
+	$(HOCLC) $(GEN_OPTS) -xdf $(XDF_OPTS) $(SRCS)
 
 clean:
 	@\rm -f *.dot

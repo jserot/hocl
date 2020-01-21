@@ -465,7 +465,11 @@ let type_graph_decl (acc,genv) { g_desc=g } =
   let genv' = genv |> augment_values [g.g_id,ty_intf.t_sig] in
   List.rev acc', genv'
   
-
+let type_global_value (acc,genv) d =
+  let typed_values = type_net_defn genv d in
+  typed_values @ acc,
+  augment_values typed_values genv
+    
 let rec type_program genv p = 
   (* Typing programs consists in
      1. Typing type and global fns decls and adding the resulting types to the typing environment
@@ -474,8 +478,9 @@ let rec type_program genv p =
         can refer to previously defined actor or graph declaration) *)
   let typed_types = p.types |> List.map (type_type_decl genv) in
   let genv_f = genv |> augment_types typed_types in
-  let typed_gvals = p.gvals |> List.map (type_net_defn genv_f) |> List.concat in
-  let genv_a = genv_f |> augment_values typed_gvals in
+  (* let typed_gvals = p.gvals |> List.map (type_net_defn genv_f) |> List.concat in *)
+  (* let genv_a = genv_f |> augment_values typed_gvals in *)
+  let typed_gvals, genv_a = List.fold_left type_global_value ([],genv_f) p.gvals in
   let typed_actors =  List.map (type_actor_decl genv_a) p.actors in
   let genv_g = genv_a |> augment_values (List.map (function (id,a) -> id,a.t_sig) typed_actors) in
   let typed_graphs, _ = List.fold_left type_graph_decl ([],genv_g) p.graphs in

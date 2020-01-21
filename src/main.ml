@@ -82,19 +82,20 @@ let output pfx sp =
  *   else
  *     sp *)
 
-let process_file f =
-  Printf.printf "Processing file %s\n" f; flush stdout;
-  let fs = if Options.cfg.prelude <> "" then [ Options.cfg.prelude; f ] else [f] in
-  let p = 
-    List.fold_left
-      (fun p f -> Syntax.add_program p (parse f))
-      Syntax.empty_program
-      fs in
+let process_file p f =
+  Printf.printf "Parsing file %s\n" f; flush stdout;
+  let p' = parse f in
+  Syntax.add_program p p'
+
+  
+let process_files fs =
+  let p = List.fold_left process_file Syntax.empty_program fs in
   (* Syntax.dump_program p; *)
   let sp = p |> compile (* |> insert_bcasts *) in
   if Options.cfg.output_fmt <> NoOutput then begin
       check_dir Options.cfg.target_dir;
-      output (Misc.file_prefix f) sp
+      let pfx = Misc.file_prefix @@ List.hd @@ List.rev fs in
+      output pfx sp
       end
 
 let main () =
@@ -106,7 +107,10 @@ try
     dump_global_typing_environment "Initial typing environment" Builtins.builtin_typing_env;
   if Options.cfg.dump_senv then dump_static_environment Builtins.builtin_static_env;
   Logfile.start ();
-  List.iter process_file !source_files;
+  let sfs = match Options.cfg.prelude with
+    | "" -> !source_files
+    | f -> f :: !source_files in
+  process_files sfs;
   Logfile.stop ()
 with
   Parser.Error ->
