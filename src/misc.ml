@@ -64,6 +64,8 @@ let list_make_index n f =
   let rec h i = if i >= n then [] else f i :: h (i+1) in
   h 0
 
+let list_make n v = list_make_index n (fun _ -> v)
+
 let list_repl n x =
   let rec h = function 0 -> [] | n -> x :: h (n-1) in
   h n

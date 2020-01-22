@@ -319,6 +319,9 @@ and extract_type_bindings tenv loc pat ty = match (pat.np_desc, Types.real_type 
       [id, generalize tenv.te_values ty]
   | NPat_tuple ps, TyProduct ts ->
       List.flatten (List.map2 (extract_type_bindings tenv loc) ps ts)
+  | NPat_tuple ps, (TyConstr("bundle", [ty1]) as ty2) -> (* Implicit bundle -> tuple conversion *)
+      let ty' = TyProduct (Misc.list_make (List.length ps) ty1) in
+      extract_type_bindings tenv loc pat ty'
   | NPat_cons(p1, p2), (TyConstr("bundle", [ty1]) as ty2) ->
       extract_type_bindings tenv loc p1 ty1 @ extract_type_bindings tenv loc p2 ty2
   | NPat_bundle ps, TyConstr ("bundle", [t]) ->

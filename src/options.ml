@@ -51,7 +51,7 @@ let do_dump_senv () = cfg.dump_senv <- true
 let do_dump_typed () = cfg.dump_typed <- true
 let do_dump_static () = cfg.dump_static <- true
 let do_dump_boxes () = cfg.dump_boxes <- true
-(* let do_insert_bcasts () = Static.cfg.Static.insert_bcasts <- true *)
+let do_insert_bcasts () = Static.cfg.Static.insert_bcasts <- true
 (* let do_insert_fifos () = Static.cfg.Static.insert_fifos <- true *)
 let do_dot () = cfg.output_fmt <- Dot
 (* let do_preesm () = begin cfg.output_fmt <- Preesm; Static.cfg.Static.insert_bcasts <- true end
@@ -92,7 +92,7 @@ let options_spec = [
 "-dump_static", Arg.Unit (do_dump_static), "dump static representation (for debug only)";
 (* "-phantom_types", Arg.Unit (do_phantom_types), "print sized types using underlying representation (not for the casual user)"; *)
 "-dump_boxes", Arg.Unit (do_dump_boxes), "dump static representation of boxes";
-(* "-insert_bcasts", Arg.Unit (do_insert_bcasts), "insert broadcast boxes"; *)
+"-insert_bcasts", Arg.Unit (do_insert_bcasts), "insert broadcast boxes";
 (* "-insert_fifos", Arg.Unit (do_insert_fifos), "insert fifos between actors"; *)
 "-dot", Arg.Unit (do_dot), "generate .dot representation of the program";
 (* "-preesm", Arg.Unit (do_preesm), "activate the Preesm backend";

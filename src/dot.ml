@@ -23,6 +23,7 @@ type dot_config = {
     mutable input_param_box_shape: string;
     mutable local_param_box_shape: string;
     mutable srcsnk_box_shape: string;
+    mutable bcast_box_shape: string;
     mutable slotted_boxes: bool;
     mutable show_wire_annots: bool;
     mutable show_io_rates: bool;
@@ -37,6 +38,7 @@ let cfg = {
   local_param_box_shape = "invhouse";
   input_param_box_shape = "cds";
   srcsnk_box_shape = "cds";
+  bcast_box_shape = "octagon";
   slotted_boxes = false;
   show_wire_annots = false;
   show_io_rates = true;
@@ -84,16 +86,20 @@ let output_box ch (i,b) =
            * (ioslots "s" (List.length b.b_outs)) *)
       else
         fprintf ch "n%d [shape=box,style=%s,label=\"%s\"];\n" i style bid in
+  let shape_of_box tag = match tag with
+    | EBcastB | IBcastB -> cfg.bcast_box_shape
+    | SourceB | SinkB -> cfg.srcsnk_box_shape
+    | _ -> "box" in
   match b.b_tag with
   | ActorB -> output_regular_box cfg.actor_box_style 
   | GraphB -> output_regular_box cfg.graph_box_style 
-  (* | EBcastB
-   * | IBcastB
-   * | DelayB -> *)
+  | EBcastB
+  | IBcastB
+  (* | DelayB -> *)
   | SourceB | SinkB -> 
      fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
        i
-       cfg.srcsnk_box_shape
+       (shape_of_box b.b_tag)
        bid
   | LocalParamB -> 
      fprintf ch "n%d [shape=%s,label=\"%s\"];\n"

@@ -374,9 +374,9 @@ net_expr:
           { mk_net_expr $loc (NTuple(List.rev es)) }
       | e1=net_expr COLONCOLON e2=net_expr 
           { mk_net_expr $loc (NCons(e1,e2)) }
-      (* | e=simple_net_expr LBRACKET i=simple_net_expr RBRACKET
-       *     { mk_net_expr $loc (NBundleElem (e,i)) }
-       * | LBRACKET es=my_separated_nonempty_list(COMMA,net_expr) RBRACKET
+      | e=simple_net_expr LBRACKET i=simple_net_expr RBRACKET
+          { mk_net_expr $loc (NBundleElem (e,i)) }
+      (* | LBRACKET es=my_separated_nonempty_list(COMMA,net_expr) RBRACKET
        *     { mk_net_expr $loc (NBundle es) } *)
       | LET r=optional(REC) bs=my_separated_nonempty_list(AND,net_binding) IN e=net_expr  %prec prec_let
           { mk_net_expr $loc (NLet(r, bs, e)) }

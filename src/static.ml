@@ -78,8 +78,8 @@ and ss_box = {
 
 and box_tag = 
     ActorB
-  (* | IBcastB (\* Implicit bcast (inserted automatically) *\)
-   * | EBcastB (\* Explicit bcast *\) *)
+  | IBcastB (* Implicit bcast (inserted automatically) *)
+  | EBcastB (* Explicit bcast *)
   | SourceB
   | SinkB
   | GraphB
@@ -186,7 +186,7 @@ let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * wire_kind)) li
   try
     bid,
     (match b.b_tag with
-     | ActorB | (* IBcastB | EBcastB | *) GraphB (* | DelayB *) ->
+     | ActorB | IBcastB | EBcastB | GraphB (* | DelayB *) ->
         { b with
           b_ins = List.mapi
                         (fun sel (id,(_,ty,rate,ann)) -> id, (find_src_wire wires bid sel, ty, rate, ann))
@@ -479,6 +479,11 @@ let rec net_matching (*oenv*) nenv npat r =
   | NPat_tuple ps, SVTuple rs when List.length ps = List.length rs ->
       let nenvs, ws = List.split (List.map2 (net_matching (*oenv*) nenv) ps rs) in
       List.concat nenvs, List.concat ws
+  | NPat_tuple ps, SVList rs when List.length ps = List.length rs -> (* implicit bundle to tuple conversion *)
+      let nenvs, ws = List.split (List.map2 (net_matching (*oenv*) nenv) ps rs) in
+      List.concat nenvs, List.concat ws
+  | NPat_tuple ps, SVCons _ ->
+      net_matching (*oenv*) nenv npat (list_of_cons r)
   | NPat_bundle ps, SVList rs when List.length ps = List.length rs ->
       let nenvs, ws = List.split (List.map2 (net_matching (*oenv*) nenv) ps rs) in
       List.concat nenvs, List.concat ws
@@ -740,15 +745,14 @@ and instanciate_actor_or_graph tag  nenv loc a params args =
       (fun i v -> mk_wire ParamW (l,i) v)
       params in
   let np = List.length a.sb_params in
-  (* TO FIX !! *)
-  (* let args' = match tyins', args with
-   *   | ts, SVCons _ when List.length ts > 1 ->  (\* Bundle to tuple conversion *\)
-   *      begin match list_of_cons args with
-   *      | SVList vs when List.length vs = List.length ts -> SVTuple vs
-   *      | _ -> illegal_application loc
-   *      end
-   *   | _, _ -> args in *)
-  let args' = args in
+  let args' = match tyins', args with
+    | ts, SVCons _ when List.length ts > 1 ->  (* Bundle to tuple conversion *)
+       begin match list_of_cons args with
+       | SVList vs when List.length vs = List.length ts -> SVTuple vs
+       | _ -> illegal_application loc
+       end
+    | _, _ -> args in
+  (* let args' = args in *)
   let type_of (_,(_,ty,_,_)) = ty in
   match bins, bouts, args' with
   | [], [], SVUnit ->                                                 (* APP_0_0 *)
@@ -852,50 +856,53 @@ let eval_fun_graph_desc tp senv intf defns =
  *                           +--------+                                                  +--------+
 *)
 
-(* let new_bcast_box ty wid wids =
- *   let bid = new_bid () in
- *   let bos = List.mapi (fun i wid -> "o_" ^ string_of_int (i+1), ([wid],ty,None,None)) wids in 
- *   bid, { b_id=bid; b_tag=IBcastB; b_name=cfg.bcast_name; b_params=[]; b_ins=["i",(wid,ty,None,None)]; b_outs=bos; b_typ=ty (* b_val=no_bval *) }
- * 
- * let rec is_bcast_box boxes bid = (find_box boxes bid).b_name = cfg.bcast_name
- * 
- * and find_box boxes bid = 
- *     try List.assoc bid boxes
- *     with Not_found -> Misc.fatal_error "Static.find_box: cannot find box from id" (* should not happen *)
- * 
- * let rec insert_bcast bid oidx (boxes,wires,box) bout = 
- *   match bout with
- *   | (id, ([],_,_,_)) -> boxes, wires, box       (* should not happen ? *)
- *   | (id, ([wid],_,_,_)) -> boxes, wires, box    (* no need to insert here *)
- *   | (id, (wids,ty,rate,ann)) ->                 (* the relevant case : a box output connected to several wires *)
- *       let wid' = new_wid () in
- *       let m, mb = new_bcast_box ty wid' wids in
- *       let box' = { box with b_outs = Misc.assoc_replace id (function _ -> [wid'],ty,rate,ann) box.b_outs } in
- *       let wires' = Misc.foldl_index (update_wires m) wires wids in
- *       let boxes' = Misc.assoc_replace bid (function b -> box') boxes in
- *       (m,mb) :: boxes', (wid',(((bid,oidx),(m,0)),ty,get_wire_kind wires (List.hd wids))) :: wires', box'
- * 
- * and get_wire_kind wires wid =
- *   try
- *     match List.assoc wid wires with
- *     | _,_,k -> k
- *   with
- *   | Not_found -> 
- *      Misc.fatal_error "Static.get_wire_kind"
- * 
- * and update_wires s' j wires wid = 
- *   Misc.assoc_replace wid (function ((s,ss),(d,ds)),ty,kind -> ((s',j),(d,ds)),ty,kind) wires 
- * 
- * let insert_bcast_after after_boxes (boxes,wires) (bid,box) = 
- *   if List.mem box.b_tag after_boxes then 
- *     let boxes', wires', box' = Misc.foldl_index (insert_bcast bid) (boxes,wires,box) box.b_outs in
- *     boxes', wires'
- *   else
- *     boxes, wires
- * 
- * let insert_bcasters after_boxes sp = 
- *   let boxes', wires' = List.fold_left (insert_bcast_after after_boxes) (sp.boxes,sp.wires) sp.boxes in
- *   { sp with boxes = boxes'; wires = wires' } *)
+let new_bcast_box ty wid wids =
+  let bid = new_bid () in
+  let bos = List.mapi (fun i wid -> "o_" ^ string_of_int (i+1), ([wid],ty,None,None)) wids in 
+  bid, { b_id=bid; b_tag=IBcastB; b_name=cfg.bcast_name; b_params=[];
+         b_ins=["i",(wid,ty,None,None)]; b_outs=bos; b_typ=ty; b_val=no_bval }
+
+let rec is_bcast_box boxes bid = (find_box boxes bid).b_name = cfg.bcast_name
+
+and find_box boxes bid = 
+    try List.assoc bid boxes
+    with Not_found -> Misc.fatal_error "Static.find_box: cannot find box from id" (* should not happen *)
+
+let rec insert_bcast bid oidx (boxes,wires,box) bout = 
+  match bout with
+  | (id, ([],_,_,_)) -> boxes, wires, box       (* should not happen ? *)
+  | (id, ([wid],_,_,_)) -> boxes, wires, box    (* no need to insert here *)
+  | (id, (wids,ty,rate,ann)) ->                 (* the relevant case : a box output connected to several wires *)
+      let wid' = new_wid () in
+      let m, mb = new_bcast_box ty wid' wids in
+      let box' = { box with b_outs = Misc.assoc_replace id (function _ -> [wid'],ty,rate,ann) box.b_outs } in
+      let wires' = Misc.foldl_index (update_wires m) wires wids in
+      let boxes' = Misc.assoc_replace bid (function b -> box') boxes in
+      (m,mb) :: boxes', (wid',(((bid,oidx),(m,0)),ty,get_wire_kind wires (List.hd wids))) :: wires', box'
+
+and get_wire_kind wires wid =
+  try
+    match List.assoc wid wires with
+    | _,_,k -> k
+  with
+  | Not_found -> 
+     Misc.fatal_error "Static.get_wire_kind"
+
+and update_wires s' j wires wid = 
+  Misc.assoc_replace wid (function ((s,ss),(d,ds)),ty,kind -> ((s',j),(d,ds)),ty,kind) wires 
+
+let insert_bcast_after after_boxes (boxes,wires) (bid,box) = 
+  if List.mem box.b_tag after_boxes then 
+    let boxes', wires', box' = Misc.foldl_index (insert_bcast bid) (boxes,wires,box) box.b_outs in
+    boxes', wires'
+  else
+    boxes, wires
+
+let insert_bcasters after_boxes sp = 
+  let insert (id,g) =
+    let boxes', wires' = List.fold_left (insert_bcast_after after_boxes) (g.sg_boxes,g.sg_wires) g.sg_boxes in
+    id, { sg_boxes = boxes'; sg_wires = wires' } in
+  { sp with sp_graphs = List.map insert sp.sp_graphs }
 
 (* Insert FIFOs - not used here 
  * 
@@ -1038,9 +1045,9 @@ let dump_actor (id,ad) =
     (Misc.string_of_list string_of_inst_loc "," ad.sa_insts)
 
 let box_prefix b = match b.b_tag with
-  (*   IBcastB -> "Y"
-   * | EBcastB -> "X"
-   * | DelayB -> "D" *)
+    IBcastB -> "Y"
+  | EBcastB -> "X"
+  (* | DelayB -> "D" *)
   | SourceB -> "I"
   | SinkB -> "O"
   | ActorB -> "B"

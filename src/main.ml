@@ -71,27 +71,26 @@ let output pfx sp =
    *     *   Systemc.dump_split_actors sp; *\)
    *    (\* if !Misc.generate_makefiles then Genmake.dump_systemc_makefile () *\) *)
 
-(* let insert_bcasts sp = 
- *   if cfg.insert_bcasts then
- *     let after_boxes = match Options.cfg.output_fmt with
- *       | Dot -> [LocalParamB; InParamB; SourceB; ActorB; DelayB]
- *       | Systemc -> [LocalParamB; InParamB; SourceB; ActorB; DelayB]
- *       | Preesm -> [SourceB; ActorB; DelayB]
- *       | _ -> [] in
- *     Static.insert_bcasters after_boxes sp
- *   else
- *     sp *)
+let insert_bcasts sp = 
+  if cfg.insert_bcasts then
+    let after_boxes = match Options.cfg.output_fmt with
+      | Dot -> [LocalParamB; InParamB; SourceB; ActorB (*; DelayB*)]
+      (* | Systemc -> [LocalParamB; InParamB; SourceB; ActorB; DelayB]
+       * | Preesm -> [SourceB; ActorB; DelayB] *)
+      | _ -> [] in
+    Static.insert_bcasters after_boxes sp
+  else
+    sp
 
 let process_file p f =
   Printf.printf "Parsing file %s\n" f; flush stdout;
   let p' = parse f in
   Syntax.add_program p p'
-
   
 let process_files fs =
   let p = List.fold_left process_file Syntax.empty_program fs in
   (* Syntax.dump_program p; *)
-  let sp = p |> compile (* |> insert_bcasts *) in
+  let sp = p |> compile |> insert_bcasts in
   if Options.cfg.output_fmt <> NoOutput then begin
       check_dir Options.cfg.target_dir;
       let pfx = Misc.file_prefix @@ List.hd @@ List.rev fs in
