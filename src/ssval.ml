@@ -25,8 +25,8 @@ type ss_val =
   | SVCons of ss_val * ss_val
   | SVList of ss_val list
   | SVNil
-  | SVAct of sv_box
-  | SVGraph of sv_box
+  | SVAct of sv_box * ss_val list (* param values *)
+  | SVGraph of sv_box * ss_val list (* param values *)
   | SVLoc of idx * sel * typ * sv_tag (* node index, output selector, type, tag *)
   (* | SVLoc of idx * sel * typ * ss_val (\* node index, output selector, type, parameter value (when applicable) *\) *)
   | SVWire of idx * sv_wire
@@ -103,8 +103,8 @@ and  string_of_ssval v = match v with
   | SVCons (v1,v2) -> string_of_ssval v1 ^ "::" ^ string_of_ssval v2
   | SVLoc (l,s,ty,_) -> "Loc(" ^ string_of_int l ^ "," ^ string_of_int s 
   | SVPrim p -> "Prim(...)"
-  | SVAct a -> "Actor(...)"
-  | SVGraph g -> "Graph(...)"
+  | SVAct _ -> "Actor(...)"
+  | SVGraph _ -> "Graph(...)"
   | SVClos _ -> "Clos(...)"
   | SVTuple vs -> "(" ^ Misc.string_of_list string_of_ssval "," vs ^ ")"
   | SVList vs -> "[" ^ Misc.string_of_list string_of_ssval "," vs ^ "]"

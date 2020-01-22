@@ -117,9 +117,9 @@ let mk_core_expr l desc = { ce_desc = desc; ce_loc = mk_location l; ce_typ = Typ
 let rec mk_apply l f es = match es with
   | [] -> f
   | e2::e2s -> mk_apply l (mk_net_expr l (NApp(f, e2))) e2s (* TO FIX: location *)
-let rec mk_apply2 l f ps es = match es with
-  | [] -> f
-  | e2::e2s -> mk_apply l (mk_net_expr l (NApp2(f, ps, e2))) e2s (* TO FIX: location *)
+(* let rec mk_apply2 l f ps es = match es with
+ *   | [] -> f
+ *   | e2::e2s -> mk_apply l (mk_net_expr l (NApp2(f, ps, e2))) e2s (\* TO FIX: location *\) *)
 let rec mk_fun l pats e = match pats with
   | [] -> Misc.fatal_error "mk_fun" (* should not happen *)
   | [p] -> mk_net_expr l (NFun (p,e))
@@ -360,16 +360,16 @@ net_binding_name:
       id=IDENT { id }
     | LPAREN op=INFIX0 RPAREN { op }
 
-param_values:
-    | LESS vs=my_separated_nonempty_list(COMMA,core_expr) GREATER { vs }
+(* param_values:
+ *     | LESS vs=my_separated_nonempty_list(COMMA,core_expr) GREATER { vs } *)
                   
 net_expr:
         e=simple_net_expr
           { e }
       | f=simple_net_expr args=my_nonempty_list(simple_net_expr)   (*%prec prec_app*)
           { mk_apply $loc f args }
-      | f=simple_net_expr params=param_values args=my_nonempty_list(simple_net_expr)   (*%prec prec_app*)
-          { mk_apply2 $loc f params args }
+      (* | f=simple_net_expr params=param_values args=my_nonempty_list(simple_net_expr)   (\*%prec prec_app*\)
+       *     { mk_apply2 $loc f params args } *)
       | es=net_expr_comma_list
           { mk_net_expr $loc (NTuple(List.rev es)) }
       | e1=net_expr COLONCOLON e2=net_expr 
@@ -408,6 +408,8 @@ net_expr:
 simple_net_expr:
       | id=IDENT
           { mk_net_expr $loc (NVar id) }
+      | id=IDENT LESS params=my_separated_nonempty_list(COMMA,core_expr) GREATER
+          { mk_net_expr $loc (NPVar (id,params)) }
       | LPAREN RPAREN
           { mk_net_expr $loc (NUnit) }
       | LBRACKET es=net_expr_comma_list RBRACKET

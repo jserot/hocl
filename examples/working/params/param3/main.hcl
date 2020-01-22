@@ -1,4 +1,4 @@
--- Dependant parameters
+-- Dependent parameters
 
 type t;
 
@@ -11,7 +11,7 @@ end;
 
 graph top_f param (k: int) in (i: t) out (o: t)
 fun
-  val o = foo<k+1> i
+  val o = i |> foo<k+1>
 end;
 
 -- #pragma code("inp", "include/input.h", "input", "inputInit")

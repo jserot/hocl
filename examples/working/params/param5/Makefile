@@ -1,6 +1,5 @@
 SRCS=main.hcl
-MAIN=main
-GEN_OPTS=#-dump_static -dump_tenv -dump_typed #-insert_fifos
+GEN_OPTS=-prelude ../../../../lib/hocl/prelude.hcl
 # SYSTEMC_OPTS=-target_dir systemc
 # PREESM_OPTS=-target_dir preesm
 # XDF_OPTS=-target_dir xdf

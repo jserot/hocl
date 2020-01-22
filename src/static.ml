@@ -328,8 +328,8 @@ let eval_node_decl gid tp (senv,bs,ws) { gn_desc = nid, n; gn_loc = loc } =
     with Not_found -> Misc.fatal_error "Static.eval_node_decl.lookup" in
   let update senv k v = Misc.assoc_update k v senv in
   let a, tag = match lookup n.gn_name with
-    | SVAct a -> a, ActorB
-    | SVGraph a -> a, GraphB
+    | SVAct (a,_) -> a, ActorB
+    | SVGraph (a,_) -> a, GraphB
     | _ -> illegal_node_instanciation loc in
   let is_real_io (id,ty,_,_) = not (is_unit_type ty) in
   let bins =
@@ -461,7 +461,7 @@ let is_param_loc sv = match sv with
        
 exception Matching_fail
 
-let rec net_matching (*oenv*) nenv npat r =
+let rec net_matching nenv npat r =
   let mk_wire l l' = match l, l' with
     | SVLoc (i,s,ty,_), SVLoc (i',s',_,_) -> new_wid(), (((i,s),(i',s')),ty,DataW)
     | _, _ -> Misc.fatal_error "Static.net_matching" in
@@ -513,13 +513,21 @@ let rec matching pat v = match pat.np_desc, v with
   | _, _ -> raise Matching_fail
 
 let rec eval_net_expr  senv expr =
+  let lookup v =
+    if List.mem_assoc v senv then List.assoc v senv
+    else unbound_value_err v expr.ne_loc in
   match expr.ne_desc with
   | NInt n -> SVInt n, [], []
   | NBool b -> SVBool b, [], []
   | NUnit -> SVUnit, [], []
-  | NVar v ->
-      if List.mem_assoc v senv then List.assoc v senv, [], []
-      else unbound_value_err v expr.ne_loc
+  | NVar v -> lookup v, [], []
+  | NPVar (v, params) ->
+     let val_params, bs_p, ws_p = List.fold_left (eval_net_param senv) ([],[],[]) params in
+     let r = match lookup v with
+        | SVAct (a,[]) -> SVAct (a, val_params) 
+        | SVGraph (a,[]) -> SVGraph (a, val_params) 
+        | _ -> illegal_application expr.ne_loc in (* Only actors and graphs can take parameters *)
+     r, bs_p, ws_p
   | NNil -> SVNil, [], []
   | NTuple es ->
       let rs, bs, ws = List.fold_right
@@ -554,22 +562,22 @@ let rec eval_net_expr  senv expr =
       let val_fn, bs_f, ws_f = eval_net_expr  senv fn in
       let val_arg, bs_a, ws_a = eval_net_expr  senv arg in
       let r, bs'', ws'' =
-        eval_net_application  (bs_a@bs_f,ws_a@ws_f) senv expr.ne_loc val_fn [] val_arg in
+        eval_net_application  (bs_a@bs_f,ws_a@ws_f) senv expr.ne_loc val_fn val_arg in
       r, bs'' @ bs_a @ bs_f, ws'' @ ws_a @ ws_f
-  | NApp2 (fn, params, arg) ->
-      let val_fn, bs_f, ws_f = eval_net_expr  senv fn in
-      begin
-        match val_fn with
-        | SVAct a
-        | SVGraph a ->
-           let val_params, bs_p, ws_p = List.fold_left (eval_net_param senv) ([],[],[]) params in
-           let val_arg, bs_a, ws_a = eval_net_expr  senv arg in
-           let r, bs'', ws'' =
-             eval_net_application  (bs_a@bs_f,ws_a@ws_f) senv expr.ne_loc val_fn val_params val_arg in
-           r, bs'' @ bs_a @ bs_f @ bs_p, ws'' @ ws_a @ ws_f @ ws_p
-        | _ ->
-           illegal_application expr.ne_loc (* Only actors and graphs can take parameters *)
-      end
+  (* | NApp2 (fn, params, arg) ->
+   *     let val_fn, bs_f, ws_f = eval_net_expr  senv fn in
+   *     begin
+   *       match val_fn with
+   *       | SVAct a
+   *       | SVGraph a ->
+   *          let val_params, bs_p, ws_p = List.fold_left (eval_net_param senv) ([],[],[]) params in
+   *          let val_arg, bs_a, ws_a = eval_net_expr  senv arg in
+   *          let r, bs'', ws'' =
+   *            eval_net_application  (bs_a@bs_f,ws_a@ws_f) senv expr.ne_loc val_fn val_params val_arg in
+   *          r, bs'' @ bs_a @ bs_f @ bs_p, ws'' @ ws_a @ ws_f @ ws_p
+   *       | _ ->
+   *          illegal_application expr.ne_loc (\* Only actors and graphs can take parameters *\)
+   *     end *)
   | NFun (npat,nexp) ->
       SVClos {cl_pat=npat; cl_exp=nexp; cl_env=senv}, [], []
   | NLet (isrec, defns, body) ->
@@ -589,22 +597,22 @@ let rec eval_net_expr  senv expr =
       let v', bs'', ws'' = seq_match bs in
       v', bs'@bs'', ws'@ws''
 
-and eval_net_application  (bs,ws) senv loc val_fn val_params val_arg = 
-  match val_fn, val_params, val_arg with
-  | SVClos {cl_pat=npat; cl_exp=nexp; cl_env=nenv'}, [], _ ->   (* Closures cannot have parameters *)
+and eval_net_application  (bs,ws) senv loc val_fn val_arg = 
+  match val_fn, val_arg with
+  | SVClos {cl_pat=npat; cl_exp=nexp; cl_env=nenv'}, _ ->
       let nenv'', _ =
-        begin try net_matching [] (*[]*) npat val_arg
+        begin try net_matching [] npat val_arg
         with Matching_fail -> binding_error npat.np_loc
         end in
       eval_net_expr  (nenv'' @ nenv') nexp
       (* TO FIX: adding [senv] here creates duplicates since all the scoped symbols are already in [cl_env] (?) *)
       (* eval_net_expr  (augment_env (nenv'' @ nenv') senv) nexp *)
-  | SVAct a, _, _ -> 
+  | SVAct (a, val_params), _ -> 
      instanciate_actor_or_graph ActorB  senv loc a val_params val_arg
-  | SVGraph a, _, _ -> 
+  | SVGraph (a, val_params), _ -> 
      instanciate_actor_or_graph GraphB  senv loc a val_params val_arg
-  | SVPrim f, [], _ -> f val_arg, [], [] 
-  | _, _, _ ->
+  | SVPrim f, _ -> f val_arg, [], [] 
+  | _, _ ->
      illegal_application loc
 
 and eval_net_param senv (acc,bs,ws) expr =
@@ -984,7 +992,7 @@ let eval_graph_decl tp (acc,senv) { g_desc=g } =
     | GD_Fun desc -> eval_fun_graph_desc tp senv intf desc
     end in
   let acc' = (g.g_id, { sg_boxes=boxes; sg_wires=wires }) :: acc in
-  let senv' = senv |> augment_env [g.g_id, SVGraph (build_static_box g.g_id intf)] in
+  let senv' = senv |> augment_env [g.g_id, SVGraph (build_static_box g.g_id intf, [])] in
   acc', senv'
   
 let eval_gval_decl senv { nd_desc=d; nd_loc=loc } = match d with
@@ -998,7 +1006,7 @@ let eval_gval_decl senv { nd_desc=d; nd_loc=loc } = match d with
 let build_static tp senv p =
   let senv_f = List.fold_left eval_gval_decl senv p.gvals in
   let actors  = List.map (build_actor_desc tp) p.actors in
-  let senv_a = senv_f |> augment_env (List.map (fun (id,a) -> id, SVAct a.sa_desc) actors) in
+  let senv_a = senv_f |> augment_env (List.map (fun (id,a) -> id, SVAct (a.sa_desc, [])) actors) in
   let graphs, senv_g =
     List.fold_left 
       (eval_graph_decl tp)

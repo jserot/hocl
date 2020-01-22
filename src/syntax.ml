@@ -151,8 +151,9 @@ and net_expr =
 
 and net_expr_desc =
    | NVar of string
+   | NPVar of string * core_expr list
    | NApp of net_expr * net_expr
-   | NApp2 of net_expr * core_expr list * net_expr
+   (* | NApp2 of net_expr * core_expr list * net_expr *)
    | NTuple of net_expr list
    | NLet of bool * net_binding list * net_expr (* rec / non rec*)
    | NFun of net_pattern * net_expr (* single match here ! *)
@@ -226,9 +227,11 @@ let rec string_of_net_expr ne = string_of_net_exp ne.ne_desc
 
 and string_of_net_exp = function
    | NVar v -> v
+   | NPVar (v,ps) ->
+      v ^ "<" ^ Misc.string_of_list string_of_core_expr "," ps ^ ">"
    | NApp (e1,e2) -> string_of_net_expr e1 ^ " " ^ string_of_net_expr e2
-   | NApp2 (e1,ces,e2) ->
-      string_of_net_expr e1 ^ "{" ^ Misc.string_of_list string_of_core_expr "," ces ^ "}" ^ " " ^ string_of_net_expr e2
+   (* | NApp2 (e1,ces,e2) ->
+    *    string_of_net_expr e1 ^ "{" ^ Misc.string_of_list string_of_core_expr "," ces ^ "}" ^ " " ^ string_of_net_expr e2 *)
    | NTuple es -> "(" ^ Misc.string_of_list string_of_net_expr "," es ^ ")"
    | NLet (isrec,nbs,e) ->
          "let " ^ if isrec then "rec " else " " ^  Misc.string_of_list string_of_net_binding "and" nbs

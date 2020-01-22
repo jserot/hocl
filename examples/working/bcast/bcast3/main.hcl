@@ -11,8 +11,7 @@ actor bar param (k: int) in (i: t) out (o: t);
 
 graph top param (p: int) in (i: t) out (o: t)
 fun
-  -- val o  = i |> foo<p> |> bar<p>
-  val o  = i |> foo<p>  -- TO FIX ! Syntax error
+  val o  = i |> foo<p> |> bar<p>
 end;
 
 -- #pragma code("inp", "include/input.h", "input", "inputInit")

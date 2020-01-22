@@ -11,7 +11,7 @@ end;
 
 graph top_f in (i: t) out (o: t)
 fun
-  val o = foo<1,2> i
+  val o = i |> foo<1,2>
 end;
 
 -- #pragma code("inp", "include/input.h", "input", "inputInit")

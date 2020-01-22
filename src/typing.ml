@@ -241,6 +241,12 @@ let rec type_net_expression genv expr =
   let ty = match expr.ne_desc with
   | NVar id ->
      type_instance (lookup_value expr.ne_loc genv id)
+  | NPVar(id, pvs) ->
+      let ty_fn = type_instance (lookup_value expr.ne_loc genv id) in
+      let ty_params = type_product (List.map (type_core_expression genv) pvs) in
+      let ty_result = new_type_var () in
+      try_unify "expression" ty_fn (type_arrow ty_params ty_result) expr.ne_loc;
+      ty_result
   | NTuple es ->
      type_product (List.map (type_net_expression genv) es)
   | NApp(fn, arg) ->
@@ -249,13 +255,13 @@ let rec type_net_expression genv expr =
       let ty_result = new_type_var () in
       try_unify "expression" ty_fn (type_arrow ty_arg ty_result) expr.ne_loc;
       ty_result
-  | NApp2(fn, pvs, arg) ->
-      let ty_fn = type_net_expression genv fn in
-      let ty_params = type_product (List.map (type_core_expression genv) pvs) in
-      let ty_arg = type_net_expression genv arg in
-      let ty_result = new_type_var () in
-      try_unify "expression" ty_fn (type_arrow2 ty_params ty_arg ty_result) expr.ne_loc;
-      ty_result
+  (* | NApp2(fn, pvs, arg) ->
+   *     let ty_fn = type_net_expression genv fn in
+   *     let ty_params = type_product (List.map (type_core_expression genv) pvs) in
+   *     let ty_arg = type_net_expression genv arg in
+   *     let ty_result = new_type_var () in
+   *     try_unify "expression" ty_fn (type_arrow2 ty_params ty_arg ty_result) expr.ne_loc;
+   *     ty_result *)
   | NFun (pat,exp) ->
       let ty_argument = new_type_var ()
       and ty_result = new_type_var () in

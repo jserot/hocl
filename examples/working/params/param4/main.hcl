@@ -13,5 +13,5 @@ graph top in (i1: t, i2:t) out (o1: t, o2: t)
 fun
   val ff n x = g<n+1> x
   val o1 = ff 1 i1  -- Indirect parameter passing, via function [ff]
-  val o2 = sub<4> i2  -- Direct parameter passing via a graph parameter
+  val o2 = i2 |> sub<4> -- Direct parameter passing via a graph parameter
 end;
