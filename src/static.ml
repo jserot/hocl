@@ -322,12 +322,17 @@ let rec eval_param_expr senv expr =
   | EBinop (_,e1,e2) ->
      extract_param_deps senv dst e1 @ extract_param_deps senv dst e2
 
+let string_of_box_tag t = match t with
+  | EBcastB -> "EBcast"
+  | _ -> "other"
+
 let eval_node_decl gid tp (senv,bs,ws) { gn_desc = nid, n; gn_loc = loc } =
   let lookup id =
     try List.assoc id senv
     with Not_found -> Misc.fatal_error "Static.eval_node_decl.lookup" in
   let update senv k v = Misc.assoc_update k v senv in
   let a, tag = match lookup n.gn_name with
+    | SVAct (a,_) when a.sb_kind=BBcast -> a, EBcastB
     | SVAct (a,_) -> a, ActorB
     | SVGraph (a,_) -> a, GraphB
     | _ -> illegal_node_instanciation loc in
@@ -608,9 +613,9 @@ and eval_net_application  (bs,ws) senv loc val_fn val_arg =
       (* TO FIX: adding [senv] here creates duplicates since all the scoped symbols are already in [cl_env] (?) *)
       (* eval_net_expr  (augment_env (nenv'' @ nenv') senv) nexp *)
   | SVAct (a, val_params), _ -> 
-     instanciate_actor_or_graph ActorB  senv loc a val_params val_arg
+     instanciate_actor_or_graph ActorB senv loc a val_params val_arg
   | SVGraph (a, val_params), _ -> 
-     instanciate_actor_or_graph GraphB  senv loc a val_params val_arg
+     instanciate_actor_or_graph GraphB senv loc a val_params val_arg
   | SVPrim f, _ -> f val_arg, [], [] 
   | _, _ ->
      illegal_application loc
@@ -726,7 +731,7 @@ and apply_subst ((i,s),(i',s')) (wid,((src,dst),ty,b)) =
 
 (* Auxilliaries *)
 
-and instanciate_actor_or_graph tag  nenv loc a params args =
+and instanciate_actor_or_graph tag nenv loc a params args =
   let is_real_io (id,ty,_,_) = not (is_unit_type ty) in
   let bparams =
     List.map
@@ -740,7 +745,8 @@ and instanciate_actor_or_graph tag  nenv loc a params args =
     List.map
       (fun (id,ty,rate,ann) -> (id,([0],ty,rate,ann)))
       (List.filter is_real_io a.sb_outs) in
-  let l, b = new_box tag a.sb_id (type_instance a.sb_typ) (bparams @ bins) bouts in
+  let tag' = match a.sb_kind with BRegular -> tag | BBcast -> EBcastB in
+  let l, b = new_box tag' a.sb_id (type_instance a.sb_typ) (bparams @ bins) bouts in
   let mk_wire kind dst v = match v with
     SVLoc(i,j,ty,_) -> new_wid(), (((i,j),dst),ty,kind)
   | _ -> illegal_application loc in
@@ -969,8 +975,9 @@ let insert_bcasters after_boxes sp =
 
 (* Graph evaluator *)
 
-let build_static_box id intf = {
+let build_static_box id kind intf = {
       sb_id = id;
+      sb_kind = kind;
       sb_params = List.map (fun (id,ty) -> id, ty) intf.t_params;
       sb_ins = List.map (fun (id,(ty,re,ann)) -> id,ty,re,ann) intf.t_ins;
       sb_outs = List.map (fun (id,(ty,re,ann)) -> id,ty,re,ann) intf.t_outs;
@@ -978,8 +985,9 @@ let build_static_box id intf = {
 
 let rec build_actor_desc tp { ad_desc = a } =
   let intf = List.assoc a.a_id tp.tp_actors in
+  let kind = match a.a_kind with ARegular -> BRegular | ABcast -> BBcast in
   a.a_id,
-  { sa_desc = build_static_box a.a_id intf;
+  { sa_desc = build_static_box a.a_id kind intf;
     sa_insts = [] }
 
 let eval_graph_decl tp (acc,senv) { g_desc=g } =
@@ -992,7 +1000,7 @@ let eval_graph_decl tp (acc,senv) { g_desc=g } =
     | GD_Fun desc -> eval_fun_graph_desc tp senv intf desc
     end in
   let acc' = (g.g_id, { sg_boxes=boxes; sg_wires=wires }) :: acc in
-  let senv' = senv |> augment_env [g.g_id, SVGraph (build_static_box g.g_id intf, [])] in
+  let senv' = senv |> augment_env [g.g_id, SVGraph (build_static_box g.g_id BRegular intf, [])] in
   acc', senv'
   
 let eval_gval_decl senv { nd_desc=d; nd_loc=loc } = match d with

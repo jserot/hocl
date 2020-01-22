@@ -44,8 +44,8 @@
 %token TY_NAT         (* "nat"*)
 %token TY_BOOL        (* "bool"*)
 %token TY_UNIT        (* "unit"*)
-(* %token BCAST          (\* "bcast"*\)
- * %token DELAY          (\* "delay"*\) *)
+%token BCAST          (* "bcast"*)
+(* %token DELAY          (\* "delay"*\) *)
 %token GRAPH          (* "graph"*)
 %token ACTOR          (* "actor"*)
 %token PARAM          (* "param"*)
@@ -225,8 +225,12 @@ gval_decl:
 (* ACTOR DECLARATION *)
 
 actor_decl:
-   ACTOR id=IDENT params=opt_params IN inps=io_decls OUT outps=io_decls 
-    { mk_actor_decl $loc { a_id=id; a_params=params; a_ins=inps; a_outs=outps } }
+   kind=actor_kind id=IDENT params=opt_params IN inps=io_decls OUT outps=io_decls 
+    { mk_actor_decl $loc { a_id=id; a_kind=kind; a_params=params; a_ins=inps; a_outs=outps } }
+
+actor_kind:
+  | ACTOR { ARegular }
+  | BCAST { ABcast }
 
 opt_params:
   | (* Nothing *) { [] }

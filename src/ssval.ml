@@ -49,12 +49,15 @@ and sv_loc = idx * sel
 
 and sv_box = {   (* Instanciable "box" (actor or graph) *)
     sb_id: string;
+    sb_kind: sv_box_kind;
     sb_params: (string * typ) list;
     sb_ins: (string * typ * Syntax.rate_expr option * Syntax.io_annot option) list;
     sb_outs: (string * typ * Syntax.rate_expr option * Syntax.io_annot option) list;
     sb_typ: typ_scheme;
 }
 
+and sv_box_kind = BRegular | BBcast
+                           
 and sv_wire = (sv_loc * sv_loc) * typ * wire_kind   (* src, dest, type, kind *)
 
 and wire_kind =

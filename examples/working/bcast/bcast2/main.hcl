@@ -9,7 +9,7 @@ bcast bc param (k: int) in (i: t) out (o1: t, o2: t);
 
 graph top param (k1: int) in (i: t) out (o1: t, o2: t)
 fun
-  val (x1,x2) = i |> bc k1
+  val (x1,x2) = i |> bc<k1>
   val (o1,o2) = foo1 x1, foo2 x2
 end;
 

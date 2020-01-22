@@ -47,11 +47,14 @@ and actor_decl =
 
 and actor_desc = {
     a_id: string;
+    a_kind: actor_kind;
     a_params: param_decl list;
     a_ins: io_decl list;
     a_outs: io_decl list
   }
 
+and actor_kind = ARegular | ABcast
+                          
 and param_decl =
   { pm_desc: param_desc;
     pm_loc: location }
@@ -330,9 +333,11 @@ let string_of_type_decl d = match d.td_desc with
 let string_of_io_decl {io_desc=id,ty,_,_} = id ^ ": " ^ string_of_ty_expr ty
 let string_of_param_decl {pm_desc=id,ty} = id ^ ": " ^ string_of_ty_expr ty
                                
+let string_of_actor_kind = function ARegular -> "actor" | ABcast -> "bcast"
+                                                                  
 let string_of_actor_decl d =
   let a = d.ad_desc in
-  "actor " ^ a.a_id
+  string_of_actor_kind a.a_kind ^ " " ^ a.a_id
     ^ " params (" ^ Misc.string_of_list string_of_param_decl ", " a.a_params ^ ")"
     ^ " in (" ^ Misc.string_of_list string_of_io_decl ", " a.a_ins ^ ")"
     ^ " out (" ^ Misc.string_of_list string_of_io_decl ", " a.a_outs ^ ")"
