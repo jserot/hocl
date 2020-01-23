@@ -8,7 +8,7 @@ GENERAL
   . preesm (for code generation on HMC platforms)
   . caph (for code generation on HW platforms (with actors described in VHDL))
   . cal (?)
-- write backend-specific informations in separate files (ex: main.preesm, main.caph, ...)
+- interface/implementation-based descriptions
 - make all examples simulable in SystemC
 
 COMPILER
@@ -34,6 +34,7 @@ PI2HCL
 - port annotations (vs. expr)
 
 DOC
+- rewrite all doc with the 1.0 syntax
 - update tutorial with support for bcast and bcast nodes
 - add a section on recursive fns/graphs (with example [misc/recfilt])
 
