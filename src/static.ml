@@ -70,9 +70,9 @@ and ss_box = {
     b_name: string;                  (* For regular (resp. param) boxes, name of the instanciated actor (resp. param) *)
     b_typ: typ;                      (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
     b_params: (string * (wid * typ)) list;  (* TODO : get rid of this : parameters are then viewed as inputs ! *)
-    b_ins: (string * (wid * typ * Syntax.rate_expr option * Syntax.io_annot option)) list;
+    b_ins: (string * (wid * typ * Syntax.io_annot list)) list;
     (* TODO : merge b_params and b_ins with a flag for discrimating the former from the latter ? *)
-    b_outs: (string * (wid list * typ * Syntax.rate_expr option * Syntax.io_annot option)) list;
+    b_outs: (string * (wid list * typ * Syntax.io_annot list)) list;
     mutable b_val: b_val;            (* For parameter boxes *)
 }
 
@@ -167,7 +167,7 @@ let new_param_box name tag ty v =
 
 let new_dummy_box name ty =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=DummyB; b_name=name; b_params=[]; b_ins=[]; b_outs=["r",([0],ty,None,None)]; b_typ=ty; b_val=no_bval }
+  bid, { b_id=bid; b_tag=DummyB; b_name=name; b_params=[]; b_ins=[]; b_outs=["r",([0],ty,[])]; b_typ=ty; b_val=no_bval }
 
 let boxes_of_wire boxes (((s,ss),(d,ds)),ty,_) = 
   try
@@ -189,11 +189,11 @@ let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * wire_kind)) li
      | ActorB | IBcastB | EBcastB | GraphB (* | DelayB *) ->
         { b with
           b_ins = List.mapi
-                        (fun sel (id,(_,ty,rate,ann)) -> id, (find_src_wire wires bid sel, ty, rate, ann))
-                        (List.filter (fun (id,(_,ty,_,_)) -> not (is_unit_type ty)) b.b_ins);
+                        (fun sel (id,(_,ty,anns)) -> id, (find_src_wire wires bid sel, ty, anns))
+                        (List.filter (fun (id,(_,ty,_)) -> not (is_unit_type ty)) b.b_ins);
           b_outs = List.mapi
-                      (fun sel (id,(_,ty,rate,ann)) -> id, (find_dst_wire wires bid sel, ty, rate, ann))
-                      (List.filter (fun (id,(_,ty,_,_)) -> not (is_unit_type ty)) b.b_outs) }
+                      (fun sel (id,(_,ty,anns)) -> id, (find_dst_wire wires bid sel, ty, anns))
+                      (List.filter (fun (id,(_,ty,_)) -> not (is_unit_type ty)) b.b_outs) }
      | SourceB -> 
         { b with b_outs = add_source_outputs wires b.b_name bid }
      | SinkB -> 
@@ -214,7 +214,7 @@ and add_source_outputs wires bname bid =
       wires in
   match ws with
     [] -> []
-  | (_,(_,ty,_))::_ -> [bname, (List.map fst ws, ty, None, None)]
+  | (_,(_,ty,_))::_ -> [bname, (List.map fst ws, ty, [])]
 
 and add_sink_inputs wires bname bid =
   let ws =
@@ -223,15 +223,15 @@ and add_sink_inputs wires bname bid =
       wires in
   match ws with
     [] -> []
-  | [(wid,(_,ty,_))] -> [bname, (wid, ty, None, None)]
-  | _ -> List.mapi (fun i (wid,(_,ty,_)) -> bname ^ string_of_int (i+1), (wid, ty, None, None)) ws
+  | [(wid,(_,ty,_))] -> [bname, (wid, ty, [])]
+  | _ -> List.mapi (fun i (wid,(_,ty,_)) -> bname ^ string_of_int (i+1), (wid, ty, [])) ws
 
 and add_param_inputs wires bid =
   let ws =
     List.filter
       (function (wid, (((s,ss),(d,ds)), ty, kind)) -> d=bid && ds=0 && kind=ParamW)
       wires in
-  List.mapi (fun i (wid,(_,ty,_)) -> "i" ^ string_of_int (i+1), (wid, ty, None, None)) ws
+  List.mapi (fun i (wid,(_,ty,_)) -> "i" ^ string_of_int (i+1), (wid, ty, [])) ws
 
 and add_param_outputs wires bid =
   let ws =
@@ -240,7 +240,7 @@ and add_param_outputs wires bid =
       wires in
   match ws with
     [] -> []
-  | (_,(_,ty,_))::_ -> ["o", (List.map fst ws, ty, None, None)]
+  | (_,(_,ty,_))::_ -> ["o", (List.map fst ws, ty, [])]
 
 and find_src_wire wires bid sel =
   let find wids (wid, ((_,(d,ds)),_,_)) = if d=bid && ds=sel then wid::wids else wids in
@@ -336,17 +336,17 @@ let eval_node_decl gid tp (senv,bs,ws) { gn_desc = nid, n; gn_loc = loc } =
     | SVAct (a,_) -> a, ActorB
     | SVGraph (a,_) -> a, GraphB
     | _ -> illegal_node_instanciation loc in
-  let is_real_io (id,ty,_,_) = not (is_unit_type ty) in
+  let is_real_io (id,ty,_) = not (is_unit_type ty) in
   let bins =
       List.map
-      (fun (id,ty) -> (id,(0,ty,None,None)))
+      (fun (id,ty) -> (id,(0,ty,[])))
       a.sb_params
     @ List.map
-      (fun (id,ty,rate,ann) -> (id,(0,ty,rate,ann)))
+      (fun (id,ty,anns) -> (id,(0,ty,anns)))
       (List.filter is_real_io  a.sb_ins) in
   let bouts =
     List.map
-      (fun (id,ty,rate,ann) -> (id,([0],ty,rate,ann)))
+      (fun (id,ty,anns) -> (id,([0],ty,anns)))
       (List.filter is_real_io  a.sb_outs) in
   let ty = Typing.lookup_node (gid,nid) tp in
   let l, b = new_box tag a.sb_id ty (*[]*) bins bouts in
@@ -419,7 +419,7 @@ let rec eval_param_decl (env,boxes) (id,ty) =
   (id,SVLoc (l,0,ty,SV_Param)) :: env,
   (l,b) :: boxes
 
-let eval_io_decl tag (env,boxes) (id,(ty,_,_)) =
+let eval_io_decl tag (env,boxes) (id,(ty,_)) =
     let l, b = new_io_box tag id ty in
     let tag' = match tag with SourceB -> SV_Source | SinkB -> SV_Sink | _ -> SV_None in
     (id,SVLoc (l,0,ty,tag')) :: env,
@@ -433,7 +433,7 @@ let check_wire gid (id,sv) = match sv with
   | SVWire (wid,((src,dst),_,_)) when src=sv_no_loc || dst=sv_no_loc -> incomplete_wire gid id 
   | _ -> ()
 
-let is_real_io (id,(ty,_,_)) = not (is_unit_type ty)
+let is_real_io (id,(ty,_)) = not (is_unit_type ty)
 
 let eval_struct_graph_desc gid tp senv intf g =
  let env_p, bs_p = List.fold_left eval_param_decl ([],[]) intf.t_params in
@@ -732,18 +732,18 @@ and apply_subst ((i,s),(i',s')) (wid,((src,dst),ty,b)) =
 (* Auxilliaries *)
 
 and instanciate_actor_or_graph tag nenv loc a params args =
-  let is_real_io (id,ty,_,_) = not (is_unit_type ty) in
+  let is_real_io (id,ty,_) = not (is_unit_type ty) in
   let bparams =
     List.map
-      (fun (id,ty) -> (id,(0,ty,None,None)))
+      (fun (id,ty) -> (id,(0,ty,[])))
       a.sb_params in
   let bins =
     List.map
-      (fun (id,ty,rate,ann) -> (id,(0,ty,rate,ann)))
+      (fun (id,ty,anns) -> (id,(0,ty,anns)))
       (List.filter is_real_io a.sb_ins) in
   let bouts =
     List.map
-      (fun (id,ty,rate,ann) -> (id,([0],ty,rate,ann)))
+      (fun (id,ty,anns) -> (id,([0],ty,anns)))
       (List.filter is_real_io a.sb_outs) in
   let tag' = match a.sb_kind with BRegular -> tag | BBcast -> EBcastB in
   let l, b = new_box tag' a.sb_id (type_instance a.sb_typ) (bparams @ bins) bouts in
@@ -752,8 +752,8 @@ and instanciate_actor_or_graph tag nenv loc a params args =
   | _ -> illegal_application loc in
   (* let tyins' = list_of_types (List.map Misc.snd4 a.sb_ins) in
    * let tyouts' = list_of_types (List.map Misc.snd4 a.sb_outs) in *)
-  let tyins' = List.map Misc.snd4 a.sb_ins in
-  let tyouts' = List.map Misc.snd4 a.sb_outs in
+  let tyins' = List.map Misc.snd3 a.sb_ins in
+  let tyouts' = List.map Misc.snd3 a.sb_outs in
   let wps = 
     List.mapi
       (fun i v -> mk_wire ParamW (l,i) v)
@@ -767,7 +767,7 @@ and instanciate_actor_or_graph tag nenv loc a params args =
        end
     | _, _ -> args in
   (* let args' = args in *)
-  let type_of (_,(_,ty,_,_)) = ty in
+  let type_of (_,(_,ty,_)) = ty in
   match bins, bouts, args' with
   | [], [], SVUnit ->                                                 (* APP_0_0 *)
      SVUnit,
@@ -872,9 +872,9 @@ let eval_fun_graph_desc tp senv intf defns =
 
 let new_bcast_box ty wid wids =
   let bid = new_bid () in
-  let bos = List.mapi (fun i wid -> "o_" ^ string_of_int (i+1), ([wid],ty,None,None)) wids in 
+  let bos = List.mapi (fun i wid -> "o_" ^ string_of_int (i+1), ([wid],ty,[])) wids in 
   bid, { b_id=bid; b_tag=IBcastB; b_name=cfg.bcast_name; b_params=[];
-         b_ins=["i",(wid,ty,None,None)]; b_outs=bos; b_typ=ty; b_val=no_bval }
+         b_ins=["i",(wid,ty,[])]; b_outs=bos; b_typ=ty; b_val=no_bval }
 
 let rec is_bcast_box boxes bid = (find_box boxes bid).b_name = cfg.bcast_name
 
@@ -884,12 +884,12 @@ and find_box boxes bid =
 
 let rec insert_bcast bid oidx (boxes,wires,box) bout = 
   match bout with
-  | (id, ([],_,_,_)) -> boxes, wires, box       (* should not happen ? *)
-  | (id, ([wid],_,_,_)) -> boxes, wires, box    (* no need to insert here *)
-  | (id, (wids,ty,rate,ann)) ->                 (* the relevant case : a box output connected to several wires *)
+  | (id, ([],_,_)) -> boxes, wires, box       (* should not happen ? *)
+  | (id, ([wid],_,_)) -> boxes, wires, box    (* no need to insert here *)
+  | (id, (wids,ty,anns)) ->                 (* the relevant case : a box output connected to several wires *)
       let wid' = new_wid () in
       let m, mb = new_bcast_box ty wid' wids in
-      let box' = { box with b_outs = Misc.assoc_replace id (function _ -> [wid'],ty,rate,ann) box.b_outs } in
+      let box' = { box with b_outs = Misc.assoc_replace id (function _ -> [wid'],ty,anns) box.b_outs } in
       let wires' = Misc.foldl_index (update_wires m) wires wids in
       let boxes' = Misc.assoc_replace bid (function b -> box') boxes in
       (m,mb) :: boxes', (wid',(((bid,oidx),(m,0)),ty,get_wire_kind wires (List.hd wids))) :: wires', box'
@@ -979,8 +979,8 @@ let build_static_box id kind intf = {
       sb_id = id;
       sb_kind = kind;
       sb_params = List.map (fun (id,ty) -> id, ty) intf.t_params;
-      sb_ins = List.map (fun (id,(ty,re,ann)) -> id,ty,re,ann) intf.t_ins;
-      sb_outs = List.map (fun (id,(ty,re,ann)) -> id,ty,re,ann) intf.t_outs;
+      sb_ins = List.map (fun (id,(ty,anns)) -> id,ty,anns) intf.t_ins;
+      sb_outs = List.map (fun (id,(ty,anns)) -> id,ty,anns) intf.t_outs;
       sb_typ = intf.t_sig }
 
 let rec build_actor_desc tp { ad_desc = a } =
@@ -1037,13 +1037,12 @@ let build_static tp senv p =
 
 let dump_gfun (id,v) = Printf.printf "%s: %s\n" id (string_of_ssval v)
                       
-let string_of_typed_bin (id,(wid,ty,_,_)) = id ^ ":" ^ string_of_type ty ^ "(<-W" ^ string_of_int wid ^ ")"
-let string_of_typed_bout (id,(wids,ty,_,_)) = 
+let string_of_typed_bin (id,(wid,ty,_)) = id ^ ":" ^ string_of_type ty ^ "(<-W" ^ string_of_int wid ^ ")"
+let string_of_typed_bout (id,(wids,ty,_)) = 
     id ^ ":" ^ string_of_type ty ^ "(->["
   ^ (Misc.string_of_list (function wid -> "W" ^ string_of_int wid) "," wids) ^ "])"
 
-let string_of_typed_io (id,ty,rate,ann) =
-  id ^ ":" ^ string_of_type ty (*^ Syntax.string_of_io_rate rate ^ Syntax.string_of_io_annot ann*)
+let string_of_typed_io (id,ty,anns) = id ^ ":" ^ string_of_type ty ^ Syntax.string_of_io_annots anns
 let string_of_opt_value = function None -> "?" | Some v -> string_of_ssval v
 let string_of_typed_param (id,ty) = id ^ ":" ^ string_of_type ty 
 

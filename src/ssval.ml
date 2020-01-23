@@ -51,8 +51,8 @@ and sv_box = {   (* Instanciable "box" (actor or graph) *)
     sb_id: string;
     sb_kind: sv_box_kind;
     sb_params: (string * typ) list;
-    sb_ins: (string * typ * Syntax.rate_expr option * Syntax.io_annot option) list;
-    sb_outs: (string * typ * Syntax.rate_expr option * Syntax.io_annot option) list;
+    sb_ins: (string * typ * Syntax.io_annot list) list;
+    sb_outs: (string * typ * Syntax.io_annot list) list;
     sb_typ: typ_scheme;
 }
 

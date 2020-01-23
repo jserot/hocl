@@ -52,6 +52,8 @@ let keyword_table = [
   "if", IF;
   "then", THEN;
   "else", ELSE;
+  "rate", RATE;
+  "other", OTHER;
   (* "initially", INITIALLY; *)
 ]
 
@@ -117,8 +119,8 @@ rule main = parse
   | "]" { RBRACKET }
   | "(" { LPAREN }
   | ")" { RPAREN }
-  (* | "{" { LBRACE }
-   * | "}" { RBRACE } *)
+  | "{" { LBRACE }
+  | "}" { RBRACE }
   | "*" { STAR }
   | "," { COMMA }
   | "->" { ARROW }

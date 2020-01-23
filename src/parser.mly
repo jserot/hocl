@@ -19,7 +19,7 @@
 %token <string> INFIX2
 %token <string> INFIX3
 %token <int> INT
-(* %token <string> STRING *)
+%token <string> STRING
 %token EOF
 %token EQUAL          (* "="*)
 %token NOTEQUAL       (* "!="*)
@@ -27,8 +27,8 @@
 %token LESS           (* "<" *)
 %token LPAREN         (* "("*)
 %token RPAREN         (* ")"*)
-(* %token LBRACE         (\* "{"*\)
- * %token RBRACE         (\* "}"*\) *)
+%token LBRACE         (* "{"*)
+%token RBRACE         (* "}"*)
 %token STAR           (* "*"*)
 %token COMMA          (* ","*)
 %token ARROW   (* "->"*)
@@ -67,6 +67,8 @@
 %token ELSE           (* "else"*)
 %token TRUE           (* "true"*)
 %token FALSE          (* "false"*)
+%token RATE           (* "rate"*)
+%token OTHER          (* "other"*)
 (* %token INITIALLY      (\* "initially"*\) *)
 (* %token PRAGMA         /* "#pragma" */ *)
 
@@ -244,9 +246,18 @@ io_decls:
   | LPAREN ios=my_separated_list(COMMA, io_decl) RPAREN { ios }
 
 io_decl:
-  id=IDENT COLON t=simple_type_expr (* rate=io_rate ann=io_annot *)
-    { mk_io_decl $loc (id, t, None, None) }
+  id=IDENT COLON t=simple_type_expr anns=opt_io_annots
+    { mk_io_decl $loc (id, t, anns) }
      
+opt_io_annots:
+  | (* Nothing *) { [] }
+  | LBRACKET e=core_expr RBRACKET { [IA_Rate e] }
+  | LBRACE anns=my_separated_list(COMMA, io_annot) RBRACE { anns }
+
+io_annot:
+  | RATE EQUAL e=core_expr { IA_Rate e }
+  | OTHER EQUAL s=STRING { IA_Other s }
+                  
 (* CORE EXPRESSIONS *)
 
 core_expr:

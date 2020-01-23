@@ -65,9 +65,11 @@ and io_decl =
   { io_desc: io_desc;
     io_loc: location }
 
-and io_desc = string * type_expression * rate_expr option * io_annot option
+and io_desc = string * type_expression * io_annot list
 
-and io_annot = string
+and io_annot =
+  IA_Rate of rate_expr
+| IA_Other of string
              
 and graph_decl = 
   { g_desc: graph_desc;
@@ -315,22 +317,17 @@ let subst_core_expr vs e =
 
 let string_of_rate_expr = string_of_core_expr
 
-(* let string_of_io_rate r = match r with
- *     None -> ""
- *   | Some re -> string_of_rate_expr re 
- * 
- * let string_of_io_annot r = match r with
- *     None -> ""
- *   | Some s -> "{" ^ s ^ "}" *)
-       
-(* let string_of_io_annot = function
- *     { ne_desc=NUnit } -> ""
- *   | e -> "{" ^ string_of_net_expr e ^ "}" *)
+let string_of_io_annot = function
+  | IA_Rate e -> "rate=" ^ string_of_rate_expr e
+  | IA_Other s -> "other=" ^ s
+let string_of_io_annots = function
+    [] -> ""
+  | anns -> "{" ^ Misc.string_of_list string_of_io_annot "," anns ^ "}"
 
 let string_of_type_decl d = match d.td_desc with
   | Opaque_type_decl id -> id
 
-let string_of_io_decl {io_desc=id,ty,_,_} = id ^ ": " ^ string_of_ty_expr ty
+let string_of_io_decl {io_desc=id,ty,anns} = id ^ ": " ^ string_of_ty_expr ty ^ string_of_io_annots anns
 let string_of_param_decl {pm_desc=id,ty} = id ^ ": " ^ string_of_ty_expr ty
                                
 let string_of_actor_kind = function ARegular -> "actor" | ABcast -> "bcast"
