@@ -129,6 +129,7 @@ rule main = parse
   | "=" { EQUAL }
   | "!=" { NOTEQUAL }
   | "::" { COLONCOLON }
+  | "@@"    { INFIX0 "@@" }
   | "|>"    { INFIX0 "|>" }
   | "|->"    { INFIX0 "|->" }
   | ">" { GREATER }

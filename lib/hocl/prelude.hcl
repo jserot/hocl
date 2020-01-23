@@ -16,6 +16,10 @@ val (|->) i f = f (i ());
 --                                      \---v---/
 --                                       n times
 
+-- [@@] is the classical function composition operator
+
+val ( @@ ) g f x = g (f x);
+
 val rec repl n x =
   if n=0 then []
   else x :: repl (n-1) x
