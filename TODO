@@ -16,6 +16,8 @@ COMPILER
   is currently restricted by the lexer)
 - make processing of prelude automatic by default (with an option [-no_prelude])
 - check rate expressions on ports when present (type must be int and all vars occuring must be parameters)
+- define a HOWF in the prelude for describing cyclic subgraphs (?)
+- "delay" specific keyword for delay actors (instead of "actor") ?
 - clarify the description of "src" and "snk" nodes in .pi files concerning the cfg inputs :
   + preesm seems to accept the explicit form ...
   + ... but some examples in the repo (ex: SIFT) seem to omit the decl of cfg input ports in src and snk nodes ..
