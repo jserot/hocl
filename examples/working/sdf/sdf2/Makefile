@@ -1,7 +1,6 @@
-PROJ=mini
 SRCS=main.hcl
-MAIN=main
-DOT_OPTS=
+GEN_OPTS=-prelude ../../../../lib/hocl/prelude.hcl
+DOT_OPTS=-dot_slotted_boxes
 PREESM_REP=/Users/jserot/Desktop/SF2/preesm-dev
 PREESM_OPTS=-target_dir preesm
 SYSTEMC_OPTS=-target_dir systemc -sc_stop_time 100

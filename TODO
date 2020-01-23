@@ -15,7 +15,6 @@ COMPILER
 - allow arbitrary infix operators to be defined in prelude or elsewhere (the set of such operators
   is currently restricted by the lexer)
 - make processing of prelude automatic by default (with an option [-no_prelude])
-- check rate expressions on ports when present (type must be int and all vars occuring must be parameters)
 - define a HOWF in the prelude for describing cyclic subgraphs (?)
 - "delay" specific keyword for delay actors (instead of "actor") ?
 - clarify the description of "src" and "snk" nodes in .pi files concerning the cfg inputs :
