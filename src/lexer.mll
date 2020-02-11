@@ -30,7 +30,7 @@ let keyword_table = [
   "bool", TY_BOOL;
   "unit", TY_UNIT;
   "actor", ACTOR;
-  "bcast", BCAST;
+  (* "bcast", BCAST; *)
   "graph", GRAPH;
   "param", PARAM;
   "struct", STRUCT;
@@ -54,6 +54,8 @@ let keyword_table = [
   "else", ELSE;
   "rate", RATE;
   "other", OTHER;
+  (* "systemc", SYSTEMC;
+   * "preesm", PREESM; *)
   (* "initially", INITIALLY; *)
 ]
 

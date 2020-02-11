@@ -44,7 +44,7 @@
 %token TY_NAT         (* "nat"*)
 %token TY_BOOL        (* "bool"*)
 %token TY_UNIT        (* "unit"*)
-%token BCAST          (* "bcast"*)
+(* %token BCAST          (\* "bcast"*\) *)
 (* %token DELAY          (\* "delay"*\) *)
 %token GRAPH          (* "graph"*)
 %token ACTOR          (* "actor"*)
@@ -106,11 +106,11 @@ let mk_type_expr l desc = { te_desc = desc; te_loc = mk_location l; te_typ = Typ
 let mk_type_decl l desc = { td_desc = desc; td_loc = mk_location l }
 let mk_param_decl l desc = { pm_desc = desc; pm_loc = mk_location l }
 let mk_io_decl l desc = { io_desc = desc; io_loc = mk_location l }
-let mk_actor_decl l desc = { ad_desc = desc; ad_loc = mk_location l }
+let mk_node_decl l desc = { n_desc = desc; n_loc = mk_location l }
 let mk_graph_decl l desc = { g_desc = desc; g_loc = mk_location l }
 let mk_graph_defn l desc = { gd_desc = desc; gd_loc = mk_location l }
 let mk_wire_decl l desc = { gw_desc = desc; gw_loc = mk_location l }
-let mk_node_decl l desc = { gn_desc = desc; gn_loc = mk_location l }
+let mk_gnode_decl l desc = { gn_desc = desc; gn_loc = mk_location l }
 let mk_net_defn l desc = { nd_desc = desc; nd_loc = mk_location l }
 let mk_net_expr l desc = { ne_desc = desc; ne_loc = mk_location l; ne_typ = Types.no_type }
 let mk_net_pat l desc = { np_desc = desc; np_loc = mk_location l; np_typ = Types.no_type }
@@ -141,28 +141,28 @@ let mk_cbinop l (op,l') e1 e2 = mk_core_expr l (EBinop (op,  e1, e2))
 type top_decl =
   | TyDecl of Syntax.type_decl
   | GvalDecl of Syntax.gval_decl
-  | ActorDecl of Syntax.actor_decl
+  | NodeDecl of Syntax.node_decl
   | GraphDecl of Syntax.graph_decl
 
 let is_type_decl = function TyDecl _ -> true | _ -> false             
 let is_gval_decl = function GvalDecl _ -> true | _ -> false             
-let is_actor_decl = function ActorDecl _ -> true | _ -> false             
+let is_node_decl = function NodeDecl _ -> true | _ -> false             
 let is_graph_decl = function GraphDecl _ -> true | _ -> false             
 
 let type_decl_of = function TyDecl d -> d | _ -> Misc.fatal_error "Parser.type_decl_of"             
 let gval_decl_of = function GvalDecl d -> d | _ -> Misc.fatal_error "Parser.gval_decl_of"             
-let actor_decl_of = function ActorDecl d -> d | _ -> Misc.fatal_error "Parser.actor_decl_of"             
+let node_decl_of = function NodeDecl d -> d | _ -> Misc.fatal_error "Parser.node_decl_of"             
 let graph_decl_of = function GraphDecl d -> d | _ -> Misc.fatal_error "Parser.graph_decl_of"             
 
 type struct_decl =
-  | WireDecl of Syntax.wire_decl
-  | NodeDecl of Syntax.node_decl
+  | GWireDecl of Syntax.gwire_decl
+  | GNodeDecl of Syntax.gnode_decl
 
-let is_wire_decl = function WireDecl _ -> true | _ -> false             
-let is_node_decl = function NodeDecl _ -> true | _ -> false             
+let is_gwire_decl = function GWireDecl _ -> true | _ -> false             
+let is_gnode_decl = function GNodeDecl _ -> true | _ -> false             
 
-let wire_decl_of = function WireDecl d -> d | _ -> Misc.fatal_error "Parser.wire_decl_of"             
-let node_decl_of = function NodeDecl d -> d | _ -> Misc.fatal_error "Parser.node_decl_of"             
+let gwire_decl_of = function GWireDecl d -> d | _ -> Misc.fatal_error "Parser.wgire_decl_of"             
+let gnode_decl_of = function GNodeDecl d -> d | _ -> Misc.fatal_error "Parser.gnode_decl_of"             
 %}
 
 %%
@@ -201,7 +201,7 @@ program:
   | decls = my_list(decl) EOF
       { { Syntax.types = decls |> List.filter is_type_decl |> List.map type_decl_of;
           Syntax.gvals = decls |> List.filter is_gval_decl |> List.map gval_decl_of;
-          Syntax.actors = decls |> List.filter is_actor_decl |> List.map actor_decl_of;
+          Syntax.nodes = decls |> List.filter is_node_decl |> List.map node_decl_of;
           Syntax.graphs = decls |> List.filter is_graph_decl |> List.map graph_decl_of } }
 
 (* DECLARATIONS *)
@@ -209,7 +209,7 @@ program:
 decl:
     d = type_decl SEMI { TyDecl d }
   | d = gval_decl SEMI { GvalDecl d }
-  | d = actor_decl SEMI { ActorDecl d }
+  | d = node_decl SEMI { NodeDecl d }
   | d = graph_decl SEMI { GraphDecl d }
           
 (* TYPE DECLARATION *)
@@ -224,23 +224,23 @@ gval_decl:
   | VAL r=optional(REC) b=net_binding
       { mk_net_defn $loc (r, [b]) }
 
-(* ACTOR DECLARATION *)
+(* NODE DECLARATION *)
 
-actor_decl:
-   kind=actor_kind id=IDENT params=opt_params IN inps=io_decls OUT outps=io_decls 
-    { mk_actor_decl $loc { a_id=id; a_kind=kind; a_params=params; a_ins=inps; a_outs=outps } }
+node_decl:
+   kind=node_kind id=IDENT params=opt_node_params IN inps=io_decls OUT outps=io_decls 
+    { mk_node_decl $loc { n_id=id; n_kind=kind; n_params=params; n_ins=inps; n_outs=outps } }
 
-actor_kind:
-  | ACTOR { ARegular }
-  | BCAST { ABcast }
+node_kind:
+  | NODE { NRegular }
+  (* | BCAST { ABcast } *)
 
-opt_params:
+opt_node_params:
   | (* Nothing *) { [] }
-  | PARAM LPAREN ps=my_separated_list(COMMA, param_decl) RPAREN { ps }
+  | PARAM LPAREN ps=my_separated_list(COMMA, node_param_decl) RPAREN { ps }
 
-param_decl:
+node_param_decl:
    id=IDENT COLON t=simple_type_expr
-    { mk_param_decl $loc (id, t) }
+     { mk_param_decl $loc (id, t, None) }  (* No value for node params *)
 
 io_decls:
   | LPAREN ios=my_separated_list(COMMA, io_decl) RPAREN { ios }
@@ -320,8 +320,27 @@ simple_type_expr:
 (* GRAPH DECLARATION *)
 
 graph_decl:
-  | GRAPH id=IDENT params=opt_params IN inps=io_decls OUT outps=io_decls d=graph_defn
+  | GRAPH id=IDENT params=opt_graph_params IN inps=io_decls OUT outps=io_decls d=graph_defn
     { mk_graph_decl $loc {g_id=id; g_params=params; g_ins=inps; g_outs=outps; g_defn=d } }
+
+opt_graph_params:
+  | (* Nothing *) { [] }
+  | PARAM LPAREN vs=my_separated_list(COMMA, graph_param_value) RPAREN { vs }
+
+graph_param_value:
+   id=IDENT COLON t=simple_type_expr EQUAL v=const_param_value
+     { mk_param_decl $loc (id, t, Some v) }
+
+const_param_value:
+  | n=INT
+        { mk_core_expr $loc (EInt n) }
+  | TRUE
+        { mk_core_expr $loc (EBool true) }
+  | FALSE
+        { mk_core_expr $loc (EBool false) }
+  (* | n=INT { PV_Int n }
+   * | TRUE { PV_Bool true }
+   * | FALSE { PV_Bool false } *)
 
 graph_defn:
   | STRUCT d=struct_graph_desc END { mk_graph_defn $loc (GD_Struct d) }
@@ -331,29 +350,29 @@ graph_defn:
 
 struct_graph_desc:
   | ds = my_list(struct_defn)
-           { { gs_wires = ds |> List.filter is_wire_decl |> List.map wire_decl_of;
-               gs_nodes = ds |> List.filter is_node_decl |> List.map node_decl_of } }
+           { { gs_wires = ds |> List.filter is_gwire_decl |> List.map gwire_decl_of;
+               gs_nodes = ds |> List.filter is_gnode_decl |> List.map gnode_decl_of } }
 
 struct_defn:
-  | d=wire_defn { WireDecl d }
-  | d=node_defn { NodeDecl d }
+  | d=gwire_defn { GWireDecl d }
+  | d=gnode_defn { GNodeDecl d }
 
-wire_defn:
+gwire_defn:
   | WIRE id=IDENT COLON t=simple_type_expr
      { mk_wire_decl $loc (id,t) }
 
-node_defn:
-  | NODE id=IDENT COLON name=IDENT params=opt_node_params inps=node_ios outps=node_ios
-     { mk_node_decl $loc (id, { gn_name=name; gn_params=params; gn_ins=inps; gn_outs=outps }) }
+gnode_defn:
+  | NODE id=IDENT COLON name=IDENT params=opt_gnode_params inps=gnode_ios outps=gnode_ios
+     { mk_gnode_decl $loc (id, { gn_name=name; gn_params=params; gn_ins=inps; gn_outs=outps }) }
 
-opt_node_params:
+opt_gnode_params:
   | (* Nothing *) { [] }
   | LESS vs=my_separated_list(COMMA, core_expr) GREATER { vs }
 
-node_ios:
-  | LPAREN ios=my_separated_list(COMMA, node_io) RPAREN { ios }
+gnode_ios:
+  | LPAREN ios=my_separated_list(COMMA, gnode_io) RPAREN { ios }
 
-node_io:
+gnode_io:
   | id=IDENT { id }
 
 (* FUNCTIONAL GRAPH DESCRIPTION *)

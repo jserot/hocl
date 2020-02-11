@@ -28,10 +28,10 @@ and type_expression_desc =
 (* Programs *)
                 
 type program =
-  { types: type_decl list;
-    gvals: gval_decl list;
-    actors: actor_decl list ;
-    graphs: graph_decl list }
+  { types: type_decl list;  (* Global, user-defined types *)
+    gvals: gval_decl list;  (* Global values, functions for functional graph and node descriptions typically *)
+    nodes: node_decl list;  (* Nodes *)
+    graphs: graph_decl list }  (* Top-level graphs *)
 
 and type_decl =
   { td_desc: tdecl_desc;
@@ -41,25 +41,29 @@ and tdecl_desc =
 
 and gval_decl = net_defn
               
-and actor_decl = 
-  { ad_desc: actor_desc;
-    ad_loc: location }
+and node_decl = 
+  { n_intf: node_intf;
+    n_impl: node_impl }
 
-and actor_desc = {
-    a_id: string;
-    a_kind: actor_kind;
-    a_params: param_decl list;
-    a_ins: io_decl list;
-    a_outs: io_decl list
+and node_intf = 
+  { ni_desc: ni_desc;
+    ni_loc: location }
+
+and ni_desc = {
+    n_id: string;
+    n_kind: node_kind;
+    n_params: param_decl list;
+    n_ins: io_decl list;
+    n_outs: io_decl list
   }
 
-and actor_kind = ARegular | ABcast
+and node_kind = NRegular | NBcast
                           
 and param_decl =
   { pm_desc: param_desc;
     pm_loc: location }
 
-and param_desc = string * type_expression
+and param_desc = string * type_expression * core_expr option (* values only for top level graphs *)
 
 and io_decl =
   { io_desc: io_desc;
@@ -71,6 +75,19 @@ and io_annot =
   IA_Rate of rate_expr
 | IA_Other of string
              
+and node_impl = {
+    nm_desc: nm_desc;
+    nm_loc: location; }
+
+and nm_desc = 
+  | NM_Actor of actor_desc
+  | NM_Struct of graph_struct_desc
+  | NM_Fun of graph_fun_desc
+
+and actor_desc = actor_impl list
+
+and actor_impl = string * (string * string) list  (* Target, list of named attributes *)              
+            
 and graph_decl = 
   { g_desc: graph_desc;
     g_loc: location }
@@ -91,35 +108,27 @@ and graph_defn_desc =
   | GD_Struct of graph_struct_desc
   | GD_Fun of graph_fun_desc
 
-(* and graph_struct_defn =
- *   { gs_desc: graph_struct_desc;
- *     gs_loc: location } *)
-
 and graph_struct_desc =
-  { gs_wires: wire_decl list;
-    gs_nodes: node_decl list }
+  { gs_wires: gwire_decl list;
+    gs_nodes: gnode_decl list }
 
-and wire_decl =
+and gwire_decl =
   { gw_desc: graph_wire_desc;
     gw_loc: location }
 
 and graph_wire_desc = string * type_expression
 
-and node_decl =
+and gnode_decl =
   { gn_desc: graph_node_desc;
     gn_loc: location }
 
 and graph_node_desc = string * graph_node
 
 and graph_node = 
-  { gn_name: string; (* Name of the instanciated actor/graph *)
+  { gn_name: string; (* Name of the instanciated node *)
     gn_params: core_expr list;
     gn_ins: string list;
     gn_outs: string list }
-
-(* and graph_fun_defn =
- *   { gf_desc: graph_fun_desc;
- *     gf_loc: location } *)
 
 and graph_fun_desc = net_defn list
 
@@ -198,12 +207,12 @@ let no_annot = ""
 
 (* Program manipulation *)
 
-let empty_program = { types=[]; gvals=[]; actors=[]; graphs=[] }
+let empty_program = { types=[]; gvals=[]; nodes=[]; graphs=[] }
 
 let add_program p1 p2 = { (* TODO : Flag redefinitions ? *)
     types= p1.types @ p2.types;
     gvals= p1.gvals @ p2.gvals;
-    actors= p1.actors @ p2.actors;
+    nodes= p1.nodes @ p2.nodes;
     graphs= p1.graphs @ p2.graphs;
   }
 
@@ -327,17 +336,23 @@ let string_of_io_annots = function
 let string_of_type_decl d = match d.td_desc with
   | Opaque_type_decl id -> id
 
+(* let string_of_param_value v = match v with
+ *   | PV_Int i -> string_of_int i
+ *   | PV_Bool b -> string_of_bool b *)
+let string_of_opt_param_value v = match v with
+  | None -> ""
+  | Some v' -> "=" ^ string_of_core_expr v'
 let string_of_io_decl {io_desc=id,ty,anns} = id ^ ": " ^ string_of_ty_expr ty ^ string_of_io_annots anns
-let string_of_param_decl {pm_desc=id,ty} = id ^ ": " ^ string_of_ty_expr ty
+let string_of_param_decl {pm_desc=id,ty,v} = id ^ ": " ^ string_of_ty_expr ty ^ string_of_opt_param_value v
                                
-let string_of_actor_kind = function ARegular -> "actor" | ABcast -> "bcast"
+let string_of_node_kind = function NRegular -> "node" | NBcast -> "bcast"
                                                                   
-let string_of_actor_decl d =
-  let a = d.ad_desc in
-  string_of_actor_kind a.a_kind ^ " " ^ a.a_id
-    ^ " params (" ^ Misc.string_of_list string_of_param_decl ", " a.a_params ^ ")"
-    ^ " in (" ^ Misc.string_of_list string_of_io_decl ", " a.a_ins ^ ")"
-    ^ " out (" ^ Misc.string_of_list string_of_io_decl ", " a.a_outs ^ ")"
+let string_of_node_decl d =
+  let n = d.n_desc in
+  string_of_node_kind n.n_kind ^ " " ^ n.n_id
+    ^ " params (" ^ Misc.string_of_list string_of_param_decl ", " n.n_params ^ ")"
+    ^ " in (" ^ Misc.string_of_list string_of_io_decl ", " n.n_ins ^ ")"
+    ^ " out (" ^ Misc.string_of_list string_of_io_decl ", " n.n_outs ^ ")"
 
 let rec string_of_graph_decl d =
   let g = d.g_desc in
@@ -354,11 +369,11 @@ and string_of_graph_defn d = match d.gd_desc with
 and string_of_graph_struct s =
     Misc.string_of_list string_of_wire_decl "\n" s.gs_wires
   ^ "\n"
-  ^ Misc.string_of_list string_of_node_decl "\n" s.gs_nodes
+  ^ Misc.string_of_list string_of_gnode_decl "\n" s.gs_nodes
 
 and string_of_wire_decl { gw_desc = (id,t) } = "  wire " ^ id ^ " : " ^ string_of_ty_expr t
 
-and string_of_node_decl { gn_desc = (id, n) } = 
+and string_of_gnode_decl { gn_desc = (id, n) } = 
   "  node " ^ id ^ " : " ^ n.gn_name
   ^ "(" ^ Misc.string_of_list string_of_core_expr "," n.gn_params ^ ")" 
   ^ "(" ^ Misc.string_of_list Misc.id "," n.gn_ins ^ ")"
@@ -374,7 +389,8 @@ and string_of_rec = function true -> " rec " | false -> ""
 
 let dump_type d = Printf.printf "type %s\n" (string_of_type_decl d)
 let dump_gval d = Printf.printf "val %s\n" (string_of_net_defn d)
-let dump_actor d = Printf.printf "%s\n" (string_of_actor_decl d)
+let dump_node_intf d = Printf.printf "%s\n" (string_of_node_decl d)
+let dump_node_impl d = Printf.printf "impl %s\n" (string_of_node_impl d)
 let dump_graph d = Printf.printf "%s\n" (string_of_graph_decl d)
 
 let rec dump_program p =
@@ -382,7 +398,7 @@ let rec dump_program p =
   List.iter dump_type p.types;
   Printf.printf "Global values -------\n";
   List.iter dump_gval p.gvals;
-  Printf.printf "Actors --------------\n";
-  List.iter dump_actor p.actors;
+  Printf.printf "Nodes ---------------\n";
+  List.iter dump_node p.nodes;
   Printf.printf "Graphs --------------\n";
   List.iter dump_graph p.graphs

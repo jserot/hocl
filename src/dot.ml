@@ -72,7 +72,9 @@ let output_box ch (i,b) =
   let bval = 
     let s1 = Syntax.string_of_core_expr b.b_val.bv_lit in
     let s2 = Ssval.string_of_ssval b.b_val.bv_val in
-    if b.b_val.bv_val <> Ssval.SVUnit && s1 <> s2 then s1 ^ "=" ^ s2 else s1 in
+    if b.b_val.bv_lit.ce_desc = Syntax.EVar "" && b.b_val.bv_val=Ssval.SVUnit && s1 <> s2
+    then s1 ^ "=" ^ s2
+    else s1 in
   let output_regular_box style =
        if cfg.slotted_boxes then
         fprintf ch "n%d [shape=record,style=%s,label=\"<id>%s|{{%s}|{%s}}\"];\n"
@@ -106,10 +108,15 @@ let output_box ch (i,b) =
        cfg.local_param_box_shape
        bval
   | InParamB -> 
+     let lbl =
+       begin match b.b_val.bv_val with
+       | SVUnit -> bid
+       | v -> bid ^ "=" ^ Ssval.string_of_ssval v
+       end in
      fprintf ch "n%d [shape=%s,style=\"dashed\",label=\"%s\"];\n"
        i
        cfg.input_param_box_shape
-       bid
+       lbl
   | DummyB ->  (* Should not occur *)
       fprintf ch "n%d [shape=box,style=dotted,label=\"%s\"];\n" i "dummy"
 
