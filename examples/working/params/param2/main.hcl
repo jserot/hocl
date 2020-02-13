@@ -2,7 +2,7 @@
 
 type t;
 
-actor foo param (k: int, l:int) in (i: t) out (o: t);
+node foo param (k: int, l:int) in (i: t) out (o: t);
 
 graph top_s in (i: t) out (o: t)
 struct

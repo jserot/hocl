@@ -8,7 +8,6 @@ GENERAL
   . preesm (for code generation on HMC platforms)
   . caph (for code generation on HW platforms (with actors described in VHDL))
   . cal (?)
-- interface/implementation-based descriptions
 - make all examples simulable in SystemC
 
 COMPILER

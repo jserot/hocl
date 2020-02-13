@@ -5,7 +5,7 @@
 -- #pragma code("outp", "include/output.h", "output", "outputInit")
 -- #pragma code("foo", "include/foo.h", "foo")
 
-actor foo in (i: int[8]) out (o: int);
+node foo in (i: int[8]) out (o: int);
 
 graph top in (i: int[8]) out (o: int)
 fun

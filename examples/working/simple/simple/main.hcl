@@ -1,26 +1,14 @@
--- A minimalistic program
+node foo in (i: int) out (o: int);
+-- No implementation given here -> will be viewed as a black box
 
--- type int;
-
--- #pragma code("inp", "include/input.h", "input", "inputInit")
--- #pragma code("outp", "include/output.h", "output", "outputInit")
--- #pragma code("foo", "include/foo.h", "foo")
-
-actor inp in () out(o: int);
-actor foo in (i: int) out (o: int);
-actor outp in (i: int) out ();
-
-graph top_s in () out ()
+graph top_s in (i: int) out (o: int)
 struct
-  wire w1: int
-  wire w2: int
-  node n1: inp()(w1)
-  node n2: foo(w1)(w2)
-  node n3: outp(w2)()
+  wire w: int
+  node n1: foo(i)(w)
+  node n2: foo(w)(o)
 end;
 
-graph top_f in () out ()
+graph top_f in (i: int) out (o: int)
 fun
-  -- val () = inp |> foo >> outp
-  val () = outp (foo (inp ()))
+  val o = i |> foo |> foo
 end;

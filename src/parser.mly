@@ -106,7 +106,9 @@ let mk_type_expr l desc = { te_desc = desc; te_loc = mk_location l; te_typ = Typ
 let mk_type_decl l desc = { td_desc = desc; td_loc = mk_location l }
 let mk_param_decl l desc = { pm_desc = desc; pm_loc = mk_location l }
 let mk_io_decl l desc = { io_desc = desc; io_loc = mk_location l }
-let mk_node_decl l desc = { n_desc = desc; n_loc = mk_location l }
+let mk_node_intf l desc = { ni_desc = desc; ni_loc = mk_location l }
+let mk_node_impl l desc = { nm_desc = desc; nm_loc = mk_location l }
+let mk_node_decl intf impl = { n_intf = intf; n_impl = impl }
 let mk_graph_decl l desc = { g_desc = desc; g_loc = mk_location l }
 let mk_graph_defn l desc = { gd_desc = desc; gd_loc = mk_location l }
 let mk_wire_decl l desc = { gw_desc = desc; gw_loc = mk_location l }
@@ -227,8 +229,24 @@ gval_decl:
 (* NODE DECLARATION *)
 
 node_decl:
+   intf=node_intf impl=node_impl
+     { mk_node_decl intf impl }
+                         
+node_intf:
    kind=node_kind id=IDENT params=opt_node_params IN inps=io_decls OUT outps=io_decls 
-    { mk_node_decl $loc { n_id=id; n_kind=kind; n_params=params; n_ins=inps; n_outs=outps } }
+    { mk_node_intf $loc { n_id=id; n_kind=kind; n_params=params; n_ins=inps; n_outs=outps } }
+
+node_impl:
+  | (* Nothing *) { mk_node_impl $loc NM_None }
+  | ACTOR d=my_list(actor_desc) END { mk_node_impl $loc (NM_Actor d) }
+  | STRUCT d=struct_graph_desc END { mk_node_impl $loc (NM_Struct d) }
+  | FUN d=fun_graph_desc END { mk_node_impl $loc (NM_Fun d) }
+                    
+actor_desc:
+  | t=IDENT LPAREN attrs=my_separated_list(COMMA,impl_attr) RPAREN { (t,attrs) }
+
+impl_attr:
+  | name=IDENT EQUAL v=STRING { name, v }
 
 node_kind:
   | NODE { NRegular }
@@ -496,16 +514,4 @@ net_pattern_comma_list:
           { p :: ps }
       | p1=net_pattern COMMA p2=net_pattern
           { [p2; p1] }
-
-(* (\* PRAGMAs *\)
- * 
- * pragma:
- *   | PRAGMA id=IDENT LPAREN ps=my_separated_list(COMMA,pragma_param) RPAREN
- *      { mk_pragma_decl $loc (id,ps) } 
- * ;
- * 
- * pragma_param:
- *   | s=STRING 
- *       { s }
- * ; *)
 %%

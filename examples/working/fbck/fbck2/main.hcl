@@ -3,9 +3,9 @@
 type t;
 type t';
 
-actor foo in (i1: t, i2: t') out (o1: t, o2: t'); 
-actor bar in (i: t') out (o: t'); 
-actor biz in (i: t') out (o: t'); 
+node foo in (i1: t, i2: t') out (o1: t, o2: t'); 
+node bar in (i: t') out (o: t'); 
+node biz in (i: t') out (o: t'); 
 
 graph top in (i: t) out (o: t)
 fun

@@ -3,7 +3,7 @@
 type t;
 type t';
 
-actor f in (i:t) out (o: t');
+node f in (i:t) out (o: t');
 
 graph test1 in (i1: t, i2:t, i3:t) out (o1: t', o2:t', o3: t')
 fun

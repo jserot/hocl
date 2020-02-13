@@ -1,5 +1,9 @@
 # Changes
 
+# 1.0 (Feb xx, 2020)
+
+* Revised syntax, with [node] and [graph] declarations
+
 # 0.3 (Nov 10, 2019)
 * Updated implementation of _broadcast_ nodes. Insertion of _broadcast_ node is now automatic when
   using the SystemC backend (both for parameter and data flows). When using the Preesm backend,

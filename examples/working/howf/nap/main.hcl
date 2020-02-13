@@ -1,6 +1,6 @@
 type t;
 
-actor f in (i: t) out (o: t);
+node f in (i: t) out (o: t);
 
 val nap n f x = mapf (repl n f) x;
 

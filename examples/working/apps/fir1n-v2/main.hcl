@@ -2,9 +2,9 @@
 
 type float;
 
-actor d in (i: float) out (o: float);
-actor m in (i1: float, i2: float) out (o: float);
-actor z in () out (o: float);
+node d in (i: float) out (o: float);
+node m in (i1: float, i2: float) out (o: float);
+node z in () out (o: float);
 
 graph top in (i: float) out (o: float)
 fun

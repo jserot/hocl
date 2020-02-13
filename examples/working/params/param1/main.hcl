@@ -2,7 +2,7 @@
 
 type t;
 
-actor mult param (k: int) in (i: t) out (o: t);
+node mult param (k: int) in (i: t) out (o: t);
 
 graph top_s in (i: t) out (o: t)
 struct

@@ -95,21 +95,21 @@ and typed_node = string * typ
 
 and typed_defn = string * typ_scheme
   
-let lookup_node (gid,nid) tp =
-  try
-    match List.assoc gid tp.tp_graphs with
-    | intf, TD_Struct (ws, ns) -> List.assoc nid ns
-    | _, _ -> raise Not_found
-  with
-    Not_found -> Misc.fatal_error "Typing.lookup_node"
+(* let lookup_node (gid,nid) tp =
+ *   try
+ *     match List.assoc gid tp.tp_graphs with
+ *     | intf, TD_Struct (ws, ns) -> List.assoc nid ns
+ *     | _, _ -> raise Not_found
+ *   with
+ *     Not_found -> Misc.fatal_error "Typing.lookup_node" *)
 
-let lookup_wire (gid,wid) tp =
-  try
-    match List.assoc gid tp.tp_graphs with
-    | intf, TD_Struct (ws, ns) -> List.assoc wid ws
-    | _, _ -> raise Not_found
-  with
-    Not_found -> Misc.fatal_error "Typing.lookup_wire"
+(* let lookup_wire (gid,wid) tp =
+ *   try
+ *     match List.assoc gid tp.tp_graphs with
+ *     | intf, TD_Struct (ws, ns) -> List.assoc wid ws
+ *     | _, _ -> raise Not_found
+ *   with
+ *     Not_found -> Misc.fatal_error "Typing.lookup_wire" *)
 
 (* Unification *)
 
@@ -163,40 +163,6 @@ let rec type_core_expression genv expr =
 let type_type_decl tenv { td_desc=t } = match t with
   | Opaque_type_decl name -> name, 0
   (* TODO: add at least type synonymes, like [type tau = int] *)
-
-(* Typing node decls *)
-
-let rec type_node_decl tenv { n_desc=n } =
-  let ty_params = List.map (fun { pm_desc = (id,te,_) } -> id, type_of_type_expression tenv te) n.n_params in
-  let tenv' = tenv |> augment_values @@ List.map (fun (id,ty) -> id, trivial_scheme ty) ty_params in
-  let ty_ins = type_io tenv' n.n_ins in
-  let ty_outs = type_io tenv' n.n_outs in
-  let type_of io = fst (snd io) in
-  n.n_id,
-  { t_params = ty_params;
-    t_ins = ty_ins;
-    t_outs = ty_outs;
-    t_sig =
-      trivial_scheme (type_sig (List.map snd ty_params) (List.map type_of ty_ins) (List.map type_of ty_outs)) }
-
-and type_io tenv = function
-      [] ->
-       ["_", (type_unit, [])]
-    | ios ->
-       List.map
-         (fun { io_desc = (id,te,anns) } ->
-           let _ = List.iter (type_io_annotation tenv) anns in
-           id, (type_of_type_expression tenv te, anns))
-         ios
-
-and type_io_annotation tenv ann = match ann with
-  | IA_Rate e -> try_unify "rate expression" (type_core_expression tenv e) type_int e.ce_loc
-  | IA_Other _ -> ()
-     
-and type_sig ty_params ty_ins ty_outs = 
- match ty_params with
-    | [] -> type_arrow (type_product ty_ins) (type_product ty_outs)
-    | _ -> type_arrow2 (type_product ty_params) (type_product ty_ins) (type_product ty_outs)
 
 (* Typing patterns *)
                              
@@ -429,6 +395,11 @@ and type_node genv { gn_desc = (id,g); gn_loc = loc } =
   try_unify "node declaration" ty_f ty loc;
   id, ty 
 
+and type_sig ty_params ty_ins ty_outs = 
+ match ty_params with
+    | [] -> type_arrow (type_product ty_ins) (type_product ty_outs)
+    | _ -> type_arrow2 (type_product ty_params) (type_product ty_ins) (type_product ty_outs)
+
 let rec type_fun_graph_desc genv intf defns =
   let genv' = genv
               |> augment_values (List.map (fun (id,ty) -> id, trivial_scheme ty) intf.t_params)
@@ -454,6 +425,57 @@ let rec type_fun_graph_desc genv intf defns =
         try_unify "graph output definition" (type_instance ty) ty' loc)
     ty_defns;
   TD_Fun ty_defns
+
+(* Typing node decls *)
+
+let rec type_node_intf tenv { ni_desc=n } =
+  let ty_params = List.map (fun { pm_desc = (id,te,_) } -> id, type_of_type_expression tenv te) n.n_params in
+  let tenv' = tenv |> augment_values @@ List.map (fun (id,ty) -> id, trivial_scheme ty) ty_params in
+  let ty_ins = type_io tenv' n.n_ins in
+  let ty_outs = type_io tenv' n.n_outs in
+  let type_of io = fst (snd io) in
+  (* n.n_id, *)
+  { t_params = ty_params;
+    t_ins = ty_ins;
+    t_outs = ty_outs;
+    t_sig =
+      trivial_scheme (type_sig (List.map snd ty_params) (List.map type_of ty_ins) (List.map type_of ty_outs)) }
+
+and type_io tenv = function
+      [] ->
+       ["_", (type_unit, [])]
+    | ios ->
+       List.map
+         (fun { io_desc = (id,te,anns) } ->
+           let _ = List.iter (type_io_annotation tenv) anns in
+           id, (type_of_type_expression tenv te, anns))
+         ios
+
+and type_io_annotation tenv ann = match ann with
+  | IA_Rate e -> try_unify "rate expression" (type_core_expression tenv e) type_int e.ce_loc
+  | IA_Other _ -> ()
+
+let type_node_impl genv ty_intf { nm_desc=m; nm_loc=loc } = (* TO FIX !!!!!!!!!! *)
+  match m with
+  | NM_None 
+  | NM_Actor _ -> () (* Nothing to check here, all is the interface declaration *)
+  | NM_Struct desc ->
+     let ty_impl = type_struct_graph_desc loc genv ty_intf desc in
+     (* TODO : match ty_intf and ty_impl ! *)
+     ()
+  | NM_Fun desc ->
+     let ty_impl = type_fun_graph_desc genv ty_intf desc in
+     (* TODO : match ty_intf and ty_impl ! *)
+     ()
+
+let rec type_node_decl (typed_nodes,tenv) n =
+  let id = n.n_intf.ni_desc.n_id in
+  let typed_intf = type_node_intf tenv n.n_intf in
+  let _ = type_node_impl tenv typed_intf n.n_impl in
+  (id, typed_intf)::typed_nodes,
+  augment_values [id,typed_intf.t_sig] tenv
+
+(* Typing (top) graph decls *)
 
 let type_graph_decl (acc,genv) { g_desc=g } =
   (* Typing a graph declaration consists in
@@ -488,39 +510,22 @@ let type_graph_decl (acc,genv) { g_desc=g } =
   let genv' = genv |> augment_values [g.g_id,ty_intf.t_sig] in
   List.rev acc', genv'
   
-let type_global_value (acc,genv) d =
-  let typed_values = type_net_defn genv d in
+let type_global_value (acc,tenv) d =
+  let typed_values = type_net_defn tenv d in
   typed_values @ acc,
-  augment_values typed_values genv
+  augment_values typed_values tenv
     
-let type_node_impl intfs genv { im_desc=im; im_loc=loc } = (* TO FIX !!!!!!!!!! *)
-  let ty_intf = List.assoc im.im_ref intfs in
-  match im.im_defn with
-  | ID_Actor _ -> () (* Nothing to check here, all is the interface declaration *)
-  | ID_Struct desc ->
-     let ty_impl = type_struct_graph_desc loc genv ty_intf desc in
-     ()
-  | ID_Fun desc ->
-     let ty_impl = type_fun_graph_desc genv ty_intf desc in
-     ()
-
-let rec type_program genv p = 
+let rec type_program tenv p = 
   (* Typing programs consists in
      1. Typing type and global fns decls and adding the resulting types to the typing environment
      2. Typing each node decl and, when done, adding all the resulting signatures (as a type scheme) to the TE
-     3. Typing (when applicable) each node implementation and checking that the infered types are
-        compatible with those associated to the corresponding node interface
-     4. Typing each graph declaration, adding each resulting signature to the TE (so that a given graph declaration
+     3. Typing each graph declaration, adding each resulting signature to the TE (so that a given graph declaration
         can refer to previously defined actor or graph declaration) *)
-  let typed_types = p.types |> List.map (type_type_decl genv) in
-  let genv_f = genv |> augment_types typed_types in
-  (* let typed_gvals = p.gvals |> List.map (type_net_defn genv_f) |> List.concat in *)
-  (* let genv_a = genv_f |> augment_values typed_gvals in *)
-  let typed_gvals, genv_a = List.fold_left type_global_value ([],genv_f) p.gvals in
-  let typed_nodes =  List.map (type_node_decl genv_a) p.nodes in
-  let genv_g = genv_a |> augment_values (List.map (function (id,a) -> id,a.t_sig) typed_nodes) in
-  List.iter (type_impl_decl typed_nodes genv_g) p.impls;
-  let typed_graphs, _ = List.fold_left type_graph_decl ([],genv_g) p.graphs in
+  let typed_types = p.types |> List.map (type_type_decl tenv) in
+  let tenv_t = tenv |> augment_types typed_types in
+  let typed_gvals, tenv_g = List.fold_left type_global_value ([],tenv_t) p.gvals in
+  let typed_nodes, tenv_n = List.fold_left type_node_decl ([],tenv_g) p.nodes in
+  let typed_graphs, _ = List.fold_left type_graph_decl ([],tenv_n) p.graphs in
   { tp_gvals = typed_gvals;
     tp_nodes = typed_nodes;
     tp_graphs = typed_graphs }

@@ -1,17 +1,17 @@
 type t;
 
-actor f in () out (o1: t, o2: t);
-actor h in (i1: t, i2: t) out ();
-actor s in (i: t) out (o: t);
+node f in () out (o1: t, o2: t);
+node h in (i1: t, i2: t) out ();
+node s in (i: t) out (o: t);
 
-graph g_s in (i: t) out (o: t)
+node g_s in (i: t) out (o: t)
 struct
   wire w: t
   node s1: s(i)(w)
   node s2: s(w)(o)
 end;
 
-graph g_f in (i: t) out (o: t)
+node g_f in (i: t) out (o: t)
 fun
   val o = s (s i)
 end;

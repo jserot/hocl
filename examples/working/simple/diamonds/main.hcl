@@ -3,9 +3,9 @@
 
 type t;
 
-actor f in (i: t) out (o1: t, o2: t);
-actor g in (i: t) out (o: t);
-actor h in (i1: t, i2: t) out (o: t);
+node f in (i: t) out (o1: t, o2: t);
+node g in (i: t) out (o: t);
+node h in (i1: t, i2: t) out (o: t);
 
 graph top_f in (i: t) out (o: t)
 fun

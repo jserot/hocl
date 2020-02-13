@@ -3,8 +3,8 @@
 
 type float;
 
-actor tap in (x: float, z: float) out (y: float, zz:float);
-actor z in () out (o: float);
+node tap in (x: float, z: float) out (y: float, zz:float);
+node z in () out (o: float);
 
 graph top in (i: float) out (z': float, o: float)
 fun

@@ -1,6 +1,6 @@
 -- Describing cyclic wiring (feedback) - ex1
 
-actor foo in (i1: int, i2: int) out (o1: int, o2: int); 
+node foo in (i1: int, i2: int) out (o1: int, o2: int); 
 
 graph top in (i: int) out (o: int)
 fun

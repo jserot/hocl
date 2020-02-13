@@ -2,7 +2,7 @@
 
 type t;
 
-actor g in (i: t) out (o: t);
+node g in (i: t) out (o: t);
 
 graph top_s in (x: t) out (y: t) -- structural description (not generic)
 struct

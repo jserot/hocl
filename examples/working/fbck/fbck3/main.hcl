@@ -3,8 +3,8 @@
 type t;
 type t';
 
-actor f in (i1: t, i2: t') out (o1: t, o2: t'); 
-actor g in (i1: t', i2: t) out (o1: t', o2: t); 
+node f in (i1: t, i2: t') out (o1: t, o2: t'); 
+node g in (i1: t', i2: t) out (o1: t', o2: t); 
 
 graph top in (i1: t, i2: t) out (o1: t, o2: t)
 fun

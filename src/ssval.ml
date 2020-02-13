@@ -49,16 +49,17 @@ and sv_loc = idx * sel
 
 and sv_box = {   (* Instanciable "box" (actor or (sub)graph) *)
     sb_id: string;
-    (* sb_kind: sv_box_kind; *)
+    sb_kind: sv_box_kind;
     sb_params: (string * typ) list;
     sb_ins: (string * typ * Syntax.io_annot list) list;
     sb_outs: (string * typ * Syntax.io_annot list) list;
-    sb_typ: typ_scheme;
+    sb_typ: typ_scheme; (* TO SEE : rather [typ] ? Does it make sense to have polymorphic _boxes_ ? *)
 }
 
-(* and sv_box_kind =
- *   | SV_Node
- *   | SV_Bcast *)
+and sv_box_kind =
+  | SV_Actor
+  (* | SV_Bcast *)
+  | SV_Graph
                            
 and sv_wire = (sv_loc * sv_loc) * typ * wire_kind   (* src, dest, type, kind *)
 

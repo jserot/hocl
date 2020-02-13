@@ -4,8 +4,8 @@
 
 type t;
 
-actor inp in () out (o: t);
-actor foo in (i: t) out (o: t);
+node inp in () out (o: t);
+node foo in (i: t) out (o: t);
 
 graph top in () out (o1: t, o2: t)
 fun

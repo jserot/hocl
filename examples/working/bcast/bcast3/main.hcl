@@ -6,10 +6,10 @@
 
 type t;
 
-actor foo param (k: int) in (i: t) out (o: t);
-actor bar param (k: int) in (i: t) out (o: t);
+node foo param (k: int) in (i: t) out (o: t);
+node bar param (k: int) in (i: t) out (o: t);
 
-graph top param (p: int) in (i: t) out (o: t)
+graph top param (p: int=1) in (i: t) out (o: t)
 fun
   val o  = i |> foo<p> |> bar<p>
 end;

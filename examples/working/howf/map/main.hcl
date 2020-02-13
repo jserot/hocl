@@ -1,6 +1,6 @@
 type t;
 
-actor f in (i: t) out ();
+node f in (i: t) out ();
 
 graph top in (i: t) out ()
 fun

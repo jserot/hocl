@@ -1,8 +1,8 @@
 type t;
 
-actor f in (i: t) out (o: t);
-actor qmf in (i: t) out (o1: t, o2: t);
-actor qmf' in (i1: t, i2: t) out (o: t);
+node f in (i: t) out (o: t);
+node qmf in (i: t) out (o1: t, o2: t);
+node qmf' in (i1: t, i2: t) out (o: t);
 
 graph top in (i: t) out (o: t)
 fun

@@ -1,8 +1,8 @@
 type t;
 
-actor i in () out (o: t);
-actor f in (i: t) out ();
-actor o in (i: t) out ();
+node i in () out (o: t);
+node f in (i: t) out ();
+node o in (i: t) out ();
 
 graph top in (i: t) out (o1: t, o2:t, o3:t)
 fun

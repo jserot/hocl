@@ -80,6 +80,7 @@ and node_impl = {
     nm_loc: location; }
 
 and nm_desc = 
+  | NM_None
   | NM_Actor of actor_desc
   | NM_Struct of graph_struct_desc
   | NM_Fun of graph_fun_desc
@@ -347,12 +348,19 @@ let string_of_param_decl {pm_desc=id,ty,v} = id ^ ": " ^ string_of_ty_expr ty ^ 
                                
 let string_of_node_kind = function NRegular -> "node" | NBcast -> "bcast"
                                                                   
-let string_of_node_decl d =
-  let n = d.n_desc in
-  string_of_node_kind n.n_kind ^ " " ^ n.n_id
-    ^ " params (" ^ Misc.string_of_list string_of_param_decl ", " n.n_params ^ ")"
-    ^ " in (" ^ Misc.string_of_list string_of_io_decl ", " n.n_ins ^ ")"
-    ^ " out (" ^ Misc.string_of_list string_of_io_decl ", " n.n_outs ^ ")"
+let string_of_node_intf d =
+  let i = d.ni_desc in
+  string_of_node_kind i.n_kind ^ " " ^ i.n_id
+    ^ " params (" ^ Misc.string_of_list string_of_param_decl ", " i.n_params ^ ")"
+    ^ " in (" ^ Misc.string_of_list string_of_io_decl ", " i.n_ins ^ ")"
+    ^ " out (" ^ Misc.string_of_list string_of_io_decl ", " i.n_outs ^ ")"
+
+let string_of_node_impl d =
+  match d.nm_desc with
+  | NM_None -> "None"
+  | NM_Actor _ -> "Actor(...)"
+  | NM_Struct _ -> "Struct(...)"
+  | NM_Fun _ -> "Fun(...)"
 
 let rec string_of_graph_decl d =
   let g = d.g_desc in
@@ -389,8 +397,7 @@ and string_of_rec = function true -> " rec " | false -> ""
 
 let dump_type d = Printf.printf "type %s\n" (string_of_type_decl d)
 let dump_gval d = Printf.printf "val %s\n" (string_of_net_defn d)
-let dump_node_intf d = Printf.printf "%s\n" (string_of_node_decl d)
-let dump_node_impl d = Printf.printf "impl %s\n" (string_of_node_impl d)
+let dump_node d = Printf.printf "%s = %s\n" (string_of_node_intf d.n_intf) (string_of_node_impl d.n_impl)
 let dump_graph d = Printf.printf "%s\n" (string_of_graph_decl d)
 
 let rec dump_program p =

@@ -2,11 +2,11 @@
 
 type t;
 
-actor foo param (k: int) in (i: t) out (o: t);
-actor bar param (k1: int, k2: bool) in (i: t) out (o: t);
+node foo param (k: int) in (i: t) out (o: t);
+node bar param (k1: int, k2: bool) in (i: t) out (o: t);
 
 graph top_s
-  param (u3: int, u4:int, u5: int, u6: bool)
+  param (u3: int=1, u4:int=1, u5: int=1, u6: bool=true)
   in (i1: t, i2: t, i3:t, i4:t, i5: t, i6: t)
   out (o1: t, o2:t, o3: t, o4:t, o5: t, o6: t)
 struct
@@ -19,7 +19,7 @@ struct
 end;
 
 graph top_f
-  param (u3: int, u4:int, u5: int, u6: bool)
+  param (u3: int=1, u4:int=1, u5: int=1, u6: bool=true)
   in (i1: t, i2: t, i3:t, i4:t, i5: t, i6: t)
   out (o1: t, o2:t, o3: t, o4:t, o5: t, o6: t)
 fun

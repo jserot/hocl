@@ -44,7 +44,7 @@ clean:
 	@\rm -f *.xdf
 	@\rm -f *.output
 	@if [ -d ./systemc ]; then (cd ./systemc; make clean); fi
-	@if [ -d ./preesm ]; then (cd ./preesm; rm *.pi); fi
+	@if [ -d ./preesm ]; then (cd ./preesm; rm -f *.pi); fi
 
 clobber: clean
 	@\rm -f *~

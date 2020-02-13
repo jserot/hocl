@@ -2,18 +2,18 @@
 
 type t;
 
-actor f in () out (o1: t, o2: t);
-actor h in (i1: t, i2: t) out ();
-actor s param (k: int) in (i: t) out (o: t);
+node f in () out (o1: t, o2: t);
+node h in (i1: t, i2: t) out ();
+node s param (k: int) in (i: t) out (o: t);
 
-graph sub_s param (k: int) in (i: t) out (o: t)
+node sub_s param (k: int) in (i: t) out (o: t)
 struct
   wire w: t
   node s1: s<k-1>(i)(w)
   node s2: s<k+1>(w)(o)
 end;
 
-graph sub_f param (k: int) in (i: t) out (o: t)
+node sub_f param (k: int) in (i: t) out (o: t)
 fun
   val o = s<k+1> (s<k-1> i)
 end;
