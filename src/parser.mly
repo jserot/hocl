@@ -287,7 +287,7 @@ core_expr:
           { mk_cbinop $loc (op,$loc(op)) e1 e2 }
       | e1=core_expr op=STAR e2=core_expr
           { mk_cbinop $loc ("*",$loc(op)) e1 e2 }
-      (* | e1=core_expr op=GREATER e2=ore_expr
+      (* | e1=core_expr op=GREATER e2=core_expr
        *     { mk_cbinop $loc (">",$loc(op)) e1 e2 }
        * | e1=core_expr op=LESS e2=core_expr
        *     { mk_cbinop $loc ("<",$loc(op)) e1 e2 } *)
@@ -356,9 +356,6 @@ const_param_value:
         { mk_core_expr $loc (EBool true) }
   | FALSE
         { mk_core_expr $loc (EBool false) }
-  (* | n=INT { PV_Int n }
-   * | TRUE { PV_Bool true }
-   * | FALSE { PV_Bool false } *)
 
 graph_defn:
   | STRUCT d=struct_graph_desc END { mk_graph_defn $loc (GD_Struct d) }
@@ -412,16 +409,11 @@ net_binding_name:
       id=IDENT { id }
     | LPAREN op=INFIX0 RPAREN { op }
 
-(* param_values:
- *     | LESS vs=my_separated_nonempty_list(COMMA,core_expr) GREATER { vs } *)
-                  
 net_expr:
         e=simple_net_expr
           { e }
       | f=simple_net_expr args=my_nonempty_list(simple_net_expr)   (*%prec prec_app*)
           { mk_apply $loc f args }
-      (* | f=simple_net_expr params=param_values args=my_nonempty_list(simple_net_expr)   (\*%prec prec_app*\)
-       *     { mk_apply2 $loc f params args } *)
       | es=net_expr_comma_list
           { mk_net_expr $loc (NTuple(List.rev es)) }
       | e1=net_expr COLONCOLON e2=net_expr 

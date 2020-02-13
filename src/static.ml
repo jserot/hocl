@@ -35,15 +35,7 @@ let cfg = {
 
 type static_env = (string * ss_val) list
 
-(* type static_env = {
- *   core_se: (string * ss_val) list;  (\* for evaluating core expressions *\)
- *   net_se: (string * ss_val) list;
- *   } *)
-
 let augment_env env' env = env' @ env
-
-(* let augment_core_senv env senv = { senv with core_se = env @ senv.core_se }
- * let augment_net_senv env senv = { senv with net_se = env @ senv.net_se } *)
 
 type static_program = {
   sp_gfuns: (string * ss_val) list;
@@ -60,12 +52,9 @@ and sn_impl =
   | NI_Actor              (* Opaque node *)
   | NI_Graph of sg_desc   (* Sub-graph *)
 
-(* and sn_inst = string * bid  (\* Actor instance location (graph id, box id) *\) *)
-            
 and sg_desc = { 
     sg_boxes: (bid * ss_box) list;
     sg_wires: (wid * sv_wire) list;
-    (* TODO: add [sg_insts] field ? *)
   }
 
 and ss_box = {
@@ -75,7 +64,6 @@ and ss_box = {
     b_typ: typ;                      (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
     b_params: (string * (wid * typ)) list;  (* TODO : get rid of this : parameters are then viewed as inputs ! *)
     b_ins: (string * (wid * typ * Syntax.io_annot list)) list;
-    (* TODO : merge b_params and b_ins with a flag for discrimating the former from the latter ? *)
     b_outs: (string * (wid list * typ * Syntax.io_annot list)) list;
     mutable b_val: b_val;            (* For parameter boxes *)
 }
@@ -155,11 +143,11 @@ let new_wid =
 
 let no_bval =
   let no_expr = {ce_desc=EVar ""; ce_loc=Location.no_location; ce_typ=no_type } in
-  { bv_lit=no_expr; (* bv_sub=no_expr; *) bv_val=SVUnit }
+  { bv_lit=no_expr; bv_val=SVUnit }
           
-let new_box tag name ty (*params*) ins outs =
+let new_box tag name ty ins outs =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=tag; b_name=name; b_params=[](*params*); b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
+  bid, { b_id=bid; b_tag=tag; b_name=name; b_params=[]; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
 
 let new_io_box ?(bv=no_bval) tag name ty  =
   let bid = new_bid () in
@@ -330,11 +318,6 @@ let string_of_box_tag t = match t with
   | EBcastB -> "EBcast"
   | _ -> "other"
 
-(* let tag_of_kind k = match k with
- *   | SV_Node -> ActorB (\* TOFIX : or GraphB !! *\)
- *   | SV_Bcast -> EBcastB *)
-
-       
 let tag_of_kind = function
   | SV_Actor -> ActorB
   | SV_Graph -> GraphB
@@ -360,7 +343,6 @@ let eval_gnode_decl gid tp (senv,bs,ws) { gn_desc = nid, n; gn_loc = loc } =
     List.map
       (fun (id,ty,anns) -> (id,([0],ty,anns)))
       (List.filter is_real_io  ni.sb_outs) in
-  (* let ty = Typing.lookup_node (gid,nid) tp in *)
   let l, b = new_box tag ni.sb_id ty (*[]*) bins bouts in
   let mk_param_wire dst (senv,ws,bs) expr =
     match eval_param_expr senv expr with
@@ -442,10 +424,6 @@ let eval_io_decl tag (env,boxes) (id,(ty,_)) =
     (id,SVLoc (l,0,ty,tag')) :: env,
     (l,b) :: boxes
 
-(* let eval_wire_decl gid tp { gw_desc = id, _ } =
- *   let ty = Typing.lookup_wire (gid,id) tp in
- *   id, SVWire (new_wid(), new_wire ty DataW) *)
-
 let eval_wire_decl { gw_desc = id, {te_typ=ty} } =
   id, SVWire (new_wid(), new_wire ty DataW)
   
@@ -461,7 +439,6 @@ let eval_struct_graph_desc gid tp senv intf params g =
     with Invalid_argument _ -> Misc.fatal_error "Static.eval_struct_graph_desc" in
  let env_i, bs_i = List.fold_left (eval_io_decl SourceB) ([],[]) (List.filter is_real_io intf.t_ins) in
  let env_o, bs_o = List.fold_left (eval_io_decl SinkB) ([],[]) (List.filter is_real_io intf.t_outs) in
- (* let env_w = List.map (eval_wire_decl gid tp) g.gs_wires in *)
  let env_w = List.map eval_wire_decl g.gs_wires in
  let senv' = senv |> augment_env env_p |> augment_env (env_i @ env_o @ env_w) in
  let senv'', boxes, wires =
@@ -591,20 +568,6 @@ let rec eval_net_expr senv expr =
       let r, bs'', ws'' =
         eval_net_application (bs_a@bs_f,ws_a@ws_f) senv expr.ne_loc val_fn val_arg in
       r, bs'' @ bs_a @ bs_f, ws'' @ ws_a @ ws_f
-  (* | NApp2 (fn, params, arg) ->
-   *     let val_fn, bs_f, ws_f = eval_net_expr  senv fn in
-   *     begin
-   *       match val_fn with
-   *       | SVAct a
-   *       | SVGraph a ->
-   *          let val_params, bs_p, ws_p = List.fold_left (eval_net_param senv) ([],[],[]) params in
-   *          let val_arg, bs_a, ws_a = eval_net_expr  senv arg in
-   *          let r, bs'', ws'' =
-   *            eval_net_application  (bs_a@bs_f,ws_a@ws_f) senv expr.ne_loc val_fn val_params val_arg in
-   *          r, bs'' @ bs_a @ bs_f @ bs_p, ws'' @ ws_a @ ws_f @ ws_p
-   *       | _ ->
-   *          illegal_application expr.ne_loc (\* Only actors and graphs can take parameters *\)
-   *     end *)
   | NFun (npat,nexp) ->
       SVClos {cl_pat=npat; cl_exp=nexp; cl_env=senv}, [], []
   | NLet (isrec, defns, body) ->
@@ -775,8 +738,6 @@ and instanciate_actor_or_graph tag nenv loc n params args =
   let mk_wire kind dst v = match v with
     SVLoc(i,j,ty,_) -> new_wid(), (((i,j),dst),ty,kind)
   | _ -> illegal_application loc in
-  (* let tyins' = list_of_types (List.map Misc.snd4 n.sb_ins) in
-   * let tyouts' = list_of_types (List.map Misc.snd4 n.sb_outs) in *)
   let tyins' = List.map Misc.snd3 n.sb_ins in
   let tyouts' = List.map Misc.snd3 n.sb_outs in
   let wps = 
@@ -791,7 +752,6 @@ and instanciate_actor_or_graph tag nenv loc n params args =
        | _ -> illegal_application loc
        end
     | _, _ -> args in
-  (* let args' = args in *)
   let type_of (_,(_,ty,_)) = ty in
   match bins, bouts, args' with
   | [], [], SVUnit ->                                                 (* APP_0_0 *)
@@ -1009,13 +969,6 @@ let build_static_box id kind intf = {
       sb_outs = List.map (fun (id,(ty,anns)) -> id,ty,anns) intf.t_outs;
       sb_typ = intf.t_sig }
 
-(* let rec build_actor_desc tp { ad_desc = a } =
- *   let intf = List.assoc a.a_id tp.tp_actors in
- *   let kind = match a.a_kind with ARegular -> BRegular | ABcast -> BBcast in
- *   a.a_id,
- *   { sa_desc = build_static_box a.a_id kind intf;
- *     sa_insts = [] } *)
-
 let eval_graph_decl tp nodes (acc,senv) { g_desc=g } =
   let intf =
     try fst (List.assoc g.g_id tp.tp_graphs)
@@ -1067,9 +1020,6 @@ let extract_subgraph acc (id,n) =
 let build_static tp senv p =
   let senv_f = List.fold_left eval_gval_decl senv p.gvals in
   let senv_n, nodes = List.fold_left (eval_node_decl tp) (senv_f,[]) p.nodes in
-  (* let senv_n =
-   *      senv_f
-   *   |> augment_env @@ List.map (fun (id,n) -> id, SVNode (n.sn_intf, [])) nodes in *)
   let subgraphs = List.fold_left extract_subgraph [] nodes in
   let topgraphs, senv_g =
     List.fold_left 
@@ -1102,7 +1052,6 @@ let string_of_typed_io (id,(ty,anns)) = id ^ ":" ^ string_of_type ty ^ Syntax.st
 let string_of_opt_value = function None -> "?" | Some v -> string_of_ssval v
 let string_of_typed_param (id,ty) = id ^ ":" ^ string_of_type ty 
 
-(* let string_of_inst_loc (gid,bid) = gid ^ "." ^ "B" ^ string_of_int bid *)
 let string_of_impl m = match m with
   | NI_Actor -> "actor"
   | NI_Graph _ -> "subgraph"
@@ -1171,10 +1120,4 @@ let dump_static_environment senv =
   Printf.printf "Static environment ---------------\n";
   List.iter dump_static_value senv;
   Printf.printf "----------------------------------\n"
-  (* Printf.printf "Core static environment ---------------\n";
-   * List.iter dump_static_value senv.core_se;
-   * Printf.printf "----------------------------------\n";
-   * Printf.printf "Net static environment ---------------\n";
-   * List.iter dump_static_value senv.net_se;
-   * Printf.printf "----------------------------------\n" *)
 

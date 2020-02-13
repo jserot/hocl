@@ -168,7 +168,6 @@ and net_expr_desc =
    | NVar of string
    | NPVar of string * core_expr list
    | NApp of net_expr * net_expr
-   (* | NApp2 of net_expr * core_expr list * net_expr *)
    | NTuple of net_expr list
    | NLet of bool * net_binding list * net_expr (* rec / non rec*)
    | NFun of net_pattern * net_expr (* single match here ! *)
@@ -203,7 +202,6 @@ let is_fun_definition = function
   { nb_desc={np_desc=NPat_var _}, {ne_desc=NFun (_,_)} } -> true
 | _ -> false
 
-(* let no_annot = { ne_desc=NUnit; ne_loc=Location.no_location; ne_typ=Types.no_type } *)
 let no_annot = ""
 
 (* Program manipulation *)
@@ -245,8 +243,6 @@ and string_of_net_exp = function
    | NPVar (v,ps) ->
       v ^ "<" ^ Misc.string_of_list string_of_core_expr "," ps ^ ">"
    | NApp (e1,e2) -> string_of_net_expr e1 ^ " " ^ string_of_net_expr e2
-   (* | NApp2 (e1,ces,e2) ->
-    *    string_of_net_expr e1 ^ "{" ^ Misc.string_of_list string_of_core_expr "," ces ^ "}" ^ " " ^ string_of_net_expr e2 *)
    | NTuple es -> "(" ^ Misc.string_of_list string_of_net_expr "," es ^ ")"
    | NLet (isrec,nbs,e) ->
          "let " ^ if isrec then "rec " else " " ^  Misc.string_of_list string_of_net_binding "and" nbs
@@ -337,9 +333,6 @@ let string_of_io_annots = function
 let string_of_type_decl d = match d.td_desc with
   | Opaque_type_decl id -> id
 
-(* let string_of_param_value v = match v with
- *   | PV_Int i -> string_of_int i
- *   | PV_Bool b -> string_of_bool b *)
 let string_of_opt_param_value v = match v with
   | None -> ""
   | Some v' -> "=" ^ string_of_core_expr v'

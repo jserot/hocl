@@ -16,11 +16,6 @@ open Error
 
 let auto_type_decl = ref false
 
-(* type global_typing_env = {
- *   core_te: typing_env; (\* For symbols occuring in expressions denoting parameter values *\)
- *   net_te: typing_env;  (\* For symbols denoting graph level values *\)
- *   } *)
-
 type typing_env = {
   te_types: (string * int) list;           (* type constructors (name, arity) *)
   te_values: (string * typ_scheme) list
@@ -28,10 +23,6 @@ type typing_env = {
 
 let augment_types env tenv = { tenv with te_types = env @ tenv.te_types }
 let augment_values env tenv = { tenv with te_values = env @ tenv.te_values }
-(* let augment_core_types env tenv = { tenv with core_te = augment_types env tenv.core_te }
- * let augment_net_types env tenv = { tenv with net_te = augment_types env tenv.net_te }
- * let augment_core_values env tenv = { tenv with core_te = augment_values env tenv.core_te }
- * let augment_net_values env tenv = { tenv with net_te = augment_values env tenv.net_te } *)
 
 let empty_tenv = { te_types = []; te_values = [] }
 
@@ -50,13 +41,6 @@ let rec dump_global_typing_environment title tenv =
   List.iter dump_type tenv.te_types;
   List.iter (dump_value "val") tenv.te_values;
   Printf.printf "----------------------------------\n"
-
-(* and dump_typing_environment title tenv = 
- *   Printf.printf "%s ---------------\n" title;
- *   List.iter dump_type tenv.te_types;
- *   List.iter (dump_value "val") tenv.te_values;
- *   Printf.printf "----------------------------------\n";
- *   flush stdout *)
 
 and dump_type (name, arity) =
   Printf.printf "type %s (arity=%d)\n" name arity
@@ -79,10 +63,10 @@ and typed_intf = {   (* Actors and graphs *)
    t_ins: (string * (typ * Syntax.io_annot list)) list;             
    t_outs: (string * (typ * Syntax.io_annot list)) list;           
    t_sig: typ_scheme;         (* external type signature: [t_ins -> t_outs] or [t_params -> t_ins -> t_outs] *)
-  (* TO FIX ? Should we allow actors (and/or resp. graphs) to have a _polymorphic_ interface ? 
+  (* TO FIX ? Should we allow nodes (and/or resp. graphs) to have a _polymorphic_ interface ? 
      Example:
-       actor id in (i: 'a) out (o: 'a);
-       graph double_id (i: 'a) out (o: 'a) fun val o = id (id i) end;
+       node id in (i: 'a) out (o: 'a);
+       graph main (i: int) out (o: int) val o = id i end;
      This does not make sense as soon as a concrete implementation is required for actor [id], does it ? *)
   }
 
@@ -95,22 +79,6 @@ and typed_node = string * typ
 
 and typed_defn = string * typ_scheme
   
-(* let lookup_node (gid,nid) tp =
- *   try
- *     match List.assoc gid tp.tp_graphs with
- *     | intf, TD_Struct (ws, ns) -> List.assoc nid ns
- *     | _, _ -> raise Not_found
- *   with
- *     Not_found -> Misc.fatal_error "Typing.lookup_node" *)
-
-(* let lookup_wire (gid,wid) tp =
- *   try
- *     match List.assoc gid tp.tp_graphs with
- *     | intf, TD_Struct (ws, ns) -> List.assoc wid ws
- *     | _, _ -> raise Not_found
- *   with
- *     Not_found -> Misc.fatal_error "Typing.lookup_wire" *)
-
 (* Unification *)
 
 let try_unify site ty1 ty2 loc =
@@ -227,13 +195,6 @@ let rec type_net_expression genv expr =
       let ty_result = new_type_var () in
       try_unify "expression" ty_fn (type_arrow ty_arg ty_result) expr.ne_loc;
       ty_result
-  (* | NApp2(fn, pvs, arg) ->
-   *     let ty_fn = type_net_expression genv fn in
-   *     let ty_params = type_product (List.map (type_core_expression genv) pvs) in
-   *     let ty_arg = type_net_expression genv arg in
-   *     let ty_result = new_type_var () in
-   *     try_unify "expression" ty_fn (type_arrow2 ty_params ty_arg ty_result) expr.ne_loc;
-   *     ty_result *)
   | NFun (pat,exp) ->
       let ty_argument = new_type_var ()
       and ty_result = new_type_var () in
@@ -404,8 +365,6 @@ let rec type_fun_graph_desc genv intf defns =
   let genv' = genv
               |> augment_values (List.map (fun (id,ty) -> id, trivial_scheme ty) intf.t_params)
               |> augment_values (List.map (fun (id,(ty,_)) -> id, trivial_scheme ty) intf.t_ins) in
-  (* Printf.printf "** Typing fun graph defn\n";
-   * dump_global_typing_environment "with augmented typing environment" genv'; *)
   let ty_defns, locs = 
     List.fold_left
       (fun (env,locs) d ->
@@ -434,7 +393,6 @@ let rec type_node_intf tenv { ni_desc=n } =
   let ty_ins = type_io tenv' n.n_ins in
   let ty_outs = type_io tenv' n.n_outs in
   let type_of io = fst (snd io) in
-  (* n.n_id, *)
   { t_params = ty_params;
     t_ins = ty_ins;
     t_outs = ty_outs;
@@ -561,12 +519,4 @@ and dump_typed_graph_desc td = match td with
      List.iter (fun (id,ty) -> Printf.printf "  node %s: %s\n" id (Pr_type.string_of_type ty)) ty_nodes
   | TD_Fun ty_defns ->
      List.iter (fun (id,ty) -> Printf.printf "  val %s: %s\n" id (Pr_type.string_of_type_scheme ty)) ty_defns
-  
-(* and dump_typed_value builtins (name, ty_sch) =
- *   if not (List.mem_assoc name builtins.te_values ) then begin
- *       Pr_type.reset_type_var_names ();
- *       Printf.printf "val %s : %s\n" name (Pr_type.string_of_type_scheme ty_sch);
- *       flush stdout
- *     end *)
-
   

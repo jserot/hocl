@@ -95,7 +95,7 @@ let rec unify ty1 ty2 =
       List.iter2 unify ts1 ts2
   | TyConstr("bundle", [ty1'] (*, [sz1]*)), TyProduct ts2
   | TyProduct ts2, TyConstr("bundle", [ty1'] (*, [sz1]*)) ->
-      (* JS. Special case for unifying bundles and tuples *)
+      (* Special case for unifying bundles and tuples *)
       (* unify_size (val1,val2) sz1 (SzConst (List.length ts2)); *)
       List.iter (unify ty1') ts2
   | TyConstr(constr1, arguments1), TyConstr(constr2, arguments2)

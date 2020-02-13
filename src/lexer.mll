@@ -92,7 +92,6 @@ let char_for_backslash = function
   | 'b' -> '\008'
   | 't' -> '\009'
   | c   -> c
-;;
 
 let char_for_decimal_code lexbuf i =
   let c = 
@@ -100,7 +99,6 @@ let char_for_decimal_code lexbuf i =
      10 * (int_of_char(Lexing.lexeme_char lexbuf (i+1)) - 48) +
           (int_of_char(Lexing.lexeme_char lexbuf (i+2)) - 48) in
   char_of_int(c land 0xFF)
-;;
 }
 
 rule main = parse
