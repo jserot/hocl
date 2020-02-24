@@ -1,4 +1,4 @@
-#include "foo.h"
+#include "ffoo.h"
 
 void foo(IN int *i, OUT int *o)
 {

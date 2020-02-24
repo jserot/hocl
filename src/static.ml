@@ -40,7 +40,7 @@ let augment_env env' env = env' @ env
 type static_program = {
   sp_gfuns: (string * ss_val) list;
   sp_nodes: (string * sn_desc) list;  (* Declared nodes (with associated implementations) *)
-  sp_graphs: (string * sg_desc) list; (* Toplevel graphs *)
+  sp_graphs: (string * tg_desc) list; (* Toplevel graphs *)
   }
                
 and sn_desc = {
@@ -49,8 +49,15 @@ and sn_desc = {
   }
 
 and sn_impl =
-  | NI_Actor              (* Opaque node *)
-  | NI_Graph of sg_desc   (* Sub-graph *)
+  | NI_Actor of Syntax.actor_desc   (* Opaque node, with external implementation(s) *)
+  | NI_Graph of sg_desc             (* Sub-graph *)
+
+(* and ni_desc = (string * string) list   (\* [attribute,value] *\) *)
+
+and tg_desc = {
+    tg_intf: Typing.typed_intf;
+    tg_impl: sg_desc; 
+  }
 
 and sg_desc = { 
     sg_boxes: (bid * ss_box) list;
@@ -899,10 +906,17 @@ let insert_bcast_after after_boxes (boxes,wires) (bid,box) =
     boxes, wires
 
 let insert_bcasters after_boxes sp = 
-  let insert (id,g) =
+  let insert g =
     let boxes', wires' = List.fold_left (insert_bcast_after after_boxes) (g.sg_boxes,g.sg_wires) g.sg_boxes in
-    id, { sg_boxes = boxes'; sg_wires = wires' } in
-  { sp with sp_graphs = List.map insert sp.sp_graphs }
+    { sg_boxes = boxes'; sg_wires = wires' } in
+  let insert_g (id,g) = id, insert g in
+  let insert_n (id,n) = match n.sn_impl with
+    | NI_Graph g -> id, {n with sn_impl = NI_Graph (insert g)}
+    | _ -> id,n in
+  let insert_t (id,g) = id, { g with tg_impl = insert g.tg_impl } in
+  { sp with
+    sp_nodes = List.map insert_n sp.sp_nodes; 
+    sp_graphs = List.map insert_t sp.sp_graphs }
 
 (* Insert FIFOs - not used here 
  * 
@@ -911,8 +925,7 @@ let insert_bcasters after_boxes sp =
  *        |  A1  k|-------->|k' A2  |    ===>  |  A1  k|-------->|0 FIFO 0|--------->|k' A2   |
  *        |       |         |       |          |       |         |        |          |        |
  *        +-------+         +-------+          +-------+         +--------+          +--------+
- *
-*)
+ *)
 
 (* let new_fifo_box ty w wid' wid'' =
  *   let bid = new_bid () in
@@ -979,7 +992,8 @@ let eval_graph_decl tp nodes (acc,senv) { g_desc=g } =
     | GD_Struct desc -> eval_struct_graph_desc g.g_id tp senv intf params desc
     | GD_Fun desc -> eval_fun_graph_desc tp senv intf params desc
     end in
-  let acc' = (g.g_id, { sg_boxes=boxes; sg_wires=wires }) :: acc in
+  let g' = { tg_intf=intf; tg_impl={sg_boxes=boxes; sg_wires=wires} } in
+  let acc' = (g.g_id, g') :: acc in
   let senv' = senv |> augment_env [g.g_id, SVNode (build_static_box g.g_id SV_Graph intf, [])] in
   acc', senv'
   
@@ -998,8 +1012,8 @@ let eval_node_decl tp (senv,nodes) n =
     with Not_found -> Misc.fatal_error "Static.eval_impl_decl" in
   let params = List.map (function _ -> None) intf.t_params in
   let impl, kind = match n.n_impl.nm_desc with
-    | NM_None -> NI_Actor, SV_Actor
-    | NM_Actor _ -> NI_Actor, SV_Actor
+    | NM_None -> NI_Actor [], SV_Actor
+    | NM_Actor im -> NI_Actor im, SV_Actor
     | NM_Struct desc ->
        let boxes, wires = eval_struct_graph_desc id tp senv intf params desc in
        NI_Graph { sg_boxes=boxes; sg_wires=wires }, SV_Graph
@@ -1012,15 +1026,15 @@ let eval_node_decl tp (senv,nodes) n =
   (id, SVNode (build_static_box id kind intf, [])) :: senv,
   (id,node)::nodes
 
-let extract_subgraph acc (id,n) = 
-  match n.sn_impl with
-    | NI_Actor -> acc
-    | NI_Graph g -> (id,g)::acc
+(* let extract_subgraph acc (id,n) = 
+ *   match n.sn_impl with
+ *     | NI_Actor _ -> acc
+ *     | NI_Graph g -> (id,g)::acc *)
   
 let build_static tp senv p =
   let senv_f = List.fold_left eval_gval_decl senv p.gvals in
   let senv_n, nodes = List.fold_left (eval_node_decl tp) (senv_f,[]) p.nodes in
-  let subgraphs = List.fold_left extract_subgraph [] nodes in
+  (* let subgraphs = List.fold_left extract_subgraph [] nodes in *)
   let topgraphs, senv_g =
     List.fold_left 
       (eval_graph_decl tp nodes)
@@ -1028,7 +1042,7 @@ let build_static tp senv p =
       p.graphs in
   { sp_gfuns = senv_f;
     sp_nodes = nodes;
-    sp_graphs = subgraphs @ topgraphs }
+    sp_graphs = (*subgraphs @*) topgraphs }
 
 (* let extract_special_boxes name sp =
  *   List.fold_left
@@ -1053,7 +1067,7 @@ let string_of_opt_value = function None -> "?" | Some v -> string_of_ssval v
 let string_of_typed_param (id,ty) = id ^ ":" ^ string_of_type ty 
 
 let string_of_impl m = match m with
-  | NI_Actor -> "actor"
+  | NI_Actor _ -> "actor"
   | NI_Graph _ -> "subgraph"
 
 let dump_node (id,n) = 
@@ -1099,9 +1113,9 @@ let dump_wire (i,(((s,ss),(d,ds)),ty,kind)) =
 let dump_graph (id,gd) =
   printf "* %s\n" id;
   printf "- Boxes --------------------------\n";
-  List.iter dump_box gd.sg_boxes;
+  List.iter dump_box gd.tg_impl.sg_boxes;
   printf "- Wires --------------------------\n";
-  List.iter dump_wire gd.sg_wires;
+  List.iter dump_wire gd.tg_impl.sg_wires;
   printf "----------------------------------\n"
 
 let dump_static sp =

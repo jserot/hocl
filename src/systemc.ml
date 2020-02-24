@@ -14,6 +14,7 @@
 
 open Printf
 open Types
+open Typing
 open Static
 
 exception Error of string
@@ -23,11 +24,12 @@ type sc_config = {
   mutable sc_top_headers: string list;
   mutable sc_bcasters_suffix: string;
   mutable sc_trace: bool;
-  (* mutable sc_dump_fifos: bool;
-   * mutable sc_trace_fifos: bool;
-   * mutable sc_dump_fifo_stats: bool;
-   * mutable sc_fifo_stats_file: string; *)
-  mutable sc_act_suffix: string;
+  mutable sc_dump_fifos: bool;
+  mutable sc_trace_fifos: bool;
+  mutable sc_dump_fifo_stats: bool;
+  mutable sc_fifo_stats_file: string;
+  mutable sc_graph_suffix: string;
+  mutable sc_actor_suffix: string;
   mutable sc_param_suffix: string;
   mutable sc_mod_clock: string;
   mutable sc_clock_period_ns: int;
@@ -35,8 +37,8 @@ type sc_config = {
   mutable sc_param_fifo_capacity: int;
   mutable sc_default_io_rate: int;
   mutable sc_stop_time: int;
-  (* mutable sc_stop_idle_time: int;
-   * mutable sc_tmp_prefix: string;  (\* Prefix for temporary variables in rule actions *\)
+  mutable sc_stop_idle_time: int;
+   (* mutable sc_tmp_prefix: string;  (\* Prefix for temporary variables in rule actions *\)
    * mutable sc_type_prefix: string;  (\* Prefix for globally defined types *\) *)
   }
 
@@ -50,20 +52,21 @@ let cfg = {
     "\"bcast.h\"" ];
   sc_bcasters_suffix = "_bcasters";
   sc_trace = false;
-  (* sc_dump_fifos = false;
-   * sc_trace_fifos = false;
-   * sc_dump_fifo_stats = false;
-   * sc_fifo_stats_file = "fifo_stats.dat"; *)
-  sc_act_suffix = "_act";
-  sc_param_suffix = "_param";
+  sc_dump_fifos = false;
+  sc_trace_fifos = false;
+  sc_dump_fifo_stats = false;
+  sc_fifo_stats_file = "fifo_stats.dat";
+  sc_actor_suffix = "_act";
+  sc_graph_suffix = "_gph";
+  sc_param_suffix = "_prm";
   sc_mod_clock = "clk";
   sc_clock_period_ns = 10;
-  sc_data_fifo_capacity = 256;
+  sc_data_fifo_capacity = 16;
   sc_param_fifo_capacity = 4;  (* TO FIX: 1 *)
   sc_default_io_rate = 1;
   sc_stop_time = 0;
-  (* sc_stop_idle_time = 0;
-   * sc_tmp_prefix = "_";
+  sc_stop_idle_time = 0;
+   (* sc_tmp_prefix = "_";
    * sc_type_prefix = "t_"; *)
 }
 
@@ -71,10 +74,12 @@ let dump_banner oc = Misc.dump_banner "//" oc
 
 let localize_id s = "_" ^ s
 
+let mod_name name = String.capitalize_ascii name
+
 (* Types *)
 
 let rec string_of_type t  = match real_type t with (* TO REFINE *)
-  | TyConstr("nat", []) -> "int"
+  | TyConstr("int", []) -> "int"
   | TyConstr(name, []) -> name
   (* | Tconstr({tc_name="array"}, [ty], [sz]) -> 
    *     "std::array" ^ "<" ^ string_of_type ty ^  "," ^ string_of_size sz ^ ">" *)
@@ -90,7 +95,8 @@ let rec string_of_type t  = match real_type t with (* TO REFINE *)
 
 let rec string_of_core_expr ?(localize_ids=false) e =
   match e.Syntax.ce_desc with
-    Syntax.EConst n -> string_of_int n
+  | Syntax.EInt n -> string_of_int n
+  | Syntax.EBool b -> string_of_bool b
   | Syntax.EVar v -> if localize_ids then localize_id v else v
   | Syntax.EBinop (op, e1, e2) -> string_of_core_expr' ~localize_ids e1 ^ op ^ string_of_core_expr' ~localize_ids e2
 
@@ -101,64 +107,66 @@ and string_of_core_expr' ?(localize_ids=false) e =
 
 (* Dumping actor interface and implementation *)
 
-let is_actual_actor_io (id,ty,_,_) = not (is_unit_type ty)
+let is_actual_actor_io (id,(ty,_)) = not (is_unit_type ty)
 
 let string_of_io_rate rate = match rate with
   | None -> "1"
   | Some e -> Syntax.string_of_rate_expr e
 
-let get_pragma_fns sp id =
-    match get_pragma_desc "code" id sp with 
-    | [incl_file; loop_fn] -> incl_file, loop_fn, ""
-    | [incl_file; loop_fn; init_fn] -> incl_file, loop_fn, init_fn
-    | _ -> Error.no_pragma_desc id; id ^ ".h", id, ""
+(* let get_delay_io a =
+ *   let open Ssval in 
+ *   match a.sa_kind with
+ *   | Syntax.A_Delay ->
+ *      let ival_param =
+ *        match a.sa_params, List.find_opt (fun (id, _, _) -> id = "ival") a.sa_params with
+ *        | [], _ -> Error.missing_param "delay" a.sa_id " (should be at least one with name \"ival\")"
+ *        | _, None -> Error.missing_ival_param a.sa_id; List.hd (List.rev a.sa_params)
+ *        | _, Some p -> p in
+ *      let outp = match a.sa_outs with
+ *      | [o] -> o
+ *      | _ -> Error.illegal_interface "delay" a.sa_id " (should have exactly one output)" in
+ *      ival_param, outp 
+ *   | _ -> Misc.fatal_error "Systemc.get_delay_io"               *)
 
-let get_delay_io a =
-  let open Ssval in 
-  match a.sa_kind with
-  | Syntax.A_Delay ->
-     let ival_param =
-       match a.sa_params, List.find_opt (fun (id, _, _) -> id = "ival") a.sa_params with
-       | [], _ -> Error.missing_param "delay" a.sa_id " (should be at least one with name \"ival\")"
-       | _, None -> Error.missing_ival_param a.sa_id; List.hd (List.rev a.sa_params)
-       | _, Some p -> p in
-     let outp = match a.sa_outs with
-     | [o] -> o
-     | _ -> Error.illegal_interface "delay" a.sa_id " (should have exactly one output)" in
-     ival_param, outp 
-  | _ -> Misc.fatal_error "Systemc.get_delay_io"
-             
-let rec dump_actor_intf sp prefix oc modname a =
-  let open Ssval in
-  let inps = List.filter is_actual_actor_io a.sa_ins in
-  let outps = List.filter is_actual_actor_io a.sa_outs in
+let dump_module_intf oc name intf =
+  fprintf oc "SC_MODULE(%s) {\n" (mod_name name);
+  fprintf oc "  sc_in<bool> %s;\n" cfg.sc_mod_clock;
+  List.iter
+    (function (id,ty) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
+    intf.t_params;
+  List.iter
+    (function (id,(ty,_)) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
+    intf.t_real_ins;
+  List.iter
+    (function (id,(ty,_)) -> fprintf oc "  sc_fifo_out<%s > %s;\n" (string_of_type ty) id)
+    intf.t_real_outs
+
+let get_rate_annot anns = 
+  List.find_opt (function Syntax.IA_Rate _ -> true | _ -> false) anns
+
+let get_rate_expr anns =
+  match get_rate_annot anns with
+  | Some (IA_Rate e) -> Some e
+  | _ -> None
+
+let rec dump_actor_intf prefix oc name intf attrs =
   (* let _, _, init_fn =
    *   match a.sa_kind with
    *   | A_Delay -> "", "", ""
    *   | _ -> get_pragma_fns sp a.sa_id in *)
   (* let clocked = inps = [] && a.sa_params = [] || a.sa_kind = A_Delay in  (\* parameter-less, source actors or delay *\) *)
-  fprintf oc "#ifndef _%s_h\n" modname;
-  fprintf oc "#define _%s_h\n" modname;
+  fprintf oc "#ifndef _%s%s_h\n" name cfg.sc_actor_suffix;
+  fprintf oc "#define _%s%s_h\n" name cfg.sc_actor_suffix;
   fprintf oc "\n";
   List.iter (function h -> fprintf oc "#include %s\n" h) cfg.sc_act_headers;
   fprintf oc "\n";
-  fprintf oc "SC_MODULE(%s) {\n" modname;
-  fprintf oc "  sc_in<bool> %s;\n" cfg.sc_mod_clock;
-  List.iter
-    (function (id,ty,_) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
-    a.sa_params;
-  List.iter
-    (function (id,ty,_,_) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
-    inps;
-  List.iter
-    (function (id,ty,_,_) -> fprintf oc "  sc_fifo_out<%s > %s;\n" (string_of_type ty) id)
-    outps;
+  dump_module_intf oc name intf;
   fprintf oc "\n";
   fprintf oc "  void main(void);\n";
   fprintf oc "\n";
-  fprintf oc "  SC_HAS_PROCESS(%s);\n" modname;
+  fprintf oc "  SC_HAS_PROCESS(%s);\n" (mod_name name);
   fprintf oc "\n";
-  fprintf oc "  %s(sc_module_name name_" modname;
+  fprintf oc "  %s(sc_module_name name_" (mod_name name);
   fprintf oc ", bool trace_=%b " cfg.sc_trace;
   fprintf oc " ) :\n";
   fprintf oc "    modname(name_), sc_module(name_)";
@@ -170,24 +178,24 @@ let rec dump_actor_intf sp prefix oc modname a =
    *   fprintf oc "    sensitive << %s.pos();\n" cfg.sc_mod_clock; *)
   fprintf oc "  }\n";
   fprintf oc "\n";
-  fprintf oc "  ~%s() { }\n" modname;
+  fprintf oc "  ~%s() { }\n" (mod_name name);
   fprintf oc "\n";
   fprintf oc "  private:\n";
   fprintf oc "    // Local variables\n";
-  let dump_local_var (id,ty,_) =
+  let dump_local_var (id,ty) =
     fprintf oc "    %s %s;\n" (string_of_type ty) (localize_id id) in
-  let dump_local_var' (id,ty,rate,ann) =
+  let dump_local_var' (id,(ty,anns)) =
     let open Syntax in
-    match rate with
-    | None -> (* No rate specified *)
-       fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) cfg.sc_default_io_rate
-    | Some {ce_desc=EConst n} -> 
+    match get_rate_expr anns with
+    | Some {ce_desc=EInt n} -> 
        fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) n (* Static allocation *)
     | Some _ ->
-       fprintf oc "    %s *%s;\n" (string_of_type ty) (localize_id id) in (* Dynamic allocation *)
-  List.iter dump_local_var a.sa_params;
-  List.iter dump_local_var' (List.filter is_actual_actor_io a.sa_ins);
-  List.iter dump_local_var' (List.filter is_actual_actor_io a.sa_outs);
+       fprintf oc "    %s *%s;\n" (string_of_type ty) (localize_id id) (* Dynamic allocation *)
+    | None -> (* No rate specified *)
+       fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) cfg.sc_default_io_rate in
+  List.iter dump_local_var intf.t_params;
+  List.iter dump_local_var' intf.t_real_ins;
+  List.iter dump_local_var' intf.t_real_outs;
   fprintf oc "    // Service\n";
   fprintf oc "    bool trace;\n";
   fprintf oc "    sc_module_name modname;\n";
@@ -202,42 +210,44 @@ let string_of_io (id,ty,kind) = localize_id id
    * | DataIn -> "&" ^ localize_id id
    * | DataOut -> "&" ^ localize_id id *)
 
-let rec dump_actor_impl sp prefix oc name a =
-  let open Ssval in
-  let modname = name in 
-  let incl_file, loop_fn, init_fn =
-    match a.sa_kind with
-    | A_Delay -> "", "", ""  (* The delay actor is builtin *)
-    | _ -> get_pragma_fns sp a.sa_id in
-  let inps = List.filter is_actual_actor_io a.sa_ins in
-  let outps = List.filter is_actual_actor_io a.sa_outs in
-  let params = List.map (function (id,ty,_) -> id,ty,ParamIn) a.sa_params in
-  let dinps = List.map (function (id,ty,_,_) -> id,ty,DataIn) inps in
-  let doutps = List.map (function (id,ty,_,_) -> id,ty,DataOut) outps in
-  let clocked = inps = [] && params = [] in (* true for parameter-less, source actors *)
+let get_impl_fns name attrs =
+  match List.assoc_opt "incl_file" attrs, List.assoc_opt "loop_fn" attrs, List.assoc_opt "init_fn" attrs with
+  | Some f, Some f', Some f'' -> f, f', f''
+  | Some f, Some f', None -> f, f', ""
+  | _, _, _ -> Error.incomplete_actor_impl "systemc" name
+
+let rec dump_actor_impl prefix oc name intf attrs =
+  let incl_file, loop_fn, init_fn = get_impl_fns name attrs in
+    (* match a.sa_kind with
+     * | A_Delay -> "", "", ""  (\* The delay actor is builtin *\)
+     * | _ -> get_pragma_fns sp a.sa_id in *)
+  let params = List.map (function (id,ty) -> id,ty,ParamIn) intf.t_params in
+  let dinps = List.map (function (id,(ty,_)) -> id,ty,DataIn) intf.t_real_ins in
+  let doutps = List.map (function (id,(ty,_)) -> id,ty,DataOut) intf.t_real_outs in
+  let clocked = intf.t_real_ins = [] && params = [] in (* true for parameter-less, source actors *)
   let local_params = List.map (function (id,_,_) -> id, localize_id id) params in
   let localize_rate_expr locals re =
     match re with
     | None -> None
-    | Some e -> Some (Syntax.subst_rate_expr locals e) in
+    | Some e -> Some (Syntax.subst_core_expr locals e) in
   let string_of_io_rate' re = string_of_io_rate (localize_rate_expr local_params re) in
-  fprintf oc "#include \"%s.h\"\n" modname;
+  fprintf oc "#include \"%s%s.h\"\n" name cfg.sc_actor_suffix;
   if incl_file <> "" then fprintf oc "#include \"%s\"\n" incl_file;
   fprintf oc "\n" ;
-  fprintf oc "void %s::main(void) {\n" modname;
-  if init_fn <> "" || a.sa_kind = A_Delay then begin
+  fprintf oc "void %s::main(void) {\n" (mod_name name);
+  if init_fn <> "" (* || a.sa_kind = A_Delay *) then begin
       if  params <> [] then begin (* We need to wait for one clk event so that parameter values are available.. *)
         fprintf oc "    wait(%s.posedge_event());\n" cfg.sc_mod_clock;
         List.iter
           (fun (id,_,_) -> fprintf oc "    %s = %s.read();\n" (localize_id id) id)
           params
         end;
-      if a.sa_kind = A_Delay then begin
-        let ((id,_,_) as ival_inp), ((id',_,rate,_) as outp) = get_delay_io a in
-        fprintf oc "    for ( int __k=0; __k<%s; __k++ ) %s.write(%s); // Initial tokens\n"
-          (string_of_io_rate' rate) id' (localize_id id)
-        end
-      else
+      (* if a.sa_kind = A_Delay then begin
+       *   let ((id,_,_) as ival_inp), ((id',_,rate,_) as outp) = get_delay_io a in
+       *   fprintf oc "    for ( int __k=0; __k<%s; __k++ ) %s.write(%s); // Initial tokens\n"
+       *     (string_of_io_rate' rate) id' (localize_id id)
+       *   end
+       * else *)
         fprintf oc "    %s(%s);\n" init_fn (Misc.string_of_list string_of_io ", " params);
     end;
   fprintf oc "    while ( 1 ) { \n";
@@ -247,131 +257,134 @@ let rec dump_actor_impl sp prefix oc name a =
     (fun (id,_,_) -> fprintf oc "      %s = %s.read();\n" (localize_id id) id)
     params;
   List.iter  (* Dynamically allocate buffers for non-constant sized IOs *)
-    (fun (id,ty,rate,ann) ->
-      let open Syntax in
-      match rate with 
-     | Some e when not (is_constant_rate_expr e) ->
-        fprintf oc "      %s = new %s[%s];\n" (localize_id id) (string_of_type ty) (string_of_io_rate' rate)
+    (fun (id,(ty,anns)) ->
+      match get_rate_expr anns with
+     | Some e as e' when not (Syntax.is_constant_core_expr e) ->
+        fprintf oc "      %s = new %s[%s];\n" (localize_id id) (string_of_type ty) (string_of_io_rate' e')
       | _ -> ())
-    (if a.sa_kind = Syntax.A_Delay then inps else inps @ outps); 
+    ((*if a.sa_kind = Syntax.A_Delay then inps else*) intf.t_real_ins @ intf.t_real_outs); 
   List.iter
-    (fun (id,_,rate,ann) ->
+    (fun (id,(ty,anns)) ->
+      let rate = get_rate_expr anns in
       fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s[__k] = %s.read();\n"
         (string_of_io_rate' rate) (localize_id id) id)
-    inps;
-  if a.sa_kind = Syntax.A_Delay then begin
-      let iid, oid, orate = match inps, outps with
-        | [id,_,_,_], [id',_,rate,_] -> id, id', rate
-        | _ -> Error.illegal_interface "delay" a.sa_id " (should have exactly one input and output)" in
-      fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
-            (string_of_io_rate' orate) oid (localize_id iid)
-    end
-  else begin
+    intf.t_real_ins;
+  (* if a.sa_kind = Syntax.A_Delay then begin
+   *     let iid, oid, orate = match intf.t_real_ins, intf.t_real_outs with
+   *       | [id,_,_,_], [id',_,rate,_] -> id, id', rate
+   *       | _ -> Error.illegal_interface "delay" a.sa_id " (should have exactly one input and output)" in
+   *     fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
+   *           (string_of_io_rate' orate) oid (localize_id iid)
+   *   end
+   * else *)
+   begin
     fprintf oc "      %s(%s);\n" loop_fn (Misc.string_of_list string_of_io ", " (params @ dinps @ doutps));
     List.iter
-      (fun (id,_,rate,ann) ->
+      (fun (id,(ty,anns)) ->
+        let rate = get_rate_expr anns in
         fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
           (string_of_io_rate' rate) id (localize_id id))
-      outps
+      intf.t_real_outs
     end;
   List.iter  (* Dynamically de-allocate buffers for non-constant sized IOs *)
-    (fun (id,ty,rate,ann) ->
+    (fun (id,(ty,anns)) ->
       let open Syntax in
-      match rate with 
-     | Some e  when not (is_constant_rate_expr e) ->
+      match get_rate_expr anns with 
+     | Some e  when not (is_constant_core_expr e) ->
         fprintf oc "      delete [] %s;\n" (localize_id id)
      | _ -> ())
-    (if a.sa_kind = Syntax.A_Delay then inps else inps @ outps); 
+    ((*if a.sa_kind = Syntax.A_Delay then intf.t_real_ins else *)intf.t_real_ins @ intf.t_real_outs); 
   fprintf oc "    }\n";
   fprintf oc "}\n"
 
-let dump_component dir f modname fname m =
-  let fname' = dir ^ "/" ^ fname in
+let dump_actor_component path f modname fname intf attrs =
+  let fname' = path ^ fname in
   let oc = open_out fname' in
   dump_banner oc;
-  f oc modname m;
+  f oc modname intf attrs;
   Logfile.write fname';
   close_out oc
 
-let dump_actor dir prefix sp (id,act) =
-  let a = act.sa_desc in 
-  let modname = a.Ssval.sa_id ^ cfg.sc_act_suffix in
-  dump_component dir (dump_actor_intf sp prefix) modname (modname ^ ".h") a;
-  dump_component dir (dump_actor_impl sp prefix) modname (modname ^ ".cpp") a
+let dump_actor path prefix name intf impl =
+  let attrs =
+    try List.assoc "systemc" impl
+    with Not_found -> Error.missing_actor_impl "systemc" name in
+  dump_actor_component path (dump_actor_intf prefix) name (name ^ cfg.sc_actor_suffix ^ ".h") intf attrs;
+  dump_actor_component path (dump_actor_impl prefix) name (name ^ cfg.sc_actor_suffix ^ ".cpp") intf attrs
           
 (* Dumping parameters *)
 
-let is_actual_param_io (_,(_,ty,_,_)) = not (is_unit_type ty)
-
-let rec dump_param_intf prefix oc modname b =
-  fprintf oc "#ifndef _%s_h\n" modname;
-  fprintf oc "#define _%s_h\n" modname;
-  fprintf oc "\n";
-  List.iter (function h -> fprintf oc "#include %s\n" h) cfg.sc_act_headers;
-  fprintf oc "\n";
-  fprintf oc "SC_MODULE(%s) {\n" modname;
-  let inps = List.filter is_actual_param_io b.b_ins in
-  let outps = List.filter is_actual_param_io b.b_outs in
-  if inps = [] then (* Initial (non dep) parameter *)
-    fprintf oc "  sc_in<bool> %s;\n" cfg.sc_mod_clock;
-  List.iter
-    (function (id,(_,ty,rate,ann)) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
-    inps;
-  List.iter
-    (function (id,(_,ty,rate,ann)) -> fprintf oc "  sc_fifo_out<%s > %s;\n" (string_of_type ty) id)
-    outps;
-  fprintf oc "\n";
-  fprintf oc "  void main(void);\n";
-  fprintf oc "\n";
-  fprintf oc "  SC_HAS_PROCESS(%s);\n" modname;
-  fprintf oc "\n";
-  fprintf oc "  %s(sc_module_name name_" modname;
-  fprintf oc " ) :\n";
-  fprintf oc "    modname(name_), sc_module(name_)";
-  fprintf oc "  {\n";
-  fprintf oc "    SC_THREAD(main);\n";
-  (* if inps = [] then (\* Initial (non dep) parameter *\)
-   *     fprintf oc "    sensitive << %s.pos();\n" cfg.sc_mod_clock
-   *   end
-   * else
-   *   begin
-   *     fprintf oc "    SC_METHOD(main);\n";
-   *     fprintf oc "    sensitive << %s;\n" (Misc.string_of_list (fun (id, _) -> id) " << " inps)
-   *   end; *)
-  fprintf oc "  }\n";
-  fprintf oc "\n";
-  fprintf oc "  ~%s() { }\n" modname;
-  fprintf oc "\n";
-  fprintf oc "  private:\n";
-  fprintf oc "    // Local variables\n";
-  let dump_local_var (id,(_,ty,_,_)) = fprintf oc "    %s %s;\n" (string_of_type ty) (localize_id id) in
-  List.iter dump_local_var inps;
-  List.iter dump_local_var outps;
-  fprintf oc "    // Service\n";
-  fprintf oc "    sc_module_name modname;\n";
-  fprintf oc "};\n";
-  fprintf oc "#endif\n"
-
-let rec dump_param_impl prefix oc name b =
-  let modname = name in 
-  let inps = List.filter is_actual_param_io b.b_ins in
-  fprintf oc "#include \"%s.h\"\n" modname;
-  fprintf oc "\n" ;
-  fprintf oc "void %s::main(void) {\n" modname;
-  fprintf oc "    while ( 1 ) { \n";
-  if inps = [] then (* Initial (non dep) parameter *)
-    fprintf oc "      wait(%s.posedge_event());\n" cfg.sc_mod_clock
-  else
-    List.iter (fun (id,_) -> fprintf oc "      %s = %s.read();\n" (localize_id id) id) b.b_ins;
-  fprintf oc "      _o = %s;\n" (string_of_core_expr ~localize_ids:true b.b_val.bv_sub);
-  List.iter (fun (id,_) -> fprintf oc "      %s.write(%s);\n" id (localize_id id)) b.b_outs;
-  fprintf oc "    }\n";
-  fprintf oc "}\n"
-
-let dump_param dir prefix sp (id,b) =
-  let modname = b.b_name ^ cfg.sc_param_suffix in
-  dump_component dir (dump_param_intf prefix) modname (modname ^ ".h") b;
-  dump_component dir (dump_param_impl prefix) modname (modname ^ ".cpp") b
+(* let is_actual_param_io (_,(_,ty,_,_)) = not (is_unit_type ty)
+ * 
+ * let rec dump_param_intf prefix oc modname b =
+ *   fprintf oc "#ifndef _%s_h\n" modname;
+ *   fprintf oc "#define _%s_h\n" modname;
+ *   fprintf oc "\n";
+ *   List.iter (function h -> fprintf oc "#include %s\n" h) cfg.sc_act_headers;
+ *   fprintf oc "\n";
+ *   fprintf oc "SC_MODULE(%s) {\n" modname;
+ *   let inps = List.filter is_actual_param_io b.b_ins in
+ *   let outps = List.filter is_actual_param_io b.b_outs in
+ *   if inps = [] then (\* Initial (non dep) parameter *\)
+ *     fprintf oc "  sc_in<bool> %s;\n" cfg.sc_mod_clock;
+ *   List.iter
+ *     (function (id,(_,ty,rate,ann)) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
+ *     inps;
+ *   List.iter
+ *     (function (id,(_,ty,rate,ann)) -> fprintf oc "  sc_fifo_out<%s > %s;\n" (string_of_type ty) id)
+ *     outps;
+ *   fprintf oc "\n";
+ *   fprintf oc "  void main(void);\n";
+ *   fprintf oc "\n";
+ *   fprintf oc "  SC_HAS_PROCESS(%s);\n" modname;
+ *   fprintf oc "\n";
+ *   fprintf oc "  %s(sc_module_name name_" modname;
+ *   fprintf oc " ) :\n";
+ *   fprintf oc "    modname(name_), sc_module(name_)";
+ *   fprintf oc "  {\n";
+ *   fprintf oc "    SC_THREAD(main);\n";
+ *   (\* if inps = [] then (\\* Initial (non dep) parameter *\\)
+ *    *     fprintf oc "    sensitive << %s.pos();\n" cfg.sc_mod_clock
+ *    *   end
+ *    * else
+ *    *   begin
+ *    *     fprintf oc "    SC_METHOD(main);\n";
+ *    *     fprintf oc "    sensitive << %s;\n" (Misc.string_of_list (fun (id, _) -> id) " << " inps)
+ *    *   end; *\)
+ *   fprintf oc "  }\n";
+ *   fprintf oc "\n";
+ *   fprintf oc "  ~%s() { }\n" modname;
+ *   fprintf oc "\n";
+ *   fprintf oc "  private:\n";
+ *   fprintf oc "    // Local variables\n";
+ *   let dump_local_var (id,(_,ty,_,_)) = fprintf oc "    %s %s;\n" (string_of_type ty) (localize_id id) in
+ *   List.iter dump_local_var inps;
+ *   List.iter dump_local_var outps;
+ *   fprintf oc "    // Service\n";
+ *   fprintf oc "    sc_module_name modname;\n";
+ *   fprintf oc "};\n";
+ *   fprintf oc "#endif\n"
+ * 
+ * let rec dump_param_impl prefix oc name b =
+ *   let modname = name in 
+ *   let inps = List.filter is_actual_param_io b.b_ins in
+ *   fprintf oc "#include \"%s.h\"\n" modname;
+ *   fprintf oc "\n" ;
+ *   fprintf oc "void %s::main(void) {\n" modname;
+ *   fprintf oc "    while ( 1 ) { \n";
+ *   if inps = [] then (\* Initial (non dep) parameter *\)
+ *     fprintf oc "      wait(%s.posedge_event());\n" cfg.sc_mod_clock
+ *   else
+ *     List.iter (fun (id,_) -> fprintf oc "      %s = %s.read();\n" (localize_id id) id) b.b_ins;
+ *   fprintf oc "      _o = %s;\n" (string_of_core_expr ~localize_ids:true b.b_val.bv_sub);
+ *   List.iter (fun (id,_) -> fprintf oc "      %s.write(%s);\n" id (localize_id id)) b.b_outs;
+ *   fprintf oc "    }\n";
+ *   fprintf oc "}\n"
+ * 
+ * let dump_param dir prefix sp (id,b) =
+ *   let modname = b.b_name ^ cfg.sc_param_suffix in
+ *   dump_component dir (dump_param_intf prefix) modname (modname ^ ".h") b;
+ *   dump_component dir (dump_param_impl prefix) modname (modname ^ ".cpp") b *)
   
 (* Printing splitters interface and implementation *)
 
@@ -429,16 +442,21 @@ let dump_param dir prefix sp (id,b) =
  *   close_out oc;
  *   Logfile.write fname' *)
 
-(* Printing of top level .cpp file *)
+(* Dumping graphs *)
 
-let rec dump_top_module prefix fname sp =
-  (* let fname' = Misc.prefix_dir Genmake.target.Genmake.dir fname in *)
-  (* let oc = Misc.open_out fname' in *)
+let rec dump_graph path prefix id intf g =
+  let modname = mod_name id in
+  (* let fname = path ^ prefix ^ "_" ^ id ^ ".h" in *)
+  let fname = path ^ id ^ cfg.sc_graph_suffix ^ ".h" in
   let oc = open_out fname in
-  let header_name suff (id,_) = "\"" ^ id ^ suff ^ ".h\"" in
   let headers =
-      List.map (header_name cfg.sc_act_suffix) sp.gacts
-    @ List.map (header_name cfg.sc_param_suffix) sp.gparams in
+    Misc.opt_map
+      (fun (bid,b) ->
+        match b.b_tag with
+        | ActorB | EBcastB -> Some ("\"" ^ b.b_name ^ cfg.sc_actor_suffix ^ ".h" ^ "\"")
+        | GraphB -> Some ("\"" ^ b.b_name ^ cfg.sc_graph_suffix ^ ".h" ^ "\"")
+        | _ -> None)
+    g.sg_boxes in
   let bcasters = [] in
   (* let bcasters = Static.extract_bcast_boxes sp in *)
   (* TO FIX : we have to distinguish "implicit" bcasts, used for parameters and inserted automatically
@@ -446,118 +464,188 @@ let rec dump_top_module prefix fname sp =
      Eventually merge the two cases ? *)
   dump_banner oc;
   List.iter (function h -> fprintf oc "#include %s\n" h) (cfg.sc_top_headers @ headers);
-  if bcasters <> [] then fprintf oc "#include \"%s\"\n"  (prefix ^ cfg.sc_bcasters_suffix ^ ".h");
+  (* if bcasters <> [] then fprintf oc "#include \"%s\"\n"  (prefix ^ cfg.sc_bcasters_suffix ^ ".h"); *)
+  fprintf oc "\n";
+  dump_module_intf oc modname intf;  
+  fprintf oc "\n";
+  List.iter (dump_wire_decl oc) g.sg_wires;
+  fprintf oc "\n";
+  List.iter (dump_box_decl oc) g.sg_boxes;
+  fprintf oc "\n";
+  fprintf oc "  SC_CTOR(%s) : %s {\n" modname (Misc.string_of_list string_of_box_inst ", " g.sg_boxes); 
+  List.iter (dump_box_inst oc) g.sg_boxes;
+  fprintf oc "  }\n" ;
+  if cfg.sc_trace_fifos then begin
+    List.iter
+      (function (i,_) -> fprintf oc "  w%d.trace(fifo_trace_file);\n" i)
+      (List.filter is_fifo_wire g.sg_wires);
+    end;
+  fprintf oc "};\n" ;
+  Logfile.write fname;
+  close_out oc
+
+and is_fifo_wire (wid,(_,_,kind)) = kind=DataW
+
+and dump_wire_decl oc (wid,(((src,_),(dst,_)),ty,kind)) =
+  (* if is_dep_wire then
+   *     fprintf oc "  sc_signal<%s > w%d(\"w%d\");\n" (string_of_type ty) wid wid
+   * else *)
+  fprintf oc "  sc_fifo<%s > w%d; //(\"w%d\",%d)\n" (string_of_type ty) wid wid cfg.sc_data_fifo_capacity
+
+and dump_box_decl oc (bid,b) =
+  fprintf oc "  %s %s;\n" (mod_name b.b_name) b.b_name
+
+and string_of_box_inst (bid,b) = 
+  sprintf "%s(\"%s\")" b.b_name b.b_name
+  
+and dump_box_inst oc (i,b) =
+  match b.b_tag with
+  | IBcastB
+  | ActorB
+  | GraphB
+  | EBcastB ->
+      fprintf oc "    %s.%s(%s);\n" b.b_name cfg.sc_mod_clock cfg.sc_mod_clock;
+      List.iter (dump_box_input oc b.b_name) b.b_ins;
+      List.iter (dump_box_output oc b.b_name) b.b_outs
+  | LocalParamB ->
+      if b.b_ins = [] then (* Initial (non dep) parameter *)
+        fprintf oc "  %s.%s(%s);\n" b.b_name cfg.sc_mod_clock cfg.sc_mod_clock;
+      List.iter (dump_box_input oc b.b_name) b.b_ins;
+      List.iter (dump_box_output oc b.b_name) b.b_outs
+  | DummyB ->  Misc.fatal_error "Systemc.dump_box_inst: dummy box"
+  | _ ->  Misc.fatal_error "Systemc.dump_box: not implemented box kind"
+
+and dump_box_input oc bname (id,(wid,ty,ann)) =
+     fprintf oc "    %s.%s(w%d);\n" bname id wid
+
+and dump_box_output oc bname (id,(wids,ty,ann)) =
+   List.iter (function wid -> fprintf oc "    %s.%s(w%d);\n" bname id wid) wids
+
+(* and dump_box oc (i,b) =
+ *   let bname = b.b_name in
+ *   let type_of ios = match ios with 
+ *       | (_,(_,ty,_))::_ -> ty
+ *       | _ -> failwith "Systemc.dump_box" (\* should not happen *\) in
+ *   match b.b_tag with
+ *   | IBcastB ->  (\* Implicit bcast *\)
+ *       let ty = type_of b.b_ins in
+ *       fprintf oc "  %s<%s > %s(\"%s\");\n"
+ *         ("bcast" ^ string_of_int (List.length b.b_outs))
+ *         (string_of_type ty)
+ *         bname
+ *         bname;
+ *       List.iter (dump_box_input oc bname) b.b_ins;
+ *       List.iter (dump_box_output oc bname) b.b_outs
+ *   (\* | ActorB when is_bcast_box sp.boxes i -> (\\* Explicit bcast (for actors, for now) *\\) (\\* TO BE FIXED ? *\\)
+ *    *     let ty = type_of b.b_ins in
+ *    *     fprintf oc "  %s<%s > %s(\"%s\", %b);\n"
+ *    *       ("bcast" ^ string_of_int (List.length b.b_outs))
+ *    *       (string_of_type ty)
+ *    *       bname
+ *    *       bname
+ *    *       (\\* (string_of_param_values ir bname b.ib_params) *\\)
+ *    *       cfg.sc_trace;
+ *    *     fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
+ *    *     List.iter (dump_box_input oc bname) b.b_ins;
+ *    *     List.iter (dump_box_output oc bname) b.b_outs *\)
+ *   | ActorB
+ *   | GraphB
+ *   | EBcastB ->
+ *     (\* | DelayB -> *\)
+ *       (\* let modname = bname ^ cfg.sc_actor_suffix in *\)
+ *      let modname = mod_name bname in
+ *      fprintf oc "  %s %s(\"%s\", %b);\n"
+ *         modname
+ *         bname
+ *         bname
+ *         (\* (string_of_param_values ir bname b.ib_params)
+ *          * (string_of_var_init_values bname b.ib_vars) *\)
+ *         cfg.sc_trace;
+ *       (\* if b.b_ins = [] then (\\* Source actor *\\) *\)
+ *       fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
+ *       List.iter (dump_box_input oc bname) b.b_ins;
+ *       List.iter (dump_box_output oc bname) b.b_outs
+ *   | LocalParamB ->
+ *       let modname = bname ^ cfg.sc_param_suffix in
+ *       fprintf oc "  %s %s(\"%s\");\n"
+ *         modname
+ *         bname
+ *         bname;
+ *         (\* (string_of_param_values ir bname b.ib_params) *\)
+ *       if b.b_ins = [] then (\* Initial (non dep) parameter *\)
+ *         fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
+ *       List.iter (dump_box_input oc bname) b.b_ins;
+ *       List.iter (dump_box_output oc bname) b.b_outs
+ *   | DummyB ->  Misc.fatal_error "Systemc.dump_box: dummy box"
+ *   | _ ->  Misc.fatal_error "Systemc.dump_box: not implemented box kind" *)
+
+(* Printing node description .h file(s) *)
+
+let dump_node path prefix (id,n) =
+  match n.sn_impl with
+  | NI_Actor a -> dump_actor path prefix id n.sn_intf a
+  | NI_Graph g -> dump_graph path prefix id n.sn_intf g
+                  
+(* Printing top level .cpp file *)
+
+let dump_main_module path prefix sp =
+  let fname = path ^ prefix ^ ".cpp" in
+  let oc = open_out fname in
+  (* let header_name (id,_) = "\"" ^ prefix ^ "_" ^ id ^ ".h\"" in *)
+  let header_name (id,_) = "\"" ^ id ^ cfg.sc_graph_suffix ^ ".h\"" in
+  let headers = List.map header_name sp.sp_graphs in
+  dump_banner oc;
+  List.iter (function h -> fprintf oc "#include %s\n" h) (cfg.sc_top_headers @ headers);
   fprintf oc "\n";
   fprintf oc "int sc_main(int argc, char* argv[]) {\n";
-  List.iter (dump_wire oc sp.boxes) sp.wires;
-  fprintf oc "\n";
   fprintf oc "  sc_clock %s(\"%s\", %d, SC_NS, 0.5);\n" cfg.sc_mod_clock cfg.sc_mod_clock cfg.sc_clock_period_ns;
   fprintf oc "\n";
-  (* if cfg.sc_trace_fifos then begin
-   *   fprintf oc "  sc_trace_file *fifo_trace_file;\n";
-   *   fprintf oc "  fifo_trace_file = sc_create_vcd_trace_file (\"%s_fifos\");\n" prefix; 
-   *   fprintf oc "  sc_trace(fifo_trace_file, %s, \"%s\");\n" cfg.sc_mod_clock cfg.sc_mod_clock;
-   *   List.iter
-   *     (function (i,_) -> fprintf oc "  w%d.trace(fifo_trace_file);\n" i)
-   *     (List.filter (is_fifo_wire sp.boxes) sp.wires);
-   *   end; *)
-  List.iter (dump_box sp oc) sp.boxes;
+  List.iter
+    (fun (id, _) ->
+      fprintf oc "  %s %s(\"%s\");\n" (mod_name id) id id;
+      fprintf oc "  %s.%s(%s);\n" id cfg.sc_mod_clock cfg.sc_mod_clock)
+    sp.sp_graphs;
   fprintf oc "\n";
+  if cfg.sc_dump_fifo_stats then
+    fprintf oc "  ofstream fifo_stat_file (\"%s\");\n" cfg.sc_fifo_stats_file;
   if cfg.sc_stop_time > 0 then begin
     fprintf oc "  sc_start(%d, SC_NS);\n" cfg.sc_stop_time;
     fprintf oc "  cout << \"Simulation stopped at t=\" << sc_time_stamp() << \"\\n\";\n";
     end
   else
     fprintf oc "  sc_start();\n";
-  (* if cfg.sc_dump_fifo_stats then begin
-   *   fprintf oc "  ofstream fifo_stat_file (\"%s\");\n" cfg.sc_fifo_stats_file;
-   *   List.iter
-   *     (function (i,_) -> fprintf oc "  w%d.dump_stat(fifo_stat_file,%d);\n" i 0)
-   *     (List.filter (is_fifo_wire sp.boxes) sp.wires);
-   *   fprintf oc "  fifo_stat_file.close();\n";
-   *   fprintf oc "  cout << \"Wrote file %s\" << endl;\n" cfg.sc_fifo_stats_file
-   *   end; *)
-  (* if cfg.sc_trace_fifos then begin
-   *   fprintf oc "  sc_close_vcd_trace_file (fifo_trace_file);\n";
-   *   fprintf oc "  cout << \"Wrote file %s_fifos.vcd\" << endl;\n" prefix
-   *   end; *)
+  if cfg.sc_dump_fifo_stats then begin
+    fprintf oc "  fifo_stat_file.close();\n";
+    fprintf oc "  cout << \"Wrote file %s\" << endl;\n" cfg.sc_fifo_stats_file
+    end;
+  if cfg.sc_trace_fifos then begin
+    fprintf oc "  sc_close_vcd_trace_file (fifo_trace_file);\n";
+    fprintf oc "  cout << \"Wrote file %s_fifos.vcd\" << endl;\n" prefix
+    end;
   fprintf oc "  return EXIT_SUCCESS;\n";
   fprintf oc "}\n" ;
   Logfile.write fname;
   close_out oc
 
-and is_fifo_wire boxes (wid,(_,_,kind)) = kind=RegularW
+(* Dumping toplevel graph(s) *)
 
-and dump_wire oc boxes (wid,(((src,_),(dst,_)),ty,kind)) =
-  (* if is_dep_wire then
-   *     fprintf oc "  sc_signal<%s > w%d(\"w%d\");\n" (string_of_type ty) wid wid
-   * else *)
-  fprintf oc "  sc_fifo<%s > w%d(\"w%d\", %d);\n"
-    (string_of_type ty)
-    wid
-    wid
-    (match kind with ParamW -> cfg.sc_param_fifo_capacity | _ -> cfg.sc_data_fifo_capacity)
-      (* fprintf oc "  sc_fifo<%s > w%d(\"w%d\", %d, %b, %b);\n"
-       *   (string_of_type ty) wid wid cfg.sc_fifo_capacity cfg.sc_dump_fifos cfg.sc_dump_fifo_stats;  *)
+let dump_top_graph path prefix (id,g) = 
+  dump_graph path prefix id g.tg_intf g.tg_impl
 
-and dump_box sp oc (i,b) =
-  let bname = box_name sp (i,b) in
-  let type_of ios = match ios with 
-      | (_,(_,ty,_,_))::_ -> ty
-      | _ -> failwith "Systemc.dump_box" (* should not happen *) in
-  match b.b_tag with
-  | IBcastB ->  (* Implicit bcast *)
-      let ty = type_of b.b_ins in
-      fprintf oc "  %s<%s > %s(\"%s\");\n"
-        ("bcast" ^ string_of_int (List.length b.b_outs))
-        (string_of_type ty)
-        bname
-        bname;
-      List.iter (dump_box_input oc bname) b.b_ins;
-      List.iter (dump_box_output oc bname) b.b_outs
-  (* | ActorB when is_bcast_box sp.boxes i -> (\* Explicit bcast (for actors, for now) *\) (\* TO BE FIXED ? *\)
-   *     let ty = type_of b.b_ins in
-   *     fprintf oc "  %s<%s > %s(\"%s\", %b);\n"
-   *       ("bcast" ^ string_of_int (List.length b.b_outs))
-   *       (string_of_type ty)
-   *       bname
-   *       bname
-   *       (\* (string_of_param_values ir bname b.ib_params) *\)
-   *       cfg.sc_trace;
-   *     fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
-   *     List.iter (dump_box_input oc bname) b.b_ins;
-   *     List.iter (dump_box_output oc bname) b.b_outs *)
-  | ActorB
-  | EBcastB
-  | DelayB ->
-      let modname = bname ^ cfg.sc_act_suffix in
-      fprintf oc "  %s %s(\"%s\", %b);\n"
-        modname
-        bname
-        bname
-        (* (string_of_param_values ir bname b.ib_params)
-         * (string_of_var_init_values bname b.ib_vars) *)
-        cfg.sc_trace;
-      (* if b.b_ins = [] then (\* Source actor *\) *)
-      fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
-      List.iter (dump_box_input oc bname) b.b_ins;
-      List.iter (dump_box_output oc bname) b.b_outs
-  | LocalParamB ->
-      let modname = bname ^ cfg.sc_param_suffix in
-      fprintf oc "  %s %s(\"%s\");\n"
-        modname
-        bname
-        bname;
-        (* (string_of_param_values ir bname b.ib_params) *)
-      if b.b_ins = [] then (* Initial (non dep) parameter *)
-        fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
-      List.iter (dump_box_input oc bname) b.b_ins;
-      List.iter (dump_box_output oc bname) b.b_outs
-  | DummyB ->  Misc.fatal_error "Systemc.dump_box: dummy box"
-  | _ ->  Misc.fatal_error "Systemc.dump_box: not implemented box kind"
-
-and dump_box_input oc bname (id,(wid,ty,rate,ann)) =
-     fprintf oc "  %s.%s(w%d);\n" bname id wid
-
-and dump_box_output oc bname (id,(wids,ty,rate,ann)) =
-   List.iter (function wid -> fprintf oc "  %s.%s(w%d);\n" bname id wid) wids
+(* Dumping program *)
+  
+let dump path prefix sp =
+  (* The SystemC backend writes 
+     - a file [<prefix>.cpp] containing an instance of each toplevel graph (declared as "graph ...")
+       and the global simulation clock
+       Note: in the current version, such graphs must be closed (w/o IOs)
+     - for each node toplevel graph ("graph ... end"), a file [<prefix>_<name>.h]
+       containing the (hierarchical) graph description  
+     - for each node implemented as a subgraph ("node ... struct ... end"), a file [<prefix>_<name>.h]
+       containing the (hierarchical) graph description  
+     - for each node implemented as an actor ("node ... actor ... end"), a pair of files [<prefix>_<name>.h]
+       and [<prefix>_<name>.cpp] containing resp. the interface and the (behavorial) description of the
+       actor (with the provided implementation fns embedded in a [SC_THREAD]) *)
+  dump_main_module path prefix sp;
+  List.iter (dump_top_graph path prefix) sp.sp_graphs;
+  List.iter (dump_node path prefix) sp.sp_nodes

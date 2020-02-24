@@ -142,16 +142,16 @@ rule main = parse
             { INFIX2(Lexing.lexeme lexbuf) }
   | [ '*' '/' '%' ]
             { INFIX3(Lexing.lexeme lexbuf) }
-  (* | "\""
-   *     { reset_string_buffer();
-   *       let string_start = lexbuf.Lexing.lex_start_pos + lexbuf.Lexing.lex_abs_pos in
-   *       begin try
-   *         string lexbuf
-   *       with Lexical_error(Unterminated_string, _, string_end) ->
-   *         raise(Lexical_error(Unterminated_string, string_start, string_end))
-   *       end;
-   *       lexbuf.Lexing.lex_start_pos <- string_start - lexbuf.Lexing.lex_abs_pos;
-   *       STRING (Bytes.to_string (get_stored_string())) } *)
+  | "\""
+      { reset_string_buffer();
+        let string_start = lexbuf.Lexing.lex_start_pos + lexbuf.Lexing.lex_abs_pos in
+        begin try
+          string lexbuf
+        with Lexical_error(Unterminated_string, _, string_end) ->
+          raise(Lexical_error(Unterminated_string, string_start, string_end))
+        end;
+        lexbuf.Lexing.lex_start_pos <- string_start - lexbuf.Lexing.lex_abs_pos;
+        STRING (Bytes.to_string (get_stored_string())) }
   | "--"
       { comment !Location.input_lexbuf; main !Location.input_lexbuf }
   | eof { EOF }

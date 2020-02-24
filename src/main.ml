@@ -51,25 +51,26 @@ let compile p =
 let mk_fname pfx sfx = Options.cfg.target_dir ^ "/" ^ pfx ^ sfx
 
 let output pfx sp = 
+  let path = Options.cfg.target_dir ^ "/"  in
   match Options.cfg.output_fmt with
   | NoOutput -> ()
   | Dot ->
-     let fname = mk_fname pfx ".dot" in
-     Dot.dump pfx sp
+     Dot.dump path pfx sp
+   | Systemc ->
+      Systemc.dump path pfx sp
+     (*  Systemc.dump_main_module prefix sp;
+      * List.iter (Systemc.dump_graph prefix sp) sp.sp_graphs *)
+     (* List.iter (Systemc.dump_actor Options.cfg.target_dir Options.cfg.output_prefix sp) sp.gacts;
+      * List.iter (Systemc.dump_param Options.cfg.target_dir Options.cfg.output_prefix sp) sp.gparams *)
+     (* if has_splitters sp then 
+      *   Systemc.dump_split_actors sp; *)
+     (* if !Misc.generate_makefiles then Genmake.dump_systemc_makefile () *)
   (* | Preesm ->
    *    let fname = mk_fname pfx ".pi" in
    *    Preesm.dump fname sp
    * | Xdf ->
    *    let fname = mk_fname pfx ".xdf" in
-   *    Xdf.dump fname sp
-   * | Systemc ->
-   *    let top_fname = mk_fname pfx "_top.cpp" in
-   *    Systemc.dump_top_module Options.cfg.output_prefix top_fname sp;
-   *    List.iter (Systemc.dump_actor Options.cfg.target_dir Options.cfg.output_prefix sp) sp.gacts;
-   *    List.iter (Systemc.dump_param Options.cfg.target_dir Options.cfg.output_prefix sp) sp.gparams
-   *    (\* if has_splitters sp then 
-   *     *   Systemc.dump_split_actors sp; *\)
-   *    (\* if !Misc.generate_makefiles then Genmake.dump_systemc_makefile () *\) *)
+   *    Xdf.dump fname sp *)
 
 let insert_bcasts sp = 
   if cfg.insert_bcasts then

@@ -62,6 +62,8 @@ and typed_intf = {   (* Actors and graphs *)
    t_params: (string * typ) list;                                    
    t_ins: (string * (typ * Syntax.io_annot list)) list;             
    t_outs: (string * (typ * Syntax.io_annot list)) list;           
+   t_real_ins: (string * (typ * Syntax.io_annot list)) list; (* Excluding I/Os with [unit] type *)            
+   t_real_outs: (string * (typ * Syntax.io_annot list)) list;           
    t_sig: typ_scheme;         (* external type signature: [t_ins -> t_outs] or [t_params -> t_ins -> t_outs] *)
   (* TO FIX ? Should we allow nodes (and/or resp. graphs) to have a _polymorphic_ interface ? 
      Example:
@@ -387,6 +389,8 @@ let rec type_fun_graph_desc genv intf defns =
 
 (* Typing node decls *)
 
+let is_real_io (id,(ty,_)) = not (is_unit_type ty)
+
 let rec type_node_intf tenv { ni_desc=n } =
   let ty_params = List.map (fun { pm_desc = (id,te,_) } -> id, type_of_type_expression tenv te) n.n_params in
   let tenv' = tenv |> augment_values @@ List.map (fun (id,ty) -> id, trivial_scheme ty) ty_params in
@@ -396,6 +400,8 @@ let rec type_node_intf tenv { ni_desc=n } =
   { t_params = ty_params;
     t_ins = ty_ins;
     t_outs = ty_outs;
+    t_real_ins = List.filter is_real_io ty_ins;
+    t_real_outs = List.filter is_real_io ty_outs;
     t_sig =
       trivial_scheme (type_sig (List.map snd ty_params) (List.map type_of ty_ins) (List.map type_of ty_outs)) }
 
@@ -457,6 +463,8 @@ let type_graph_decl (acc,genv) { g_desc=g } =
     { t_params = ty_params;
       t_ins = ty_ins;
       t_outs = ty_outs;
+      t_real_ins = List.filter is_real_io ty_ins;
+      t_real_outs = List.filter is_real_io ty_outs;
       t_sig =
         trivial_scheme (type_sig (List.map snd ty_params) (List.map type_of ty_ins) (List.map type_of ty_outs)) } in
   let ty_desc = 

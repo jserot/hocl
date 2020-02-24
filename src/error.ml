@@ -162,8 +162,13 @@ let incomplete_wire gid wid  =
   eprintf "Error: the wire %s in graph %s is not fully connected.\n" wid gid;
   raise Error
 
-let no_pragma_desc id =
-  eprintf "Warning: no #pragma description found for actor %s\n" id
+let missing_actor_impl target id =
+  eprintf "Error: no %s implementation found for actor %s\n" target id;
+  raise Error
+
+let incomplete_actor_impl target id =
+  eprintf "Error: incomplete %s implementation given for actor %s (should at least give incl_file and loop_fn)\n" target id;
+  raise Error
 
 let missing_param what name msg =
   eprintf "Error: no parameter for %s %s%s.\n" what name msg;
