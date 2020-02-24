@@ -16,9 +16,13 @@ dot: $(SRCS)
 	$(HOCLC) $(GEN_OPTS) -dot $(DOT_OPTS) $(SRCS)
 
 dot.show: dot
-	@for f in *.dot; do $(DOTVIEWER) $$f; done
+	@if [ -d ./dot ]; then \
+		for f in ./dot/*.dot; do $(DOTVIEWER) $$f; done; \
+	else \
+		for f in .*.dot; do $(DOTVIEWER) $$f; done; \
+	fi 
 
-.PHONY: preesm systemc preesm.proj
+.PHONY: dot preesm systemc preesm.proj
 
 preesm: $(SRCS)
 	$(HOCLC) $(GEN_OPTS) -preesm $(PREESM_OPTS) $(SRCS)

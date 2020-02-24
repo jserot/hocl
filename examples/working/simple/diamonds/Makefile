@@ -1,4 +1,4 @@
 SRCS=main.hcl
-MAIN=main
+DOT_OPTS=-target_dir ./dot
 
 include ../../../../lib/etc/Makefile.app

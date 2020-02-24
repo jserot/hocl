@@ -144,12 +144,12 @@ let output_graph oc boxes wires =
   List.iter (output_wire oc) wires;
   fprintf oc "}\n"
 
-let dump_graph pfx (id,gd) =
-  let fname = pfx ^ "_" ^ id ^ ".dot" in 
+let dump_graph path pfx (id,gd) =
+  let fname = path ^ pfx ^ "_" ^ id ^ ".dot" in 
   let oc = open_out fname  in
-  output_graph oc gd.sg_boxes gd.sg_wires;
+  output_graph oc gd.tg_impl.sg_boxes gd.tg_impl.sg_wires;
   Logfile.write fname;
   close_out oc
 
-let dump pfx sp =
-  List.iter (dump_graph pfx) sp.sp_graphs
+let dump path pfx sp =
+  List.iter (dump_graph path pfx) sp.sp_graphs

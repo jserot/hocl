@@ -1,4 +1,4 @@
 SRCS=main.hcl
-GEN_OPTS=-dump_static
+DOT_OPTS=-target_dir ./dot
 
 include ../../../../lib/etc/Makefile.app

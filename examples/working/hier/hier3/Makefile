@@ -1,6 +1,6 @@
 SRCS=main.hcl
 GEN_OPTS=#-dump_static #-dump_typed
-DOT_OPTS=#-insert_bcasts
+DOT_OPTS=-target_dir ./dot #-insert_bcasts
 PREESM_OPTS=-target_dir preesm
 SYSTEMC_OPTS=-target_dir systemc -sc_stop_time 100
 

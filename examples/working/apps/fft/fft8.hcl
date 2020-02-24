@@ -4,7 +4,7 @@
 
 type cplx;
 
-actor fft2 in (x0: cplx, x1: cplx) out (y0: cplx, y1: cplx);
+node fft2 in (x0: cplx, x1: cplx) out (y0: cplx, y1: cplx);
 
 
 graph top
