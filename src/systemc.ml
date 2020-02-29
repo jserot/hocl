@@ -31,15 +31,17 @@ type sc_config = {
   mutable sc_graph_suffix: string;
   mutable sc_actor_suffix: string;
   mutable sc_param_suffix: string;
+  mutable sc_data_input_module_name: string;
+  mutable sc_data_output_module_name: string;
   mutable sc_mod_clock: string;
   mutable sc_clock_period_ns: int;
   mutable sc_data_fifo_capacity: int;
+  mutable sc_param_module_name: string;
   mutable sc_param_fifo_capacity: int;
+  mutable sc_data_file_suffix: string;
   mutable sc_default_io_rate: int;
   mutable sc_stop_time: int;
-  mutable sc_stop_idle_time: int;
-   (* mutable sc_tmp_prefix: string;  (\* Prefix for temporary variables in rule actions *\)
-   * mutable sc_type_prefix: string;  (\* Prefix for globally defined types *\) *)
+  (* mutable sc_stop_idle_time: int; (\* TO BE IMPLEMENTED (cf corresp. module in Caph *\) *)
   }
 
 let cfg = {
@@ -49,6 +51,9 @@ let cfg = {
   sc_top_headers = [
     "<systemc.h>";
     "<iostream>";
+    "\"stream_in.h\"";
+    "\"stream_out.h\"";
+    "\"param_in.h\"";
     "\"bcast.h\"" ];
   sc_bcasters_suffix = "_bcasters";
   sc_trace = false;
@@ -60,14 +65,16 @@ let cfg = {
   sc_graph_suffix = "_gph";
   sc_param_suffix = "_prm";
   sc_mod_clock = "clk";
+  sc_data_input_module_name = "stream_in";
+  sc_data_output_module_name = "stream_out";
   sc_clock_period_ns = 10;
   sc_data_fifo_capacity = 16;
+  sc_param_module_name = "param_in";
   sc_param_fifo_capacity = 4;  (* TO FIX: 1 *)
+  sc_data_file_suffix = ".data";
   sc_default_io_rate = 1;
   sc_stop_time = 0;
-  sc_stop_idle_time = 0;
-   (* sc_tmp_prefix = "_";
-   * sc_type_prefix = "t_"; *)
+  (* sc_stop_idle_time = 0; *)
 }
 
 let dump_banner oc = Misc.dump_banner "//" oc
@@ -75,6 +82,15 @@ let dump_banner oc = Misc.dump_banner "//" oc
 let localize_id s = "_" ^ s
 
 let mod_name name = String.capitalize_ascii name
+
+let box_name (bid,b) =
+  match b.b_tag with
+  | ActorB | GraphB | EBcastB | SourceB | SinkB ->
+     b.b_name ^ string_of_int bid
+  | LocalParamB | InParamB ->
+     "p" ^ string_of_int b.b_id
+  | _ ->
+     Misc.not_implemented "Systemc.box_name"
 
 (* Types *)
 
@@ -450,13 +466,17 @@ let rec dump_graph path prefix id intf g =
   let fname = path ^ id ^ cfg.sc_graph_suffix ^ ".h" in
   let oc = open_out fname in
   let headers =
-    Misc.opt_map
-      (fun (bid,b) ->
+    let add acc sfx b =
+      let fname = "\"" ^ b.b_name ^ sfx ^ ".h" ^ "\"" in
+      if not (List.mem fname acc) then fname::acc else acc in
+    List.fold_left
+      (fun acc (bid,b) ->
         match b.b_tag with
-        | ActorB | EBcastB -> Some ("\"" ^ b.b_name ^ cfg.sc_actor_suffix ^ ".h" ^ "\"")
-        | GraphB -> Some ("\"" ^ b.b_name ^ cfg.sc_graph_suffix ^ ".h" ^ "\"")
-        | _ -> None)
-    g.sg_boxes in
+        | ActorB | EBcastB -> add acc cfg.sc_actor_suffix b
+        | GraphB -> add acc cfg.sc_graph_suffix b
+        | _ -> acc)
+      []
+      g.sg_boxes in
   let bcasters = [] in
   (* let bcasters = Static.extract_bcast_boxes sp in *)
   (* TO FIX : we have to distinguish "implicit" bcasts, used for parameters and inserted automatically
@@ -468,17 +488,21 @@ let rec dump_graph path prefix id intf g =
   fprintf oc "\n";
   dump_module_intf oc modname intf;  
   fprintf oc "\n";
-  List.iter (dump_wire_decl oc) g.sg_wires;
+  let sub_boxes = List.filter (fun (_,b) -> not (is_io_box b)) g.sg_boxes in
+  let sub_wires = List.filter (fun (_,w) -> not (is_io_wire g.sg_boxes w)) g.sg_wires in
+  List.iter (dump_wire_decl oc) sub_wires;
   fprintf oc "\n";
-  List.iter (dump_box_decl oc) g.sg_boxes;
+  List.iter (dump_box_decl oc) sub_boxes;
   fprintf oc "\n";
-  fprintf oc "  SC_CTOR(%s) : %s {\n" modname (Misc.string_of_list string_of_box_inst ", " g.sg_boxes); 
-  List.iter (dump_box_inst oc) g.sg_boxes;
+  fprintf oc "  SC_CTOR(%s) : %s {\n"
+    modname
+    (Misc.string_of_two_lists string_of_box_inst string_of_wire_inst ", " sub_boxes sub_wires); 
+  List.iter (dump_box_inst oc g) sub_boxes;
   fprintf oc "  }\n" ;
   if cfg.sc_trace_fifos then begin
     List.iter
       (function (i,_) -> fprintf oc "  w%d.trace(fifo_trace_file);\n" i)
-      (List.filter is_fifo_wire g.sg_wires);
+      (List.filter is_fifo_wire sub_wires);
     end;
   fprintf oc "};\n" ;
   Logfile.write fname;
@@ -486,41 +510,85 @@ let rec dump_graph path prefix id intf g =
 
 and is_fifo_wire (wid,(_,_,kind)) = kind=DataW
 
-and dump_wire_decl oc (wid,(((src,_),(dst,_)),ty,kind)) =
+and is_io_wire boxes w =  is_src_wire boxes w || is_dst_wire boxes w
+and is_src_wire boxes w = (get_src_box boxes w).b_tag = SourceB 
+and is_dst_wire boxes w = (get_dst_box boxes w).b_tag = SinkB
+and is_io_box b = match b.b_tag with | SourceB | SinkB -> true | _ -> false
+
+and dump_wire_decl oc ((wid,(((src,_),(dst,_)),ty,kind)) as w) =
   (* if is_dep_wire then
    *     fprintf oc "  sc_signal<%s > w%d(\"w%d\");\n" (string_of_type ty) wid wid
    * else *)
-  fprintf oc "  sc_fifo<%s > w%d; //(\"w%d\",%d)\n" (string_of_type ty) wid wid cfg.sc_data_fifo_capacity
+    fprintf oc "  sc_fifo<%s > w%d;\n" (string_of_type ty) wid
 
 and dump_box_decl oc (bid,b) =
-  fprintf oc "  %s %s;\n" (mod_name b.b_name) b.b_name
+  match b.b_tag with
+  | ActorB | GraphB | EBcastB ->
+     fprintf oc "  %s %s;\n" (mod_name b.b_name) (box_name (bid,b))
+  | InParamB | LocalParamB ->
+     fprintf oc "  %s<%s> %s;\n"
+       cfg.sc_param_module_name
+       (string_of_type b.b_typ)
+       ("p" ^ string_of_int b.b_id)
+  | _ ->
+     ()
 
-and string_of_box_inst (bid,b) = 
-  sprintf "%s(\"%s\")" b.b_name b.b_name
+and string_of_box_inst ((i,bx) as b) = 
+  match bx.b_tag with
+  | LocalParamB ->
+     sprintf "%s(\"%s\",%s)" (box_name b) (box_name b) (string_of_core_expr bx.b_val.bv_lit);
+  | _ ->
+     sprintf "%s(\"%s\")" (box_name b) (box_name b)
   
-and dump_box_inst oc (i,b) =
+and dump_box_inst oc g (i,b) =
+  let bname = box_name (i,b) in
   match b.b_tag with
   | IBcastB
   | ActorB
   | GraphB
   | EBcastB ->
-      fprintf oc "    %s.%s(%s);\n" b.b_name cfg.sc_mod_clock cfg.sc_mod_clock;
-      List.iter (dump_box_input oc b.b_name) b.b_ins;
-      List.iter (dump_box_output oc b.b_name) b.b_outs
-  | LocalParamB ->
+      fprintf oc "    %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
+      List.iter (dump_box_input oc g bname) b.b_ins;
+      List.iter (dump_box_output oc g bname) b.b_outs
+  | LocalParamB | InParamB ->
       if b.b_ins = [] then (* Initial (non dep) parameter *)
-        fprintf oc "  %s.%s(%s);\n" b.b_name cfg.sc_mod_clock cfg.sc_mod_clock;
-      List.iter (dump_box_input oc b.b_name) b.b_ins;
-      List.iter (dump_box_output oc b.b_name) b.b_outs
-  | DummyB ->  Misc.fatal_error "Systemc.dump_box_inst: dummy box"
-  | _ ->  Misc.fatal_error "Systemc.dump_box: not implemented box kind"
+        fprintf oc "    %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
+     List.iter (dump_box_input oc g bname) b.b_ins;
+     List.iter (dump_box_output oc g bname) b.b_outs
+  | SourceB | SinkB ->
+     () 
+  | DummyB ->
+     Misc.fatal_error "Systemc.dump_box_inst: dummy box"
 
-and dump_box_input oc bname (id,(wid,ty,ann)) =
-     fprintf oc "    %s.%s(w%d);\n" bname id wid
+and dump_box_input oc g bname ((id,(wid,ty,ann) as w)) =
+  fprintf oc "    %s.%s(%s);\n" bname id (iwire_name g wid)
 
-and dump_box_output oc bname (id,(wids,ty,ann)) =
-   List.iter (function wid -> fprintf oc "    %s.%s(w%d);\n" bname id wid) wids
+and dump_box_output oc g bname (id,(wids,ty,ann)) =
+   List.iter (function wid -> fprintf oc "    %s.%s(%s);\n" bname id (owire_name g wid)) wids
 
+(* and iwire_name g wid =
+ *   let w = find_wire g.sg_wires wid in
+ *   match get_src_box g.sg_boxes w with
+ *   | { b_tag=SourceB; b_name=id } -> id
+ *   | _ -> "w" ^ string_of_int wid
+ * 
+ * and owire_name g wid =
+ *   let w = find_wire g.sg_wires wid in
+ *   match get_dst_box g.sg_boxes w with
+ *   | { b_tag=SinkB; b_name=id } -> id
+ *   | _ -> "w" ^ string_of_int wid *)
+
+and wire_name get tag g wid = 
+    let w = find_wire g.sg_wires wid in
+    match get g.sg_boxes w with
+    | { b_tag=tag'; b_name=id } when tag'=tag -> id
+    | _ -> "w" ^ string_of_int wid
+and iwire_name g wid = wire_name get_src_box SourceB g wid
+and owire_name g wid = wire_name get_dst_box SinkB g wid
+
+and string_of_wire_inst (wid,_) = 
+  sprintf "w%d(\"w%d\",%d)" wid wid cfg.sc_data_fifo_capacity
+    
 (* and dump_box oc (i,b) =
  *   let bname = b.b_name in
  *   let type_of ios = match ios with 
@@ -588,10 +656,59 @@ let dump_node path prefix (id,n) =
                   
 (* Printing top level .cpp file *)
 
+let rec dump_main_ios oc (id,g) = 
+  List.iter
+    (fun (bid,b) ->
+      match b.b_tag with
+      | SourceB -> dump_main_input oc id b
+      | SinkB -> dump_main_output oc id b
+      | _ -> ())
+    g.tg_impl.sg_boxes
+
+and dump_main_input oc pfx b = 
+  let name, wid, ty = match b.b_outs with
+      [id,([w],ty,_)] -> pfx ^ "_" ^ b.b_name, w, string_of_type ty
+    | _ -> Misc.fatal_error ("Systemc.dump_main_input: multiply connected input: " ^ pfx ^ "." ^ b.b_name) in
+  fprintf oc "  sc_fifo<%s> w%d(\"w%d\",%d);\n" ty wid wid cfg.sc_data_fifo_capacity;
+  fprintf oc "  %s<%s> %s(\"%s\", \"%s%s\", %b);\n" cfg.sc_data_input_module_name ty name name name cfg.sc_data_file_suffix cfg.sc_trace;
+  fprintf oc "  %s.%s(%s);\n" name cfg.sc_mod_clock cfg.sc_mod_clock;
+  fprintf oc "  %s.out(w%d);\n\n" name wid
+
+and dump_main_output oc pfx b = 
+  let name, wid, ty = match b.b_ins with
+      [id,(w,ty,_)] -> pfx ^ "_" ^ b.b_name, w, string_of_type ty
+    | _ -> Misc.fatal_error ("Systemc.dump_main_output: multiply connected output: " ^ pfx ^ "." ^ b.b_name) in
+  fprintf oc "  sc_fifo<%s> w%d(\"w%d\",%d);\n" ty wid wid cfg.sc_data_fifo_capacity;
+  fprintf oc "  %s<%s> %s(\"%s\", \"%s%s\", %b);\n" cfg.sc_data_output_module_name ty name name name cfg.sc_data_file_suffix cfg.sc_trace;
+  fprintf oc "  %s.%s(%s);\n" name cfg.sc_mod_clock cfg.sc_mod_clock;
+  fprintf oc "  %s.inp(w%d);\n\n" name wid
+
+let rec dump_main_ios' oc (id,g) = 
+  List.iter
+    (fun (bid,b) ->
+      match b.b_tag with
+      | SourceB -> dump_main_input' oc id b
+      | SinkB -> dump_main_output' oc id b
+      | _ -> ())
+    g.tg_impl.sg_boxes
+
+and dump_main_input' oc pfx b = 
+  let name, id, wid = match b.b_outs with
+      [id,([w],ty,_)] -> pfx, id, w
+    | _ -> Misc.fatal_error ("Systemc.dump_main_input': multiply connected input: " ^ pfx ^ "." ^ b.b_name) in
+  (* fprintf oc "  %s.%s(%s);\n" name cfg.sc_mod_clock cfg.sc_mod_clock; *)
+  fprintf oc "  %s.%s(w%d);\n" name id wid
+
+and dump_main_output' oc pfx b = 
+  let name, id, wid = match b.b_ins with
+      [id,(w,ty,_)] -> pfx, id, w
+    | _ -> Misc.fatal_error ("Systemc.dump_main_output: multiply connected output: " ^ pfx ^ "." ^ b.b_name) in
+  (* fprintf oc "  %s.%s(%s);\n" name cfg.sc_mod_clock cfg.sc_mod_clock; *)
+  fprintf oc "  %s.%s(w%d);\n" name id wid
+
 let dump_main_module path prefix sp =
   let fname = path ^ prefix ^ ".cpp" in
   let oc = open_out fname in
-  (* let header_name (id,_) = "\"" ^ prefix ^ "_" ^ id ^ ".h\"" in *)
   let header_name (id,_) = "\"" ^ id ^ cfg.sc_graph_suffix ^ ".h\"" in
   let headers = List.map header_name sp.sp_graphs in
   dump_banner oc;
@@ -600,10 +717,14 @@ let dump_main_module path prefix sp =
   fprintf oc "int sc_main(int argc, char* argv[]) {\n";
   fprintf oc "  sc_clock %s(\"%s\", %d, SC_NS, 0.5);\n" cfg.sc_mod_clock cfg.sc_mod_clock cfg.sc_clock_period_ns;
   fprintf oc "\n";
+  (* Dummping toplevel IOs *)
+  List.iter (dump_main_ios oc) sp.sp_graphs; 
+  (* Dummping subgraphs *)
   List.iter
-    (fun (id, _) ->
+    (fun (id, g) ->
       fprintf oc "  %s %s(\"%s\");\n" (mod_name id) id id;
-      fprintf oc "  %s.%s(%s);\n" id cfg.sc_mod_clock cfg.sc_mod_clock)
+      fprintf oc "  %s.%s(%s);\n" id cfg.sc_mod_clock cfg.sc_mod_clock;
+      dump_main_ios' oc (id,g))
     sp.sp_graphs;
   fprintf oc "\n";
   if cfg.sc_dump_fifo_stats then
@@ -638,7 +759,6 @@ let dump path prefix sp =
   (* The SystemC backend writes 
      - a file [<prefix>.cpp] containing an instance of each toplevel graph (declared as "graph ...")
        and the global simulation clock
-       Note: in the current version, such graphs must be closed (w/o IOs)
      - for each node toplevel graph ("graph ... end"), a file [<prefix>_<name>.h]
        containing the (hierarchical) graph description  
      - for each node implemented as a subgraph ("node ... struct ... end"), a file [<prefix>_<name>.h]

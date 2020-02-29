@@ -1,4 +1,6 @@
--- A simple program with one level of hierarchy, w/o parameters
+-- A simple program showing a hierarchical graph description
+-- The [sub_s] node included in the [top1] (resp. [top2]) toplevel graph 
+-- is itself a graph, described structurally (resp. functionally)
 
 type t;
 
@@ -26,9 +28,3 @@ graph top2 in (i: t) out (o: t)
 fun
   val o = sub_f i
 end;
-
-
--- #pragma code("inp", "include/input.h", "input", "inputInit")
--- #pragma code("outp", "include/output.h", "output", "outputInit")
--- #pragma code("sub", "sub.hcl")
-

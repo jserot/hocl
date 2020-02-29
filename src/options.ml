@@ -66,11 +66,9 @@ let do_dot_no_io_rates () = Dot.cfg.Dot.show_io_rates <- false
 let do_dot_slotted_boxes () = Dot.cfg.Dot.slotted_boxes <- true
 let set_dot_rank_dir s = Dot.cfg.Dot.rank_dir <- s
 (* let do_phantom_types () = () Pr_type.print_type_repr := true *)
-(* PREESM related options *)
-(* let set_preesm_name n = Preesm.cfg.Preesm.top_name <- n *)
 (* SYSTEMC related options *)
 let set_sc_stop_time n = Systemc.cfg.Systemc.sc_stop_time <- n
-let set_sc_stop_idle_time n = Systemc.cfg.Systemc.sc_stop_idle_time <- n
+(* let set_sc_stop_idle_time n = Systemc.cfg.Systemc.sc_stop_idle_time <- n *)
 let set_sc_clock_period n = Systemc.cfg.Systemc.sc_clock_period_ns <- n
 let set_sc_fifo_capacity n = Systemc.cfg.Systemc.sc_data_fifo_capacity <- n
 let set_sc_trace () = Systemc.cfg.Systemc.sc_trace <- true
@@ -78,6 +76,8 @@ let set_sc_trace_fifos () = Systemc.cfg.Systemc.sc_trace_fifos <- true
 let set_sc_dump_fifos () = Systemc.cfg.Systemc.sc_dump_fifos <- true
 let set_sc_dump_fifo_stats () = Systemc.cfg.Systemc.sc_dump_fifo_stats <- true
 let set_sc_fifo_stats_file f = Systemc.cfg.Systemc.sc_fifo_stats_file <- f
+(* PREESM related options *)
+(* let set_preesm_name n = Preesm.cfg.Preesm.top_name <- n *)
 (* XDF related options *)
 (* let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p *)
 
@@ -109,7 +109,7 @@ let options_spec = [
 "-dot_show_indexes", Arg.Unit (do_dot_show_indexes), "print box and wire indexes";
 "-dot_slotted_boxes", Arg.Unit (do_dot_slotted_boxes), "print boxes with i/o slots";
 "-sc_stop_time", Arg.Int (set_sc_stop_time), "stop after n ns";
-"-sc_stop_when_idle", Arg.Int (set_sc_stop_idle_time), "stop when outputs have been inactive for n ns";
+(* "-sc_stop_when_idle", Arg.Int (set_sc_stop_idle_time), "stop when outputs have been inactive for n ns"; *)
 "-sc_clock_period", Arg.Int (set_sc_clock_period), "set clock period (ns) (default: 10)";
 "-sc_default_fifo_capacity", Arg.Int (set_sc_fifo_capacity), "set default fifo capacity (systemc only) (default: 256)";
 "-sc_trace", Arg.Unit (set_sc_trace), "set trace mode";

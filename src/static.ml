@@ -99,6 +99,17 @@ let lookup_env loc senv id =
       if List.mem_assoc id senv then List.assoc id senv
       else unbound_value_err id loc
 
+let find_box boxes bid = 
+    try List.assoc bid boxes
+    with Not_found -> Misc.fatal_error "Static.find_box: cannot find box from id" (* should not happen *)
+
+let find_wire wires wid = 
+    try List.assoc wid wires
+    with Not_found -> Misc.fatal_error "Static.find_wire: cannot find wire from id" (* should not happen *)
+
+let get_src_box boxes (((s,ss),(d,ds)), ty, _) = find_box boxes s
+let get_dst_box boxes (((s,ss),(d,ds)), ty, _) = find_box boxes d
+
 (* Core level *)
           
 let rec eval_core_expr senv expr =
@@ -869,11 +880,7 @@ let new_bcast_box ty wid wids =
   bid, { b_id=bid; b_tag=IBcastB; b_name=cfg.bcast_name; b_params=[];
          b_ins=["i",(wid,ty,[])]; b_outs=bos; b_typ=ty; b_val=no_bval }
 
-let rec is_bcast_box boxes bid = (find_box boxes bid).b_name = cfg.bcast_name
-
-and find_box boxes bid = 
-    try List.assoc bid boxes
-    with Not_found -> Misc.fatal_error "Static.find_box: cannot find box from id" (* should not happen *)
+let is_bcast_box boxes bid = (find_box boxes bid).b_name = cfg.bcast_name
 
 let rec insert_bcast bid oidx (boxes,wires,box) bout = 
   match bout with

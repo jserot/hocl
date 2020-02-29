@@ -1,5 +1,5 @@
 node foo in (i: int) out (o: int);
--- No implementation given here -> will be viewed as a black box
+-- No implementation given here -> [foo] will be viewed as a black box
 
 graph top_s in (i: int) out (o: int)
 struct

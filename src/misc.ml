@@ -60,6 +60,13 @@ let string_of_ilist f sep l =
   let rec h = function _,[] -> "" | k,[x] -> f k x | k,x::xs -> f k x ^ sep ^ h (k+1,xs) in
   h (0,l)
 
+let string_of_two_lists f1 f2 sep l1 l2 = 
+  match string_of_list f1 sep l1, string_of_list f2 sep l2 with
+    "", "" -> ""
+  | "", s2 -> s2
+  | s1, "" -> s1
+  | s1, s2 -> s1 ^ sep ^ s2
+
 let list_make_index n f =
   let rec h i = if i >= n then [] else f i :: h (i+1) in
   h 0

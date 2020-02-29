@@ -13,7 +13,3 @@ graph top_f in (i: t) out (o: t)
 fun
   val o = mult<2> i
 end;
-
--- #pragma code("inp", "include/input.h", "input", "inputInit")
--- #pragma code("outp", "include/output.h", "output", "outputInit")
--- #pragma code("foo", "include/foo.h", "foo")
