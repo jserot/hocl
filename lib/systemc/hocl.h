@@ -3,9 +3,9 @@
 
 #define IN
 #define OUT
+#define PARAM
 #define VERBOSE
 
-typedef int nat;
 typedef unsigned char uchar;
 
 #endif

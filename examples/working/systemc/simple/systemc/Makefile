@@ -10,7 +10,7 @@ CPP_SRCS = foo_act.cpp main.cpp
 CPP_HDRS = foo_act.h top_gph.h
 OBJS = $(C_SRCS:.c=.o) $(CPP_SRCS:.cpp=.o)
 GEN_SRCS = $(CPP_SRCS) $(CPP_HDRS)
-GEN_DATA = top_o.data
+GEN_DATA = top_o.dat
 
 all: run
 

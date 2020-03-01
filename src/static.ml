@@ -171,8 +171,9 @@ let new_io_box ?(bv=no_bval) tag name ty  =
   let bid = new_bid () in
   bid, { b_id=bid; b_tag=tag; b_name=name; b_params=[]; b_ins=[]; b_outs=[]; b_typ=ty; b_val=bv }
 
-let new_param_box name tag ty v =
+let new_param_box tag ty v =
   let bid = new_bid () in
+  let name = "p" ^ string_of_int bid in
   bid, { b_id=bid; b_tag=tag; b_name=name; b_params=[]; b_ins=[]; b_outs=[]; b_typ=ty; b_val=v }
 
 let new_dummy_box name ty =
@@ -288,12 +289,12 @@ let rec static_value senv expr =
 
 let rec eval_param_expr senv expr =
   let eval_int_param n = 
-     let l, b = new_param_box (string_of_int n) LocalParamB type_int { bv_lit = expr; bv_val = SVInt n } in
+     let l, b = new_param_box LocalParamB type_int { bv_lit = expr; bv_val = SVInt n } in
      SVLoc (l,0,type_int,SV_Param),
      [l,b],
      [] in
   let eval_bool_param n =
-     let l, b =  new_param_box (string_of_bool n) LocalParamB type_bool { bv_lit = expr; bv_val = SVBool n } in
+     let l, b =  new_param_box LocalParamB type_bool { bv_lit = expr; bv_val = SVBool n } in
      SVLoc (l,0,type_bool,SV_Param),
      [l,b],
      [] in
@@ -310,28 +311,47 @@ let rec eval_param_expr senv expr =
   | EBinop (op, e1,e2) ->
      let v =  static_value senv expr in 
      let ty = expr.ce_typ in
-     let l, b =  new_param_box (string_of_core_expr expr) LocalParamB ty { bv_lit = expr; bv_val = static_value senv expr } in 
-     let ws' = extract_param_deps senv (l,0) expr in (* TO FIX: not 0 for multi-deps ! *)
+     let l, b =  new_param_box LocalParamB ty { bv_lit = expr; bv_val = static_value senv expr } in 
+     let bindings = extract_param_deps senv (l,0) expr in (* TO FIX !!! Will not be 0 for multi-deps !! *)
+     if List.length bindings > 1 then
+       Misc.not_implemented "Static.eval_param_expression: multi-dependent parameter expression";
+     let _ = b.b_val <- { bv_lit=subst_param_deps bindings b.b_val.bv_lit ; bv_val=b.b_val.bv_val } in
      SVLoc (l,0,ty,SV_Param),
      [l,b],
-     ws'
+     List.map snd bindings
 
- and extract_param_deps senv dst expr =
-  match expr.ce_desc with
-  | EVar v ->
-     begin
-       match lookup_env expr.ce_loc senv v with
-       | SVLoc(i,j,ty,SV_Param) -> (* [v] refers to an input parameter *)
-          let src = i,j in
-          [new_wid(), ((src,dst),ty,ParamW)]
-       | _ -> []
-     end
-  | EInt _ 
-  | EBool _ ->
-     []
-  | EBinop (_,e1,e2) ->
-     extract_param_deps senv dst e1 @ extract_param_deps senv dst e2
+and extract_param_deps senv dst expr =
+  let rec extract acc e = match e.ce_desc with
+    | EInt _ -> acc
+    | EBool _ -> acc
+    | EVar v ->
+       if List.mem_assoc v acc then
+         acc (* Already bound *)
+       else
+         begin match lookup_env expr.ce_loc senv v with
+         | SVLoc(i,j,ty,SV_Param) -> (* [v] refers to an input parameter *)
+            let src = i,j in
+            let w = new_wid(), ((src,dst),ty,ParamW) in
+            (v,w)::acc               (* Bind [v] to the refering wire *)
+         | _ -> acc
+         end
+    | EBinop (_,e1,e2) ->
+       extract (extract acc e1) e2 in
+  extract [] expr
 
+and subst_param_deps bindings expr =
+  let rec subst e = match e.ce_desc with
+    | EInt _ -> e
+    | EBool _ -> e
+    | EVar v ->
+       begin match Misc.assoc_pos v bindings with
+       | 0 -> e (* Not found *)
+       | j -> { e with ce_desc = EVar ("i" ^ string_of_int j) }
+       end
+    | EBinop (op,e1,e2) ->
+       { e with ce_desc = EBinop (op, subst e1, subst e2) } in
+  subst expr
+  
 let string_of_box_tag t = match t with
   | EBcastB -> "EBcast"
   | _ -> "other"
@@ -1117,14 +1137,21 @@ let dump_box (i,b) =
 let dump_wire (i,(((s,ss),(d,ds)),ty,kind)) =
   Printf.printf "W%d: %s: %s: (B%d,%d) -> (B%d,%d)\n" i (string_of_wire_kind kind) (string_of_type ty) s ss d ds
 
-let dump_graph (id,gd) =
+let dump_graph (id,g) =
   printf "* %s\n" id;
   printf "- Boxes --------------------------\n";
-  List.iter dump_box gd.tg_impl.sg_boxes;
+  List.iter dump_box g.sg_boxes;
   printf "- Wires --------------------------\n";
-  List.iter dump_wire gd.tg_impl.sg_wires;
+  List.iter dump_wire g.sg_wires;
   printf "----------------------------------\n"
 
+let dump_graph_node (id,n) =
+  match n.sn_impl with
+  | NI_Graph g -> dump_graph (id,g)
+  | NI_Actor _ -> ()
+
+let dump_top_graph (id,g) = dump_graph (id, g.tg_impl)
+                         
 let dump_static sp =
   printf "Static environment ---------------\n";
   printf "- Global functions ---------------\n";
@@ -1132,7 +1159,8 @@ let dump_static sp =
   printf "- Nodes ---------------------------\n";
   List.iter dump_node sp.sp_nodes;
   printf "- Graphs --------------------------\n";
-  List.iter dump_graph sp.sp_graphs
+  List.iter dump_top_graph sp.sp_graphs;
+  List.iter dump_graph_node sp.sp_nodes
 
 
 let dump_static_environment senv = 

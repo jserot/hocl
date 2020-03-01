@@ -1,8 +1,8 @@
 #ifndef _MULT_H
 #define _MULT_H
 
-#include "defs.h"
+#include "hocl.h"
 
-void mult(nat k, IN int *i, OUT int *o);
+void mult(PARAM int k, IN int *i, OUT int *o);
 
 #endif

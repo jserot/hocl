@@ -7,10 +7,10 @@ LDFLAGS	    = -L$(SC_DIR)/lib-macosx64
 
 C_SRCS = foo.c bar.c
 CPP_SRCS = foo_act.cpp bar_act.cpp main.cpp
-CPP_HDRS = foo_act.h bar_act.h top_gph.h
+CPP_HDRS = foo_act.h bar_act.h top_gph.h sub_gph.h
 OBJS = $(C_SRCS:.c=.o) $(CPP_SRCS:.cpp=.o)
 GEN_SRCS = $(CPP_SRCS) $(CPP_HDRS)
-GEN_DATA = top_o.data
+GEN_DATA = top_o.dat
 
 all: run
 

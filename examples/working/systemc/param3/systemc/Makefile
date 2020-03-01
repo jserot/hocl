@@ -1,15 +1,16 @@
 SC_DIR		= /usr/local/systemc-2.3.1
 SC_CXX      = g++
 SC_LD	 	= g++
-CXXFLAGS  += -I./include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
+CXXFLAGS  += -I../../../../../lib/systemc -I./include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
 SC_CXXFLAGS  += -I../../../../../lib/systemc -I./include -I$(SC_DIR)/include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
 LDFLAGS	    = -L$(SC_DIR)/lib-macosx64
 
-C_SRCS = input.c output.c mult.c 
-CPP_SRCS = inp_act.cpp outp_act.cpp mult_act.cpp main.cpp
-CPP_HDRS = inp_act.h outp_act.h mult_act.h inParam.h depParam.h top_gph.h
+C_SRCS = mult.c 
+CPP_SRCS = p4_prm.cpp mult_act.cpp main.cpp
+CPP_HDRS = p4_prm.h mult_act.h param.h top_gph.h
 OBJS = $(C_SRCS:.c=.o) $(CPP_SRCS:.cpp=.o)
 GEN_SRCS = $(CPP_SRCS) $(CPP_HDRS)
+GEN_DATA = top_o.dat
 
 all: run
 
@@ -29,12 +30,9 @@ exe: ./main_sc
 run: ./main_sc 
 	./main_sc
 
-inp_act.o: inp_act.cpp
-outp_act.o: outp_act.cpp
 mult_act.o: mult_act.cpp
+p4_prm.o: p4_prm.cpp
 main.o: main.cpp
-input.o: input.c
-output.o: output.c
 mult.o: mult.c
 
 clean:
@@ -44,4 +42,5 @@ clean:
 clobber: clean
 	\rm -f $(GEN_SRCS)
 	\rm -f $(GEN_HDRS)
+	\rm -f $(GEN_DATA)
 	\rm -f *~

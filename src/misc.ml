@@ -120,6 +120,12 @@ let rec map_succ f = function
   | [x;y] -> [f x y]
   | x::y::ys -> (f x y) :: map_succ f (y::ys)
 
+let assoc_pos k l =
+  let rec find pos l = match l with
+      [] -> 0
+    | (k',_)::xs -> if compare k' k = 0 then pos else find (pos+1) xs in
+  find 1 l
+  
 (* [loopback [x1;x2;...] is [x1;x2;...;x1] *)
 
 let loopback = function [] -> [] | x::xs -> (x::xs)@[x]

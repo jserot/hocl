@@ -8,19 +8,19 @@ template<class T>
 SC_MODULE(param_in) {
   sc_in<bool> clk;
   sc_fifo_out<T> o;
-  //sc_out<T> o;
 
   void main(void) {
     while ( 1 ) { 
       o.write(val);
+      if ( trace ) cout << modname << " put " << val << " at " << sc_time_stamp() << endl; 
       wait(clk.posedge_event());
       }
     }
 
   SC_HAS_PROCESS(param_in);
 
-  param_in(sc_module_name name_, T val_, bool trace_=false  ) :
-  modname(name_), sc_module(name_), val(val_), trace(trace_) 
+ param_in(sc_module_name name_, T val_, bool trace_=false) :
+  modname(name_), sc_module(name_), val(val_), trace(trace_)
   {
     SC_THREAD(main);
   }

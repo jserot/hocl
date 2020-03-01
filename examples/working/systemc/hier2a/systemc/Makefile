@@ -5,12 +5,12 @@ CXXFLAGS  += -I../../../../../lib/systemc -I./include -Wno-deprecated -Wno-depre
 SC_CXXFLAGS  += -I../../../../../lib/systemc -I./include -I$(SC_DIR)/include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
 LDFLAGS	    = -L$(SC_DIR)/lib-macosx64
 
-C_SRCS = mult.c 
-CPP_SRCS = p3_prm.cpp mult_act.cpp main.cpp
-CPP_HDRS = p3_prm.h mult_act.h param.h top_gph.h
+C_SRCS = foo.c bar.c
+CPP_SRCS = foo_act.cpp bar_act.cpp p3_prm.cpp main.cpp
+CPP_HDRS = foo_act.h bar_act.h p3_prm.h top_gph.h
 OBJS = $(C_SRCS:.c=.o) $(CPP_SRCS:.cpp=.o)
 GEN_SRCS = $(CPP_SRCS) $(CPP_HDRS)
-GEN_DATA = top_o.dat
+GEN_DATA = top_o.data
 
 all: run
 
@@ -30,10 +30,12 @@ exe: ./main_sc
 run: ./main_sc 
 	./main_sc
 
-mult_act.o: mult_act.cpp
+foo_act.o: foo_act.cpp
+bar_act.o: bar_act.cpp
 p3_prm.o: p3_prm.cpp
 main.o: main.cpp
-mult.o: mult.c
+foo.o: foo.c
+bar.o: bar.c
 
 clean:
 	\rm -f *.o

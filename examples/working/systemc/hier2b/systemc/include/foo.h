@@ -3,6 +3,6 @@
 
 #include "hocl.h"
 
-void foo(IN int *i, OUT int *o);
+void foo(PARAM int k, IN int *i, OUT int *o);
 
 #endif
