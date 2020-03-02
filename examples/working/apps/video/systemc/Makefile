@@ -1,9 +1,9 @@
 SC_DIR		= /usr/local/systemc-2.3.1
-CC = g++
-LD = g++
+SC_CXX      = g++
+SC_LD	 	= g++
 SDL2    = /Users/jserot/Library/Frameworks/SDL2.framework
 SDL2_TTF =/Users/jserot/Library/Frameworks/SDL2_ttf.framework
-CFLAGS  += \
+CXXFLAGS  += \
 	-DSYSTEMC_TARGET \
 	-I../../../../../lib/systemc \
 	-I$(SC_DIR)/include \
@@ -13,38 +13,32 @@ CFLAGS  += \
 	-I$(SC_DIR)/include \
 	-I../include \
 	-Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
+SC_CXXFLAGS  += -I../../../../../lib/systemc -I./include -I$(SC_DIR)/include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
 LDFLAGS	    = -L$(SC_DIR)/lib-macosx64 -L$(SDL2) -L$(SDL2_TTF)
 
-C_SRCS = \
-    yuvRead.c \
-    yuvDisplay.c
-CPP_SRCS = \
-	Read_YUV_act.cpp \
-    Display_YUV_act.cpp \
-    height_param.cpp \
-    width_param.cpp \
-    index_param.cpp \
-    main_top.cpp
-SRCS = $(C_SRCS) $(CPP_SRCS)
-
+C_SRCS = yuvRead.c yuvDisplay.c
+CPP_SRCS = ReadYUV_act.cpp DisplayYUV_act.cpp main.cpp
+CPP_HDRS = ReadYUV_act.h DisplayYUV_act.h top_gph.h
 OBJS = $(C_SRCS:.c=.o) $(CPP_SRCS:.cpp=.o)
-CPP_HDRS = $(CPP_SRCS:.cpp=.h)
 GEN_SRCS = $(CPP_SRCS) $(CPP_HDRS)
+GEN_DATA =
 
 all: run
 
 %.o: %.cpp
-	$(CC) $(CFLAGS) -c $<
+	$(SC_CXX) $(SC_CXXFLAGS) -c $<
 
 %.o: %.c
-	$(CC) $(CFLAGS) -c $<
+	$(SC_CXX) $(CXXFLAGS) -c $<
 
 .PHONY: run exe clean clobber
 
 exe: ./main_sc
 
+OBJS = $(C_SRCS:.c=.o) $(CPP_SRCS:.cpp=.o)
+
 ./main_sc: $(OBJS)
-	$(LD) $(LDFLAGS) $(OBJS) -o main_sc -lsystemc -lsdl2 -lsdl2_ttf 2>&1 | c++filt
+	$(SC_LD) $(LDFLAGS) $(OBJS) -o main_sc -lsystemc -lsdl2 -lsdl2_ttf 2>&1 | c++filt
 
 run: ./main_sc 
 	./main_sc
@@ -52,19 +46,9 @@ run: ./main_sc
 yuv.o: yuv.c
 yuvRead.o: yuvRead.c
 yuvDisplay.o: yuvDisplay.c
-splitMerge.o: splitMerge.c
-sobel.o: sobel.c
-Read_YUV_act.o: Read_YUV_act.cpp
-Split_act.o: Split_act.cpp
-Sobel_act.o: Sobel_act.cpp
-Merge_act.o: Merge_act.cpp
-display_act.o: display_act.cpp
-height_param.o: height_param.cpp
-width_param.o: width_param.cpp
-sliceHeight_param.o: sliceHeight_param.cpp
-nbSlice_param.o: nbSlice_param.cpp
-index_param.o: index_param.cpp
-main_top.o: main_top.cpp
+main.o: main.cpp
+ReadYUV_act.o: ReadYUV_act.cpp
+DisplayYUV_act.o: DisplayYUV_act.cpp
 
 clean:
 	\rm -f *.o
@@ -72,4 +56,6 @@ clean:
 
 clobber: clean
 	\rm -f $(GEN_SRCS)
+	\rm -f $(GEN_HDRS)
+	\rm -f $(GEN_DATA)
 	\rm -f *~

@@ -12,7 +12,7 @@
 #ifndef READ_YUV_H
 #define READ_YUV_H
 
-#include "preesm.h"
+#include "hocl.h"
 #define PATH "../../../../data/akiyo_cif.yuv"
 #define NB_FRAME 300
 
@@ -25,7 +25,7 @@
 * @param height
 *        The heigth of the opened YUV file
 */
-void initReadYUV(int width, int height);
+void yuvReadInit(int width, int height);
 
 /**
 * Read a new frame from the YUV file.
@@ -41,6 +41,6 @@ void initReadYUV(int width, int height);
 * param v
 *       Destination of the V component read from the file
 */
-void readYUV(int width, int height, OUT unsigned char *y, OUT unsigned char *u, OUT unsigned char *v);
+void yuvRead(PARAM int width, PARAM int height, OUT unsigned char *y, OUT unsigned char *u, OUT unsigned char *v);
 
 #endif

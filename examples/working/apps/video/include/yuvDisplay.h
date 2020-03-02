@@ -12,7 +12,7 @@ Description : Displaying YUV frames one next to another in a row.
 #ifndef DISPLAY_YUV
 #define DISPLAY_YUV
 
-#include "preesm.h"
+#include "hocl.h"
 #define WIDTH 352
 #define HEIGHT 288
 #define NB_DISPLAY 1

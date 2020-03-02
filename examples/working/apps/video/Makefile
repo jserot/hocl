@@ -1,8 +1,8 @@
 SRCS=main.hcl
 GEN_OPTS=-prelude ../../../../lib/hocl/prelude.hcl
-DOT_OPTS=-target_dir ./dot -dot_slotted_boxes
+DOT_OPTS=-target_dir ./dot -dot_slotted_boxes -insert_bcasts
+SYSTEMC_OPTS=-target_dir ./systemc -sc_default_fifo_capacity 102000
 #PREESM_OPTS=-preesm_top_name top_sobel -target_dir ./preesm
 PREESM_OPTS=-target_dir ./preesm
-SYSTEMC_OPTS=-target_dir ./systemc -sc_default_fifo_capacity 102000
 
 include ../../../../lib/etc/Makefile.app

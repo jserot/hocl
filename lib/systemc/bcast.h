@@ -4,29 +4,29 @@
 #include <systemc.h>
 
 template <class T>
-SC_MODULE(bcast2) { 
+SC_MODULE(Bcast2) { 
   sc_fifo_in<T> i;
   sc_fifo_out<T> o_1;
   sc_fifo_out<T> o_2;
 
   void main(void);
 
-  SC_HAS_PROCESS(bcast2);
+  SC_HAS_PROCESS(Bcast2);
   
- bcast2(sc_module_name name_) :
+ Bcast2(sc_module_name name_) :
   modname(name_), sc_module(name_)
   {
     SC_THREAD(main);
   }
 
-  ~bcast2() { }
+  ~Bcast2() { }
 
   private:
     sc_module_name modname;
 }; 
 
 template <class T>
-void bcast2<T>::main(void) {
+void Bcast2<T>::main(void) {
     T d;
     while(1) { 
           d = i->read();
@@ -36,7 +36,7 @@ void bcast2<T>::main(void) {
 }
 
 template <class T>
-SC_MODULE(bcast3) { 
+SC_MODULE(Bcast3) { 
   sc_fifo_in<T> i;
   sc_fifo_out<T> o_1;
   sc_fifo_out<T> o_2;
@@ -44,22 +44,22 @@ SC_MODULE(bcast3) {
 
   void main(void);
 
-  SC_HAS_PROCESS(bcast3);
+  SC_HAS_PROCESS(Bcast3);
   
- bcast3(sc_module_name name_) :
+ Bcast3(sc_module_name name_) :
   modname(name_), sc_module(name_)
   {
     SC_THREAD(main);
   }
 
-  ~bcast3() { }
+  ~Bcast3() { }
 
   private:
     sc_module_name modname;
 }; 
 
 template <class T>
-void bcast3<T>::main(void) {
+void Bcast3<T>::main(void) {
     T d;
     while(1) { 
           d = i->read();
@@ -70,7 +70,7 @@ void bcast3<T>::main(void) {
 }
 
 template <class T>
-SC_MODULE(bcast4) { 
+SC_MODULE(Bcast4) { 
   sc_fifo_in<T> i;
   sc_fifo_out<T> o_1;
   sc_fifo_out<T> o_2;
@@ -79,22 +79,22 @@ SC_MODULE(bcast4) {
 
   void main(void);
 
-  SC_HAS_PROCESS(bcast4);
+  SC_HAS_PROCESS(Bcast4);
   
- bcast4(sc_module_name name_) :
+ Bcast4(sc_module_name name_) :
   modname(name_), sc_module(name_)
   {
     SC_THREAD(main);
   }
 
-  ~bcast4() { }
+  ~Bcast4() { }
 
   private:
     sc_module_name modname;
 }; 
 
 template <class T>
-void bcast4<T>::main(void) {
+void Bcast4<T>::main(void) {
     T d;
     while(1) { 
           d = i->read();
@@ -106,7 +106,7 @@ void bcast4<T>::main(void) {
 }
 
 template <class T>
-SC_MODULE(bcast5) { 
+SC_MODULE(Bcast5) { 
   sc_fifo_in<T> i;
   sc_fifo_out<T> o_1;
   sc_fifo_out<T> o_2;
@@ -116,22 +116,22 @@ SC_MODULE(bcast5) {
 
   void main(void);
 
-  SC_HAS_PROCESS(bcast5);
+  SC_HAS_PROCESS(Bcast5);
   
- bcast5(sc_module_name name_) :
+ Bcast5(sc_module_name name_) :
   modname(name_), sc_module(name_)
   {
     SC_THREAD(main);
   }
 
-  ~bcast5() { }
+  ~Bcast5() { }
 
   private:
     sc_module_name modname;
 }; 
 
 template <class T>
-void bcast5<T>::main(void) {
+void Bcast5<T>::main(void) {
     T d;
     while(1) { 
           d = i->read();
@@ -145,7 +145,7 @@ void bcast5<T>::main(void) {
 
 
 template <class T>
-SC_MODULE(bcast6) { 
+SC_MODULE(Bcast6) { 
   sc_fifo_in<T> i;
   sc_fifo_out<T> o_1;
   sc_fifo_out<T> o_2;
@@ -156,22 +156,22 @@ SC_MODULE(bcast6) {
 
   void main(void);
 
-  SC_HAS_PROCESS(bcast6);
+  SC_HAS_PROCESS(Bcast6);
   
- bcast6(sc_module_name name_) :
+ Bcast6(sc_module_name name_) :
   modname(name_), sc_module(name_)
   {
     SC_THREAD(main);
   }
 
-  ~bcast6() { }
+  ~Bcast6() { }
 
   private:
     sc_module_name modname;
 }; 
 
 template <class T>
-void bcast6<T>::main(void) {
+void Bcast6<T>::main(void) {
     T d;
     while(1) { 
           d = i->read();

@@ -44,9 +44,7 @@ let compile p =
    *     Static.cfg.Static.insert_bcasts <- true;
    *     (\* Static.cfg.Static.insert_fifos <- true *\)
    *     end; *)
-  let sp = build_static tp builtin_static_env p in
-  if Options.cfg.dump_static then dump_static sp;
-  sp
+  build_static tp builtin_static_env p
 
 let mk_fname pfx sfx = Options.cfg.target_dir ^ "/" ^ pfx ^ sfx
 
@@ -58,10 +56,6 @@ let output pfx sp =
      Dot.dump path pfx sp
    | Systemc ->
       Systemc.dump path pfx sp
-     (*  Systemc.dump_main_module prefix sp;
-      * List.iter (Systemc.dump_graph prefix sp) sp.sp_graphs *)
-     (* List.iter (Systemc.dump_actor Options.cfg.target_dir Options.cfg.output_prefix sp) sp.gacts;
-      * List.iter (Systemc.dump_param Options.cfg.target_dir Options.cfg.output_prefix sp) sp.gparams *)
      (* if has_splitters sp then 
       *   Systemc.dump_split_actors sp; *)
      (* if !Misc.generate_makefiles then Genmake.dump_systemc_makefile () *)
@@ -76,8 +70,8 @@ let insert_bcasts sp =
   if cfg.insert_bcasts then
     let after_boxes = match Options.cfg.output_fmt with
       | Dot -> [LocalParamB; InParamB; SourceB; ActorB (*; DelayB*)]
-      (* | Systemc -> [LocalParamB; InParamB; SourceB; ActorB; DelayB]
-       * | Preesm -> [SourceB; ActorB; DelayB] *)
+      | Systemc -> [LocalParamB; InParamB; SourceB; ActorB (*; DelayB*)]
+      (* | Preesm -> [SourceB; ActorB; DelayB] *)
       | _ -> [] in
     Static.insert_bcasters after_boxes sp
   else
@@ -92,6 +86,7 @@ let process_files fs =
   let p = List.fold_left process_file Syntax.empty_program fs in
   (* Syntax.dump_program p; *)
   let sp = p |> compile |> insert_bcasts in
+  if Options.cfg.dump_static then dump_static sp;
   if Options.cfg.output_fmt <> NoOutput then begin
       check_dir Options.cfg.target_dir;
       let pfx = Misc.file_prefix @@ List.hd @@ List.rev fs in

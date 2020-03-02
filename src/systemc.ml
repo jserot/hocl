@@ -70,7 +70,7 @@ let cfg = {
   sc_param_input_module_name = "param_in";
   sc_clock_period_ns = 10;
   sc_data_fifo_capacity = 16;
-  sc_param_fifo_capacity = 4;
+  sc_param_fifo_capacity = 1;
   sc_data_file_suffix = ".dat";
   sc_default_io_rate = 1;
   sc_stop_time = 0;
@@ -80,24 +80,6 @@ let cfg = {
 let dump_banner oc = Misc.dump_banner "//" oc
 
 let localize_id s = "_" ^ s
-
-let mod_name b =
-  match b.b_tag with
-  | ActorB | GraphB | EBcastB ->
-     String.capitalize_ascii b.b_name
-  | LocalParamB | InParamB ->
-     "Param" ^ string_of_int b.b_id
-  | _ ->
-     Misc.not_implemented "Systemc.mod_name"
-
-let box_name bid b =
-  match b.b_tag with
-  | ActorB | GraphB | EBcastB | SourceB | SinkB ->
-     b.b_name ^ string_of_int bid
-  | LocalParamB | InParamB ->
-     "param" ^ string_of_int bid
-  | _ ->
-     Misc.not_implemented "Systemc.box_name"
 
 (* Types *)
 
@@ -113,6 +95,27 @@ let rec string_of_type t  = match real_type t with (* TO REFINE *)
  *   | Expr.Val_bool b, _ -> string_of_bool b
  *   | Expr.Val_float v, _ -> string_of_float v
  *      failwith ("Systemc.string_of_val: no sensible SystemC representation for value " ^ (Expr.string_of_val v)) *)
+
+
+let mod_name b =
+  match b.b_tag with
+  | ActorB | GraphB | EBcastB ->
+     String.capitalize_ascii b.b_name
+  | LocalParamB | InParamB ->
+     "Param" ^ string_of_int b.b_id
+  | IBcastB ->
+     "Bcast" ^ string_of_int (List.length b.b_outs) ^ "<" ^ string_of_type b.b_typ ^">"
+  | _ ->
+     Misc.not_implemented "Systemc.mod_name"
+
+let box_name bid b =
+  match b.b_tag with
+  | ActorB | GraphB | EBcastB | IBcastB | SourceB | SinkB ->
+     b.b_name ^ string_of_int bid
+  | LocalParamB | InParamB ->
+     "param" ^ string_of_int bid
+  | _ ->
+     Misc.not_implemented "Systemc.box_name"
 
 (* Param and rate expressions *)
 
@@ -573,7 +576,7 @@ and dump_wire_decl oc ((wid,(((src,_),(dst,_)),ty,kind)) as w) =
 
 and dump_box_decl oc (bid,b) =
   match b.b_tag with
-  | ActorB | GraphB | EBcastB | LocalParamB | InParamB ->
+  | ActorB | GraphB | EBcastB | IBcastB | LocalParamB | InParamB ->
      fprintf oc "  %s %s;\n" (mod_name b) (box_name bid b)
   | _ ->
      ()
@@ -589,11 +592,11 @@ and string_of_box_inst (i,b) =
 and dump_box_inst oc g (i,b) =
   let name = box_name i b in
   match b.b_tag with
-  | IBcastB
-  | ActorB
-  | GraphB
-  | EBcastB ->
+  | ActorB | GraphB | EBcastB ->
       fprintf oc "    %s.%s(%s);\n" name cfg.sc_mod_clock cfg.sc_mod_clock;
+      List.iter (dump_box_input oc g name) b.b_ins;
+      List.iter (dump_box_output oc g name) b.b_outs
+  | IBcastB ->
       List.iter (dump_box_input oc g name) b.b_ins;
       List.iter (dump_box_output oc g name) b.b_outs
   | LocalParamB | InParamB ->

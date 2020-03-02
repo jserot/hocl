@@ -27,7 +27,7 @@ static FILE *ptfile ;
    initReadYUV DEFINITION
 
    ======================================================================*/
-void initReadYUV(int width, int height) {
+void yuvReadInit(int width, int height) {
     fprintf(stderr,"initReadYUV: opening file %s: width=%d height=%d\n", PATH, width, height);
     int fsize;
     if((ptfile = fopen(PATH, "rb")) == NULL )
@@ -64,7 +64,7 @@ void initReadYUV(int width, int height) {
    readYUV DEFINITION
 
    ======================================================================*/
-void readYUV(int width, int height, unsigned char *y, unsigned char *u, unsigned char *v) {
+void yuvRead(int width, int height, unsigned char *y, unsigned char *u, unsigned char *v) {
 
     if( ftell(ptfile)/(width*height + width*height/2) >=NB_FRAME){
     	unsigned int time = 0;

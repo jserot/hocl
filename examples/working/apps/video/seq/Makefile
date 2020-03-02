@@ -1,8 +1,9 @@
 CC      = gcc
 LD	 	= gcc
 SDL2    = /Users/jserot/Library/Frameworks/SDL2.framework
+HOCL	= /Users/jserot/Dev/ml/hocl
 SDL2_TTF =/Users/jserot/Library/Frameworks/SDL2_ttf.framework
-CFLAGS  += -I$(SDL2)/include -I$(SDL2_TTF)/include -I../include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
+CFLAGS  += -I$(SDL2)/include -I$(SDL2_TTF)/include -I../include -I$(HOCL)/lib/systemc -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
 LDFLAGS	 = -L$(SDL2) -L$(SDL2_TTF)
 
 C_SRCS = \
