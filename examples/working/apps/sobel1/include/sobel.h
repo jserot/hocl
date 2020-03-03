@@ -2,6 +2,7 @@
 	============================================================================
 	Name        : sobel.h
 	Author      : kdesnos
+    Modified by : jserot (for use in the HoCL framework)
 	Version     : 1.1
 	Copyright   : CeCILL-C
 	Description : 2D Sobel filtering function
@@ -11,7 +12,7 @@
 #ifndef SOBEL_H
 #define SOBEL_H
 
-#include "preesm.h"
+#include "hocl.h"
 
 /**
 * Function to apply the sobel filter to an image of size width*height.
