@@ -247,6 +247,7 @@ actor_desc:
 
 impl_attr:
   | name=IDENT EQUAL v=STRING { name, v }
+  | name=IDENT { name, "" }
 
 node_kind:
   | NODE { NRegular }

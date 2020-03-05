@@ -13,8 +13,8 @@ SC_MODULE(Bcast2) {
 
   SC_HAS_PROCESS(Bcast2);
   
- Bcast2(sc_module_name name_) :
-  modname(name_), sc_module(name_)
+ Bcast2(sc_module_name name_, bool trace_=false) :
+  modname(name_), sc_module(name_), trace(trace_)
   {
     SC_THREAD(main);
   }
@@ -23,6 +23,7 @@ SC_MODULE(Bcast2) {
 
   private:
     sc_module_name modname;
+    bool trace;
 }; 
 
 template <class T>
@@ -46,8 +47,8 @@ SC_MODULE(Bcast3) {
 
   SC_HAS_PROCESS(Bcast3);
   
- Bcast3(sc_module_name name_) :
-  modname(name_), sc_module(name_)
+ Bcast3(sc_module_name name_, bool trace_=false) :
+  modname(name_), sc_module(name_), trace(trace_)
   {
     SC_THREAD(main);
   }
@@ -56,6 +57,7 @@ SC_MODULE(Bcast3) {
 
   private:
     sc_module_name modname;
+    bool trace;
 }; 
 
 template <class T>
@@ -81,8 +83,8 @@ SC_MODULE(Bcast4) {
 
   SC_HAS_PROCESS(Bcast4);
   
- Bcast4(sc_module_name name_) :
-  modname(name_), sc_module(name_)
+ Bcast4(sc_module_name name_, bool trace_=false) :
+  modname(name_), sc_module(name_), trace(trace_)
   {
     SC_THREAD(main);
   }
@@ -91,6 +93,7 @@ SC_MODULE(Bcast4) {
 
   private:
     sc_module_name modname;
+    bool trace;
 }; 
 
 template <class T>
@@ -118,8 +121,8 @@ SC_MODULE(Bcast5) {
 
   SC_HAS_PROCESS(Bcast5);
   
- Bcast5(sc_module_name name_) :
-  modname(name_), sc_module(name_)
+ Bcast5(sc_module_name name_, bool trace_=false) :
+  modname(name_), sc_module(name_), trace(trace_)
   {
     SC_THREAD(main);
   }
@@ -128,6 +131,7 @@ SC_MODULE(Bcast5) {
 
   private:
     sc_module_name modname;
+    bool trace;
 }; 
 
 template <class T>
@@ -158,8 +162,8 @@ SC_MODULE(Bcast6) {
 
   SC_HAS_PROCESS(Bcast6);
   
- Bcast6(sc_module_name name_) :
-  modname(name_), sc_module(name_)
+ Bcast6(sc_module_name name_, bool trace_=false) :
+  modname(name_), sc_module(name_), trace(trace_)
   {
     SC_THREAD(main);
   }
@@ -168,6 +172,7 @@ SC_MODULE(Bcast6) {
 
   private:
     sc_module_name modname;
+    bool trace;
 }; 
 
 template <class T>

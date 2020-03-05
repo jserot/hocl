@@ -196,6 +196,15 @@ and core_expr_desc =
    | EBool of bool
    | EBinop of string * core_expr * core_expr
 
+let core_expr_equal expr1 expr2 =  (* Structural comparison *)
+  let rec cmp e1 e2 = match e1.ce_desc, e2.ce_desc with
+    | EVar v1, EVar v2 -> v1=v2
+    | EInt i1, EInt i2 -> i1=i2
+    | EBool b1, EBool b2 -> b1=b2
+    | EBinop (op1,e11,e12), EBinop (op2,e21,e22) -> op1=op2 && cmp e11 e21 && cmp e12 e22
+    | _, _ -> false in
+  cmp expr1 expr2
+
 (* Aux fns *)
 
 let is_fun_definition = function

@@ -18,7 +18,7 @@ LDFLAGS	    = -L$(SC_DIR)/lib-macosx64 -L$(SDL2) -L$(SDL2_TTF)
 
 C_SRCS = yuvRead.c yuvDisplay.c im_diff.c im_delay.c
 CPP_SRCS = ReadYUV_act.cpp DisplayYUV_act.cpp ImDiff_act.cpp ImDelay_act.cpp main.cpp
-CPP_HDRS = ReadYUV_act.h DisplayYUV_act.h ImDiff_act.h ImDelay.act.h top_gph.h
+CPP_HDRS = ReadYUV_act.h DisplayYUV_act.h ImDiff_act.h ImDelay_act.h top_gph.h
 OBJS = $(C_SRCS:.c=.o) $(CPP_SRCS:.cpp=.o)
 GEN_SRCS = $(CPP_SRCS) $(CPP_HDRS)
 GEN_DATA =

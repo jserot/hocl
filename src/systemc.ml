@@ -145,20 +145,42 @@ let string_of_io_rate rate = match rate with
   | None -> "1"
   | Some e -> Syntax.string_of_rate_expr e
 
-(* let get_delay_io a =
- *   let open Ssval in 
- *   match a.sa_kind with
- *   | Syntax.A_Delay ->
- *      let ival_param =
- *        match a.sa_params, List.find_opt (fun (id, _, _) -> id = "ival") a.sa_params with
- *        | [], _ -> Error.missing_param "delay" a.sa_id " (should be at least one with name \"ival\")"
- *        | _, None -> Error.missing_ival_param a.sa_id; List.hd (List.rev a.sa_params)
- *        | _, Some p -> p in
- *      let outp = match a.sa_outs with
- *      | [o] -> o
- *      | _ -> Error.illegal_interface "delay" a.sa_id " (should have exactly one output)" in
- *      ival_param, outp 
- *   | _ -> Misc.fatal_error "Systemc.get_delay_io"               *)
+let get_rate_annot anns = 
+  List.find_opt (function Syntax.IA_Rate _ -> true | _ -> false) anns
+
+let get_rate_expr anns =
+  match get_rate_annot anns with
+  | Some (IA_Rate e) -> Some e
+  | _ -> None
+
+type delay_spec = {
+    ds_typ: typ;
+    ds_iv: string;
+    ds_i: string;
+    ds_irate: Syntax.core_expr option;
+    ds_o: string;
+    ds_orate: Syntax.core_expr option
+  }
+      
+(* let no_delay_spec = { ds_typ=no_type; ds_iv=""; ds_i=""; ds_irate=None; ds_o=""; ds_orate=None } *)
+                  
+let get_delay_spec name intf =
+     let iv_name, ty =
+       match List.find_opt (fun (id, _) -> id = "ival") intf.t_params with
+       | None -> Error.missing_ival_param name
+       | Some (id,ty) -> id, ty in
+     let get_io_spec ios =
+       match ios with
+       | [id,(ty,annots)] -> id, get_rate_expr annots
+       | _ -> Error.illegal_interface "delay" name " (should have exactly one input and one output)" in
+     let i_name, i_rate = get_io_spec intf.t_ins in
+     let o_name, o_rate = get_io_spec intf.t_outs in
+     let rate_expr_eq e1 e2 = match e1, e2 with
+       | None, None -> true
+       | Some e1, Some e2 -> Syntax.core_expr_equal e1 e2
+       | _, _ -> false in
+     if not (rate_expr_eq i_rate o_rate) then Error.illegal_interface "delay" name " (input and output rates do not match)";
+     { ds_typ=ty; ds_iv=iv_name; ds_i=i_name; ds_irate=i_rate; ds_o=o_name; ds_orate=o_rate }
 
 let dump_module_intf oc name intf =
   let modname = String.capitalize_ascii name in
@@ -173,14 +195,6 @@ let dump_module_intf oc name intf =
   List.iter
     (function (id,(ty,_)) -> fprintf oc "  sc_fifo_out<%s > %s;\n" (string_of_type ty) id)
     intf.t_real_outs
-
-let get_rate_annot anns = 
-  List.find_opt (function Syntax.IA_Rate _ -> true | _ -> false) anns
-
-let get_rate_expr anns =
-  match get_rate_annot anns with
-  | Some (IA_Rate e) -> Some e
-  | _ -> None
 
 let rec dump_actor_intf prefix oc name intf attrs =
   let modname = String.capitalize_ascii name in
@@ -278,9 +292,9 @@ let rec dump_actor_impl prefix oc name intf attrs =
           params
         end;
       if is_delay then begin
-        let ((id,_,_) as ival_inp), ((id',_,rate,_) as outp) = get_delay_io a in
+        let spec = get_delay_spec name intf in
         fprintf oc "    for ( int __k=0; __k<%s; __k++ ) %s.write(%s); // Initial tokens\n"
-          (string_of_io_rate' rate) id' (localize_id id)
+          (string_of_io_rate' spec.ds_orate) spec.ds_o (localize_id spec.ds_iv)
         end
       else
         fprintf oc "    %s(%s);\n" init_fn (Misc.string_of_list string_of_io ", " params);
@@ -297,7 +311,7 @@ let rec dump_actor_impl prefix oc name intf attrs =
      | Some e as e' when not (Syntax.is_constant_core_expr e) ->
         fprintf oc "      %s = new %s[%s];\n" (localize_id id) (string_of_type ty) (string_of_io_rate' e')
       | _ -> ())
-    (if is_delay then intf.t_reals_ins else intf.t_real_ins @ intf.t_real_outs); 
+    (if is_delay then intf.t_real_ins else intf.t_real_ins @ intf.t_real_outs); 
   List.iter
     (fun (id,(ty,anns)) ->
       let rate = get_rate_expr anns in
@@ -305,11 +319,9 @@ let rec dump_actor_impl prefix oc name intf attrs =
         (string_of_io_rate' rate) (localize_id id) id)
     intf.t_real_ins;
   if is_delay then begin
-      let iid, oid, orate = match intf.t_real_ins, intf.t_real_outs with
-        | [id,_,_,_], [id',_,rate,_] -> id, id', rate
-        | _ -> Error.illegal_interface "delay" a.sa_id " (should have exactly one input and output)" in
+      let spec = get_delay_spec name intf in
       fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
-            (string_of_io_rate' orate) oid (localize_id iid)
+            (string_of_io_rate' spec.ds_orate) spec.ds_o (localize_id spec.ds_i)
     end
   else
    begin
@@ -534,7 +546,7 @@ let rec dump_graph ~toplevel path prefix id intf g =
     List.fold_left
       (fun acc (bid,b) -> add acc (f_name b))
       []
-      (List.filter (fun (_,b) -> not (is_delay_box b)) g.sg_boxes) in
+      (List.filter (fun (_,b) -> not (is_builtin_delay_box b)) g.sg_boxes) in
   let bcasters = [] in
   (* let bcasters = Static.extract_bcast_boxes sp in *)
   (* TO FIX : we have to distinguish "implicit" bcasts, used for parameters and inserted automatically
@@ -576,7 +588,7 @@ and is_io_box toplevel b =
   | SourceB | SinkB -> true
   | InParamB -> not toplevel
   | _ -> false
-and is_delay_box b = b.b_name = "delay"  (* TO FIX ? Should we use a dedicated instead ? *)
+and is_builtin_delay_box b = b.b_name = "delay"  (* TO FIX ? Should we use a dedicated tag instead ? *)
   
 
 and dump_wire_decl oc ((wid,(((src,_),(dst,_)),ty,kind)) as w) =
