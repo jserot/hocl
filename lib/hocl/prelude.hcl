@@ -112,3 +112,7 @@ val rec foldr f z xs =
     [] -> z
   | x::xs' -> f (x, foldr f z xs')
 ;
+
+-- Predefined actor. Do not change its name, it is recognized by the various backends
+
+node delay param (iv: int) in (i: int) out (o: int);

@@ -9,6 +9,7 @@ GENERAL
   . caph (for code generation on HW platforms (with actors described in VHDL))
   . cal (?)
 - make all examples simulable in SystemC
+- rename "prelude" -> "standard library"
 
 COMPILER
 - check that types infered from a node impl match those given in the interface (typing.ml)

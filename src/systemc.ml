@@ -22,7 +22,7 @@ exception Error of string
 type sc_config = {
   mutable sc_act_headers: string list;
   mutable sc_top_headers: string list;
-  mutable sc_bcasters_suffix: string;
+  (* mutable sc_bcasters_suffix: string; *)
   mutable sc_trace: bool;
   mutable sc_dump_fifos: bool;
   mutable sc_trace_fifos: bool;
@@ -54,8 +54,9 @@ let cfg = {
     "\"stream_in.h\"";
     "\"stream_out.h\"";
     "\"param_in.h\"";
+    "\"delay.h\"";
     "\"bcast.h\"" ];
-  sc_bcasters_suffix = "_bcasters";
+  (* sc_bcasters_suffix = "_bcasters"; *)
   sc_trace = false;
   sc_dump_fifos = false;
   sc_trace_fifos = false;
@@ -98,13 +99,18 @@ let rec string_of_type t  = match real_type t with (* TO REFINE *)
 
 
 let mod_name b =
+  let type_of b = match b.b_ins with
+      (_,(_,ty,_))::_ -> string_of_type ty
+    | _ -> Misc.fatal_error "mod_name" in (* should not happen *)
   match b.b_tag with
+  | ActorB when b.b_name = "delay" ->
+     "Delay" ^ "<" ^ type_of b ^">"
   | ActorB | GraphB | EBcastB ->
      String.capitalize_ascii b.b_name
+  | IBcastB ->
+     "Bcast" ^ string_of_int (List.length b.b_outs) ^ "<" ^ type_of b ^">"
   | LocalParamB | InParamB ->
      "Param" ^ string_of_int b.b_id
-  | IBcastB ->
-     "Bcast" ^ string_of_int (List.length b.b_outs) ^ "<" ^ string_of_type b.b_typ ^">"
   | _ ->
      Misc.not_implemented "Systemc.mod_name"
 
@@ -525,7 +531,10 @@ let rec dump_graph ~toplevel path prefix id intf g =
     | _ -> "" in
   let headers =
     let add acc f = if f <> "" && not (List.mem f acc) then f::acc else acc in
-    List.fold_left (fun acc (bid,b) -> add acc (f_name b)) [] g.sg_boxes in
+    List.fold_left
+      (fun acc (bid,b) -> add acc (f_name b))
+      []
+      (List.filter (fun (_,b) -> not (is_delay_box b)) g.sg_boxes) in
   let bcasters = [] in
   (* let bcasters = Static.extract_bcast_boxes sp in *)
   (* TO FIX : we have to distinguish "implicit" bcasts, used for parameters and inserted automatically
@@ -567,6 +576,8 @@ and is_io_box toplevel b =
   | SourceB | SinkB -> true
   | InParamB -> not toplevel
   | _ -> false
+and is_delay_box b = b.b_name = "delay"  (* TO FIX ? Should we use a dedicated instead ? *)
+  
 
 and dump_wire_decl oc ((wid,(((src,_),(dst,_)),ty,kind)) as w) =
   (* if is_dep_wire then
@@ -587,7 +598,7 @@ and string_of_box_inst (i,b) =
    *    sprintf "%s(\"%s\")" name name (string_of_core_expr bx.b_val.bv_lit);
    * | _ -> *)
   let name = box_name i b in
-  sprintf "%s(\"%s\")" name name
+  sprintf "%s(\"%s\",%b)" name name cfg.sc_trace
   
 and dump_box_inst oc g (i,b) =
   let name = box_name i b in
@@ -700,9 +711,10 @@ and string_of_wire_inst (wid,(_,_,kind)) =
 (* Printing node description file(s) *)
 
 let dump_node path prefix (id,n) =
-  match n.sn_impl with
-  | NI_Actor a -> dump_actor path prefix id n.sn_intf a
-  | NI_Graph g -> dump_graph ~toplevel:false path prefix id n.sn_intf g
+  match id, n.sn_impl with
+  | "delay", _ -> ()  (* Handled specially *)
+  | _, NI_Actor a -> dump_actor path prefix id n.sn_intf a
+  | _, NI_Graph g -> dump_graph ~toplevel:false path prefix id n.sn_intf g
                   
 (* Printing top level .cpp file *)
 

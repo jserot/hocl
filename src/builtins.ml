@@ -41,6 +41,13 @@ let prim2 encode op decode1 decode2 =
        encode (op (decode1 v1) (decode2 v2))
    | _ -> fatal_error "Builtins.prim2")
 
+(* let delay_prim = SVPrim (fun z -> (SVPrim (fun v -> z)))
+ *   (\* This is a fake defin. The [delay] primitive will never be evaluated statically *\) *)
+
+(* let type_delay =
+ *   let ty = new_type_var () in
+ *   type_arrow2 type_int ty ty *)
+  
 let builtin_primitives = [
     (* Id, type, static value *)
     "+",  (type_arithm, prim2 encode_int  ( + ) decode_int decode_int);
@@ -53,6 +60,7 @@ let builtin_primitives = [
     "<",  (type_compar, prim2 encode_bool ( < ) decode_int decode_int);
     ">",  (type_compar, prim2 encode_bool ( > ) decode_int decode_int);
     "not",  (trivial_scheme (type_arrow type_bool type_bool), prim1 encode_bool ( not ) decode_bool);
+    (* "delay", (generalize [] type_delay, delay_prim)  *)
   ]
 
 (* Initial typing environment *)
