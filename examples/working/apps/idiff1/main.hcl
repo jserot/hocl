@@ -23,7 +23,7 @@ node ImDiff
   in (input: uchar[height*width], previous: uchar[height*width])
   out (output: uchar[height*width], result: uchar[height*width])
 actor
-  systemc(loop_fn="difference", incl_file="include/difference.h", src_file="src/difference.c")
+  systemc(loop_fn="im_diff", incl_file="include/im_diff.h", src_file="src/im_diff.c")
 end;
 
 node ImDelay
@@ -31,7 +31,7 @@ node ImDelay
   in (input: uchar[height*width])
   out (output: uchar[height*width])
 actor
-  systemc(loop_fn="difference", incl_file="include/difference.h", src_file="src/difference.c")
+  systemc(loop_fn="im_delay", init_fn="im_delay_init", incl_file="include/im_delay.h", src_file="src/im_delay.c", is_delay)
 end;
 
 graph top

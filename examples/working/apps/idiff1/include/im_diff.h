@@ -2,16 +2,17 @@
 	============================================================================
 	Name        : difference.h
 	Author      : mpelcat
+    Modified by : jserot (for use in the HoCL framework)
 	Version     : 1.1
 	Copyright   : CeCILL-C
 	Description : Difference between two images
 	============================================================================
 */
 
-#ifndef DIFFERENCE_H
-#define DIFFERENCE_H
+#ifndef IM_DIFF_H
+#define IM_DIFF_H
 
-#include "preesm.h"
+#include "hocl.h"
 
 /**
 * Function to compute the frame-to-frame difference 
@@ -26,9 +27,11 @@
 *        The previous image of size height*width
 * @param output
 *        The copy of the input image of size height*width
-* @param difference
+* @param result
 *        The difference image (input-previous) of size height*width
 */
-void difference(int width, int height, IN unsigned char *input, IN unsigned char *previous, OUT unsigned char *output, OUT unsigned char *result);
+void im_diff(PARAM int width, PARAM int height,
+             IN unsigned char *input, IN unsigned char *previous,
+             OUT unsigned char *output, OUT unsigned char *result);
 
 #endif

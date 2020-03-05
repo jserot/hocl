@@ -245,17 +245,17 @@ let string_of_io (id,ty,kind) = localize_id id
    * | DataOut -> "&" ^ localize_id id *)
 
 let get_impl_fns name attrs =
-  match List.assoc_opt "incl_file" attrs, List.assoc_opt "loop_fn" attrs, List.assoc_opt "init_fn" attrs with
-  | Some f, Some f', Some f'' -> f, f', f''
-  | Some f, Some f', None -> f, f', ""
+  match List.assoc_opt "incl_file" attrs,
+        List.assoc_opt "loop_fn" attrs,
+        List.assoc_opt "init_fn" attrs
+  with
+  | Some f, Some f', Some f'' -> f, f', f'', List.mem_assoc "is_delay" attrs
+  | Some f, Some f', None -> f, f', "", List.mem_assoc "is_delay" attrs
   | _, _, _ -> Error.incomplete_actor_impl "systemc" name
 
 let rec dump_actor_impl prefix oc name intf attrs =
   let modname = String.capitalize_ascii name in
-  let incl_file, loop_fn, init_fn = get_impl_fns name attrs in
-    (* match a.sa_kind with
-     * | A_Delay -> "", "", ""  (\* The delay actor is builtin *\)
-     * | _ -> get_pragma_fns sp a.sa_id in *)
+  let incl_file, loop_fn, init_fn, is_delay = get_impl_fns name attrs in
   let params = List.map (function (id,ty) -> id,ty,ParamIn) intf.t_params in
   let dinps = List.map (function (id,(ty,_)) -> id,ty,DataIn) intf.t_real_ins in
   let doutps = List.map (function (id,(ty,_)) -> id,ty,DataOut) intf.t_real_outs in
@@ -270,19 +270,19 @@ let rec dump_actor_impl prefix oc name intf attrs =
   if incl_file <> "" then fprintf oc "#include \"%s\"\n" incl_file;
   fprintf oc "\n" ;
   fprintf oc "void %s::main(void) {\n" modname;
-  if init_fn <> "" (* || a.sa_kind = A_Delay *) then begin
-      if  params <> [] then begin (* We need to wait for one clk event so that parameter values are available.. *)
+  if init_fn <> "" || is_delay then begin
+      if  params <> [] then begin (* We need to wait for one clk event so that parameter values are available *)
         fprintf oc "    wait(%s.posedge_event());\n" cfg.sc_mod_clock;
         List.iter
           (fun (id,_,_) -> fprintf oc "    %s = %s.read();\n" (localize_id id) id)
           params
         end;
-      (* if a.sa_kind = A_Delay then begin
-       *   let ((id,_,_) as ival_inp), ((id',_,rate,_) as outp) = get_delay_io a in
-       *   fprintf oc "    for ( int __k=0; __k<%s; __k++ ) %s.write(%s); // Initial tokens\n"
-       *     (string_of_io_rate' rate) id' (localize_id id)
-       *   end
-       * else *)
+      if is_delay then begin
+        let ((id,_,_) as ival_inp), ((id',_,rate,_) as outp) = get_delay_io a in
+        fprintf oc "    for ( int __k=0; __k<%s; __k++ ) %s.write(%s); // Initial tokens\n"
+          (string_of_io_rate' rate) id' (localize_id id)
+        end
+      else
         fprintf oc "    %s(%s);\n" init_fn (Misc.string_of_list string_of_io ", " params);
     end;
   fprintf oc "    while ( 1 ) { \n";
@@ -297,21 +297,21 @@ let rec dump_actor_impl prefix oc name intf attrs =
      | Some e as e' when not (Syntax.is_constant_core_expr e) ->
         fprintf oc "      %s = new %s[%s];\n" (localize_id id) (string_of_type ty) (string_of_io_rate' e')
       | _ -> ())
-    ((*if a.sa_kind = Syntax.A_Delay then inps else*) intf.t_real_ins @ intf.t_real_outs); 
+    (if is_delay then intf.t_reals_ins else intf.t_real_ins @ intf.t_real_outs); 
   List.iter
     (fun (id,(ty,anns)) ->
       let rate = get_rate_expr anns in
       fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s[__k] = %s.read();\n"
         (string_of_io_rate' rate) (localize_id id) id)
     intf.t_real_ins;
-  (* if a.sa_kind = Syntax.A_Delay then begin
-   *     let iid, oid, orate = match intf.t_real_ins, intf.t_real_outs with
-   *       | [id,_,_,_], [id',_,rate,_] -> id, id', rate
-   *       | _ -> Error.illegal_interface "delay" a.sa_id " (should have exactly one input and output)" in
-   *     fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
-   *           (string_of_io_rate' orate) oid (localize_id iid)
-   *   end
-   * else *)
+  if is_delay then begin
+      let iid, oid, orate = match intf.t_real_ins, intf.t_real_outs with
+        | [id,_,_,_], [id',_,rate,_] -> id, id', rate
+        | _ -> Error.illegal_interface "delay" a.sa_id " (should have exactly one input and output)" in
+      fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
+            (string_of_io_rate' orate) oid (localize_id iid)
+    end
+  else
    begin
     fprintf oc "      %s(%s);\n" loop_fn (Misc.string_of_list string_of_io ", " (params @ dinps @ doutps));
     List.iter
@@ -328,7 +328,7 @@ let rec dump_actor_impl prefix oc name intf attrs =
      | Some e  when not (is_constant_core_expr e) ->
         fprintf oc "      delete [] %s;\n" (localize_id id)
      | _ -> ())
-    ((*if a.sa_kind = Syntax.A_Delay then intf.t_real_ins else *)intf.t_real_ins @ intf.t_real_outs); 
+    (if is_delay then intf.t_real_ins else intf.t_real_ins @ intf.t_real_outs); 
   fprintf oc "    }\n";
   fprintf oc "}\n"
 

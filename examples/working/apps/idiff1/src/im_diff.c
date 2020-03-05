@@ -1,7 +1,8 @@
 /*
 	============================================================================
-	Name        : difference.c
+	Name        : im_diff.c
 	Author      : mpelcat
+    Modified by : jserot (for use in the HoCL framework)
 	Version     : 1.2
 	Copyright   : CECILL-C
 	Description :
@@ -12,9 +13,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "difference.h"
+#include "im_diff.h"
 
-void difference(int width, int height, IN unsigned char *input, IN unsigned char *previous, OUT unsigned char *output, OUT unsigned char *result){
+void im_diff(PARAM int width, PARAM int height,
+             IN unsigned char *input, IN unsigned char *previous,
+             OUT unsigned char *output, OUT unsigned char *result)
+{
     int i,j;
     int d;
     // Copy input into output
