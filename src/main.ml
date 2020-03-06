@@ -40,10 +40,6 @@ let parse fname =
 let compile p = 
   let tp = type_program builtin_typing_env p in
   if Options.cfg.dump_typed then dump_typed_program tp;
-  (* if Options.cfg.output_fmt = Systemc then begin
-   *     Static.cfg.Static.insert_bcasts <- true;
-   *     (\* Static.cfg.Static.insert_fifos <- true *\)
-   *     end; *)
   build_static tp builtin_static_env p
 
 let mk_fname pfx sfx = Options.cfg.target_dir ^ "/" ^ pfx ^ sfx
@@ -58,20 +54,21 @@ let output pfx sp =
       Systemc.dump path pfx sp
      (* if has_splitters sp then 
       *   Systemc.dump_split_actors sp; *)
-     (* if !Misc.generate_makefiles then Genmake.dump_systemc_makefile () *)
-  (* | Preesm ->
-   *    let fname = mk_fname pfx ".pi" in
-   *    Preesm.dump fname sp
-   * | Xdf ->
-   *    let fname = mk_fname pfx ".xdf" in
-   *    Xdf.dump fname sp *)
+  | Preesm ->
+     (* let fname = mk_fname pfx ".pi" in
+      * Preesm.dump fname sp *)
+     ()
+  | Xdf ->
+     (* let fname = mk_fname pfx ".xdf" in
+      * Xdf.dump fname sp *)
+     ()
 
 let insert_bcasts sp = 
   if cfg.insert_bcasts then
     let after_boxes = match Options.cfg.output_fmt with
       | Dot -> [LocalParamB; InParamB; SourceB; ActorB (*; DelayB*)]
       | Systemc -> [LocalParamB; InParamB; SourceB; ActorB (*; DelayB*)]
-      (* | Preesm -> [SourceB; ActorB; DelayB] *)
+      | Preesm -> [SourceB; ActorB (*; DelayB*)]
       | _ -> [] in
     Static.insert_bcasters after_boxes sp
   else
@@ -97,12 +94,13 @@ let main () =
 try
   Sys.catch_break true;
   Arg.parse Options.options_spec anonymous usage;
+  Options.cfg.stdlib <- Version.stdlib;
   print_banner ();
   if Options.cfg.dump_tenv then
     dump_global_typing_environment "Initial typing environment" Builtins.builtin_typing_env;
   if Options.cfg.dump_senv then dump_static_environment Builtins.builtin_static_env;
   Logfile.start ();
-  let sfs = match Options.cfg.prelude with
+  let sfs = match Options.cfg.stdlib with
     | "" -> !source_files
     | f -> f :: !source_files in
   process_files sfs;

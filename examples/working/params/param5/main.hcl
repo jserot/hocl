@@ -1,4 +1,4 @@
--- Several examples of parameter usage
+-- Several examples of parameter usage, in both structural and functional style
 
 type t;
 

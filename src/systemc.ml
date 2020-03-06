@@ -22,7 +22,6 @@ exception Error of string
 type sc_config = {
   mutable sc_act_headers: string list;
   mutable sc_top_headers: string list;
-  (* mutable sc_bcasters_suffix: string; *)
   mutable sc_trace: bool;
   mutable sc_dump_fifos: bool;
   mutable sc_trace_fifos: bool;
@@ -56,7 +55,6 @@ let cfg = {
     "\"param_in.h\"";
     "\"delay.h\"";
     "\"bcast.h\"" ];
-  (* sc_bcasters_suffix = "_bcasters"; *)
   sc_trace = false;
   sc_dump_fifos = false;
   sc_trace_fifos = false;
@@ -547,13 +545,9 @@ let rec dump_graph ~toplevel path prefix id intf g =
       (fun acc (bid,b) -> add acc (f_name b))
       []
       (List.filter (fun (_,b) -> not (is_builtin_delay_box b)) g.sg_boxes) in
-  let bcasters = [] in
-  (* let bcasters = Static.extract_bcast_boxes sp in *)
-  (* TO FIX : we have to distinguish "implicit" bcasts, used for parameters and inserted automatically
-     with the [-insert_bcasts] option, from the "explicit" bcasts inserted by the programmer btw _actors_.
-     Eventually merge the two cases ? *)
   dump_banner oc;
   List.iter (function h -> fprintf oc "#include %s\n" h) (cfg.sc_top_headers @ headers);
+  (* let bcasters = Static.extract_bcast_boxes sp in *)
   (* if bcasters <> [] then fprintf oc "#include \"%s\"\n"  (prefix ^ cfg.sc_bcasters_suffix ^ ".h"); *)
   fprintf oc "\n";
   dump_module_intf oc modname intf;  
@@ -605,12 +599,12 @@ and dump_box_decl oc (bid,b) =
      ()
 
 and string_of_box_inst (i,b) = 
-  (* match bx.b_tag with
-   * | LocalParamB ->
-   *    sprintf "%s(\"%s\")" name name (string_of_core_expr bx.b_val.bv_lit);
-   * | _ -> *)
   let name = box_name i b in
-  sprintf "%s(\"%s\",%b)" name name cfg.sc_trace
+  match b.b_tag with
+  | ActorB | EBcastB | SourceB | SinkB | LocalParamB ->
+     sprintf "%s(\"%s\",%b)" name name cfg.sc_trace
+  | _ ->
+     sprintf "%s(\"%s\")" name name
   
 and dump_box_inst oc g (i,b) =
   let name = box_name i b in
@@ -662,63 +656,6 @@ and string_of_wire_inst (wid,(_,_,kind)) =
   let cap = match kind with DataW -> cfg.sc_data_fifo_capacity | ParamW -> cfg.sc_param_fifo_capacity in
   sprintf "w%d(\"w%d\",%d)" wid wid cap
     
-(* and dump_box oc (i,b) =
- *   let bname = b.b_name in
- *   let type_of ios = match ios with 
- *       | (_,(_,ty,_))::_ -> ty
- *       | _ -> failwith "Systemc.dump_box" (\* should not happen *\) in
- *   match b.b_tag with
- *   | IBcastB ->  (\* Implicit bcast *\)
- *       let ty = type_of b.b_ins in
- *       fprintf oc "  %s<%s > %s(\"%s\");\n"
- *         ("bcast" ^ string_of_int (List.length b.b_outs))
- *         (string_of_type ty)
- *         bname
- *         bname;
- *       List.iter (dump_box_input oc bname) b.b_ins;
- *       List.iter (dump_box_output oc bname) b.b_outs
- *   (\* | ActorB when is_bcast_box sp.boxes i -> (\\* Explicit bcast (for actors, for now) *\\) (\\* TO BE FIXED ? *\\)
- *    *     let ty = type_of b.b_ins in
- *    *     fprintf oc "  %s<%s > %s(\"%s\", %b);\n"
- *    *       ("bcast" ^ string_of_int (List.length b.b_outs))
- *    *       (string_of_type ty)
- *    *       bname
- *    *       bname
- *    *       (\\* (string_of_param_values ir bname b.ib_params) *\\)
- *    *       cfg.sc_trace;
- *    *     fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
- *    *     List.iter (dump_box_input oc bname) b.b_ins;
- *    *     List.iter (dump_box_output oc bname) b.b_outs *\)
- *   | ActorB
- *   | GraphB
- *   | EBcastB ->
- *     (\* | DelayB -> *\)
- *       (\* let modname = bname ^ cfg.sc_actor_suffix in *\)
- *      let modname = mod_name bname in
- *      fprintf oc "  %s %s(\"%s\", %b);\n"
- *         modname
- *         bname
- *         bname
- *         (\* (string_of_param_values ir bname b.ib_params)
- *          * (string_of_var_init_values bname b.ib_vars) *\)
- *         cfg.sc_trace;
- *       (\* if b.b_ins = [] then (\\* Source actor *\\) *\)
- *       fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
- *       List.iter (dump_box_input oc bname) b.b_ins;
- *       List.iter (dump_box_output oc bname) b.b_outs
- *   | LocalParamB ->
- *       let modname = bname ^ cfg.sc_param_suffix in
- *       fprintf oc "  %s %s(\"%s\");\n"
- *         modname
- *         bname
- *         bname;
- *         (\* (string_of_param_values ir bname b.ib_params) *\)
- *       if b.b_ins = [] then (\* Initial (non dep) parameter *\)
- *         fprintf oc "  %s.%s(%s);\n" bname cfg.sc_mod_clock cfg.sc_mod_clock;
- *       List.iter (dump_box_input oc bname) b.b_ins;
- *       List.iter (dump_box_output oc bname) b.b_outs
- *   | DummyB ->  Misc.fatal_error "Systemc.dump_box: dummy box"
- *   | _ ->  Misc.fatal_error "Systemc.dump_box: not implemented box kind" *)
 
 (* Printing node description file(s) *)
 

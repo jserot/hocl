@@ -1,20 +1,12 @@
 -- Dependent parameters
 
-type t;
-
-node foo param (k: int) in (i: t) out (o: t);
-
-graph top_s param (k: int = 1) in (i: t) out (o: t)
-struct
-  node n: foo<k+1>(i)(o)
+node mult param (k: int) in (i: int) out (o: int)
+actor
+  systemc(loop_fn="mult", incl_file="./include/mult.h", src_file="./src/mult.cpp")
 end;
 
-graph top_f param (k: int = 1) in (i: t) out (o: t)
+graph top param (k: int = 1) in (i: int) out (o: int)
 fun
-  val o = i |> foo<k+1>
+  val o = mult<k+1> i
 end;
-
--- #pragma code("inp", "include/input.h", "input", "inputInit")
--- #pragma code("outp", "include/output.h", "output", "outputInit")
--- #pragma code("foo", "include/foo.h", "foo")
 

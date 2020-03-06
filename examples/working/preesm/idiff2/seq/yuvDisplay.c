@@ -1,1 +1,0 @@
-../../video/src/yuvDisplay.c

@@ -1,8 +1,13 @@
 # Changes
 
-# 1.0 (Feb xx, 2020)
+# 1.0 (Mar 6, 2020)
 
-* Revised syntax, with [node] and [graph] declarations
+* Fully revised syntax, with [node] and [graph] declarations, and a new way of
+  declaring and passing parameters 
+* The tutorial has been completely rewritten to reflect these changes
+* The so-called `prelude` file is now called the _standard library_ (`lib/hocl/stdlib.hcl`). This
+  file is now automatically parsed by the compiler, unless the `-no_stdlib` argument is given
+* Significantly increased the number of SystemC examples 
 
 # 0.3 (Nov 10, 2019)
 * Updated implementation of _broadcast_ nodes. Insertion of _broadcast_ node is now automatic when

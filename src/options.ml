@@ -13,10 +13,10 @@
 let print_version () =
   Printf.printf "This is the HoCL compiler, version %s\n" Version.version
 
-type output_format = NoOutput | Dot | Systemc (* | Preesm | Xdf  *)(* | Dif | Vhdl *)
+type output_format = NoOutput | Dot | Systemc | Preesm | Xdf (* | Dif | Vhdl *)
 
 type cfg = {
-    mutable prelude: string;
+    mutable stdlib: string;
     mutable output_fmt: output_format;
     mutable output_prefix: string;
     mutable prefix: string;
@@ -29,7 +29,7 @@ type cfg = {
   }
 
 let cfg = {
-  prelude = "";
+  stdlib = "";
   output_fmt = NoOutput;
   output_prefix = "";
   prefix = "";
@@ -41,7 +41,8 @@ let cfg = {
   target_dir = ".";
   }
 
-let set_prelude name = cfg.prelude <- name
+let set_stdlib path = cfg.stdlib <- path
+let no_stdlib () = cfg.stdlib <- ""
 let set_output_prefix name = cfg.output_prefix <- name
 (* let add_include_path path = Lexer.include_path <- !Lexer.include_path @ [path] *)
 let set_prefix p = cfg.prefix <- p
@@ -55,8 +56,8 @@ let do_insert_bcasts () = Static.cfg.Static.insert_bcasts <- true
 (* let do_insert_fifos () = Static.cfg.Static.insert_fifos <- true *)
 let do_dot () = cfg.output_fmt <- Dot
 let do_systemc () = begin cfg.output_fmt <- Systemc; Static.cfg.Static.insert_bcasts <- true end
-(* let do_preesm () = begin cfg.output_fmt <- Preesm; Static.cfg.Static.insert_bcasts <- true end *)
-(* let do_xdf () = cfg.output_fmt <- Xdf *)
+let do_preesm () = begin cfg.output_fmt <- Preesm; Static.cfg.Static.insert_bcasts <- true end
+let do_xdf () = cfg.output_fmt <- Xdf
 (* let do_dif () = output_fmt := Dif
  * let do_vhdl () = output_fmt := Vhdl *)
 let do_dot_unlabeled_edges () = Dot.cfg.Dot.labeled_edges <- false
@@ -65,7 +66,6 @@ let do_dot_wire_annots () = Dot.cfg.Dot.show_wire_annots <- true
 let do_dot_no_io_rates () = Dot.cfg.Dot.show_io_rates <- false
 let do_dot_slotted_boxes () = Dot.cfg.Dot.slotted_boxes <- true
 let set_dot_rank_dir s = Dot.cfg.Dot.rank_dir <- s
-(* let do_phantom_types () = () Pr_type.print_type_repr := true *)
 (* SYSTEMC related options *)
 let set_sc_stop_time n = Systemc.cfg.Systemc.sc_stop_time <- n
 (* let set_sc_stop_idle_time n = Systemc.cfg.Systemc.sc_stop_idle_time <- n *)
@@ -82,7 +82,8 @@ let set_sc_fifo_stats_file f = Systemc.cfg.Systemc.sc_fifo_stats_file <- f
 (* let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p *)
 
 let options_spec = [
-"-prelude", Arg.String (set_prelude), "set location of the standard prelude file";
+"-stdlib", Arg.String (set_stdlib), "set location of the standard library file (default: " ^ Version.stdlib ^ ")";
+"-no_stdlib", Arg.Unit (no_stdlib), "do not use the standard library";
 "-prefix", Arg.String (set_output_prefix), "set prefix output file names (default is main source file basename)";
 (* "-I", Arg.String (add_include_path), "add path to the list of dirs to search for include"; *)
 "-target_dir", Arg.String (set_target_dir), "set target directory for generated files (default is current directory)";
@@ -90,7 +91,6 @@ let options_spec = [
 "-dump_senv", Arg.Unit (do_dump_senv), "dump builtin static environment (for debug only)";
 "-dump_typed", Arg.Unit (do_dump_typed), "dump typed program (for debug only)";
 "-dump_static", Arg.Unit (do_dump_static), "dump static representation (for debug only)";
-(* "-phantom_types", Arg.Unit (do_phantom_types), "print sized types using underlying representation (not for the casual user)"; *)
 "-dump_boxes", Arg.Unit (do_dump_boxes), "dump static representation of boxes";
 "-insert_bcasts", Arg.Unit (do_insert_bcasts), "insert broadcast boxes";
 (* "-insert_fifos", Arg.Unit (do_insert_fifos), "insert fifos between actors"; *)

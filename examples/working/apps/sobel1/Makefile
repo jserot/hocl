@@ -1,5 +1,5 @@
 SRCS=main.hcl
-GEN_OPTS=-prelude ../../../../lib/hocl/prelude.hcl
+GEN_OPTS=
 DOT_OPTS=-target_dir ./dot -dot_slotted_boxes
 #PREESM_OPTS=-preesm_top_name top_sobel1 -target_dir ./preesm
 PREESM_OPTS=-target_dir ./preesm

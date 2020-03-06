@@ -1,41 +1,41 @@
 GENERAL
-- find a smarter name (higher orDEr DAtaflow Language, VErsatile Dataflow sImulAtor and coMpiler) 
+- find a smarter name ?
 - describe as hl language for description, simulation and code generation of DF apps
 - backends :
   . dot (for visu)
   . systemc (for simulation)
-  . dif (for i/f to anl tools)
+  . dif (for i/f to analysis tools)
   . preesm (for code generation on HMC platforms)
-  . caph (for code generation on HW platforms (with actors described in VHDL))
+  . vhdl (for code generation on HW platforms)
   . cal (?)
-- make all examples simulable in SystemC
-- rename "prelude" -> "standard library"
 
 COMPILER
 - check that types infered from a node impl match those given in the interface (typing.ml)
 - allow arbitrary infix operators to be defined in prelude or elsewhere (the set of such operators
   is currently restricted by the lexer)
-- make processing of prelude automatic by default (with an option [-no_prelude])
-- "delay" specific keyword for delay actors (instead of "actor") ?
+
+DOT BACKEND
+- cluster-based drawing of hierarchy graphical in the .dot backend (?)
+
+SYSTEMC BACKEND
+- -sc_stop_idle option
+
+PREESM BACKEND
 - clarify the description of "src" and "snk" nodes in .pi files concerning the cfg inputs :
   + preesm seems to accept the explicit form ...
   + ... but some examples in the repo (ex: SIFT) seem to omit the decl of cfg input ports in src and snk nodes ..
   + the current implementation of [hoclc] and [pi2hcl] use the explicit form
 - support expr-annot for src and snk nodes in subgraphs (cf SIFT/Htop_sift.pi/{image}src for ex)
-- unify specification of IOs for toplevel graph and hierarchical subgraphs (the former are described as actors,
-  the latter as "source"/"sink" special nodes
-- cluster-based drawing of hierarchy graphical in the .dot backend (?)
-- implementation of hierarchy in the SystemC backend
 - dynamic parameters
+- conditionals 
 
-PI2HCL
+TOOLS/PI2HCL
 - translation of cyclic graphs (ex: examples/sift)
 - handling of delay nodes (ex: examples/sift)
 - implicit vs. explicit cfg inputs for src/snk nodes
 - port annotations (vs. expr)
 
 DOC
-- rewrite all doc with the 1.0 syntax
 - update tutorial with support for bcast and bcast nodes
 - add a section on recursive fns/graphs (with example [misc/recfilt])
 

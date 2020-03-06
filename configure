@@ -122,11 +122,16 @@ echo
 echo "" >> platform
 echo "HOCL=$install_prefix" >> platform
 echo "HOCLC=\$(HOCL)/bin/hoclc" >> platform
-echo "HOCL_OPTS=-prelude \$(HOCL)/lib/hocl/prelude.hcl" >> platform
 echo "DOTVIEWER=$dotviewer" >> platform
 echo "VCDVIEWER=$vcdviewer" >> platform
 echo "TXTVIEWER=$txtviewer" >> platform
 echo "PREESM_REP=$preesm_dir" >> platform
 echo "PREESM_PROJ=$preesm_dir/\$(PROJ)" >> platform
 
-echo "** Wrote file ./plaform"
+echo "** Wrote file ./platform"
+
+echo "(* This file is generated *)" > ./src/version.ml
+echo "let version=$version" >> ./src/version.ml
+echo "let stdlib=$sinstall_prefix/lib/hocl/stdlib.hcl" >> ./src/version.ml
+
+echo "** Wrote file ./src/version.ml"
