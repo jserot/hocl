@@ -1,15 +1,12 @@
 -- How to define actors with parametric CP-rates
 -- The [foo] actor here consumes [n] tokens and produces 1 token per iteration
 
--- #pragma code("inp", "include/input.h", "input", "inputInit")
--- #pragma code("outp", "include/output.h", "output", "outputInit")
--- #pragma code("foo", "include/foo.h", "foo")
+node foo param (k: int) in (i: int[k]) out (o: int)
+actor
+  systemc(loop_fn="foo", incl_file="./include/foo.h", src_file="./src/foo.cpp")
+end;
 
-node inp param (k: int) in () out(o: int[k]);
-node foo param (k: int) in (i: int[k]) out (o: int);
-node outp in (i: int) out ();
-
-graph main param (n: int = 8) in () out ()
+graph top param (n: int = 3) in (i: int) out (o: int)
 fun
-  val o = () |> inp<n> |> foo<n> |> outp
+  val o = i |> foo<n>
 end;
