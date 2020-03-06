@@ -1,15 +1,16 @@
 SC_DIR		= /usr/local/systemc-2.3.1
 SC_CXX      = g++
 SC_LD	 	= g++
-CXXFLAGS  += -I../include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
-SC_CXXFLAGS  += -I../../../../../lib/systemc -I../include -I$(SC_DIR)/include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
+CXXFLAGS  += -I../../../../../lib/systemc -I./include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
+SC_CXXFLAGS  += -I../../../../../lib/systemc -I./include -I$(SC_DIR)/include -Wno-deprecated -Wno-deprecated-writable-strings -Wno-parentheses-equality
 LDFLAGS	    = -L$(SC_DIR)/lib-macosx64
 
-CPP_SRCS = inp_act.cpp outp_act.cpp foo_act.cpp main_top.cpp
-C_SRCS = input.c output.c foo.c 
+C_SRCS = foo.c 
+CPP_SRCS = foo_act.cpp main.cpp
+CPP_HDRS = foo_act.h top_gph.h
 OBJS = $(C_SRCS:.c=.o) $(CPP_SRCS:.cpp=.o)
-CPP_HDRS = $(CPP_SRCS:.cpp=.h)
 GEN_SRCS = $(CPP_SRCS) $(CPP_HDRS)
+GEN_DATA = top_o.dat
 
 all: run
 
@@ -29,12 +30,8 @@ exe: ./main_sc
 run: ./main_sc 
 	./main_sc
 
-inp_act.o: inp_act.cpp
-outp_act.o: outp_act.cpp
 foo_act.o: foo_act.cpp
-main_top.o: main_top.cpp
-input.o: input.c
-output.o: output.c
+main.o: main.cpp
 foo.o: foo.c
 
 clean:
@@ -43,4 +40,6 @@ clean:
 
 clobber: clean
 	\rm -f $(GEN_SRCS)
+	\rm -f $(GEN_HDRS)
+	\rm -f $(GEN_DATA)
 	\rm -f *~

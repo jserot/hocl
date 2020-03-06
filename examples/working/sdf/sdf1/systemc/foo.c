@@ -1,1 +1,1 @@
-../src/foo.c
+src/foo.c

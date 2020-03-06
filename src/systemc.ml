@@ -314,7 +314,13 @@ let rec dump_actor_impl prefix oc name intf attrs =
     (fun (id,(ty,anns)) ->
       let rate = get_rate_expr anns in
       fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s[__k] = %s.read();\n"
-        (string_of_io_rate' rate) (localize_id id) id)
+        (string_of_io_rate' rate) (localize_id id) id;
+      if cfg.sc_trace then begin
+          fprintf oc "      cout << modname << \": read: \";\n";
+          fprintf oc "      for ( int __k=0; __k<%s; __k++ ) cout << %s[__k] << \" \";\n"
+            (string_of_io_rate' rate) (localize_id id);
+          fprintf oc "      cout << \" at \" << sc_time_stamp() << endl;\n"
+        end)
     intf.t_real_ins;
   if is_delay then begin
       let spec = get_delay_spec name intf in
@@ -328,7 +334,13 @@ let rec dump_actor_impl prefix oc name intf attrs =
       (fun (id,(ty,anns)) ->
         let rate = get_rate_expr anns in
         fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
-          (string_of_io_rate' rate) id (localize_id id))
+          (string_of_io_rate' rate) id (localize_id id);
+        if cfg.sc_trace then begin
+            fprintf oc "      cout << modname << \": wrote: \";\n";
+            fprintf oc "      for ( int __k=0; __k<%s; __k++ ) cout << %s[__k] << \" \";\n"
+              (string_of_io_rate' rate) (localize_id id);
+            fprintf oc "      cout << \" at \" << sc_time_stamp() << endl;\n"
+          end)
       intf.t_real_outs
     end;
   List.iter  (* Dynamically de-allocate buffers for non-constant sized IOs *)

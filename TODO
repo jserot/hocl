@@ -10,6 +10,7 @@ GENERAL
   . cal (?)
 
 COMPILER
+- merged decls (ex: wire w1,w2: int)
 - check that types infered from a node impl match those given in the interface (typing.ml)
 - allow arbitrary infix operators to be defined in prelude or elsewhere (the set of such operators
   is currently restricted by the lexer)
