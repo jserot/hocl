@@ -1,19 +1,29 @@
 HoCL 
 ====
 
-**HoCL** (Higher Order dataflow Coordination Language) is a language for describing dataflow networks
-and generating tool-specific descriptions.
+**HoCL** (Higher Order dataflow Coordination Language) is a language for describing dataflow process
+networks and generating tool-specific descriptions.
 
-**HoCL** comes with :
+**HoCL** 
 
-- a higher-order functional language for describing programs built from dataflow actors 
-- automatic _type inference_ and type-checking
-- the possibility to define _higher order wiring functions_ for describing and encapsulating _graph
+- can describe _hierarchical_ and/or _parameterized_ graphs
+- support two styles of description : _structural_ and _functional_
+- use _polymorphic type inference_ to check graphs
+- supports the notion of _higher order wiring functions_ for describing and encapsulating _graph
   patterns_
+- supports several dataflow semantics (SDF, PSDF, ..)  by means of annotations
+
+The generated code is independent of the target implementation platform (software, hardware, mixed,
+..). Targeting is done using dedicated backends. The current version
+comes is equipped with five backends :
+
 - a [DOT][graphviz] backend for visualisation of the generated networks
+- a [SystemC][systemc] backend for simulation
 - a [PREESM][preesm] backend for implementing the described dataflow applications on many/multi-core
   embedded platforms
-- a [SystemC][systemc] backend for code simulation
+- a VHDL backend for targeting FPGA-based platforms
+- a [DIF][dif] backend for interfacing to various dataflow analysis tools
+- an XDF backend for interfacing to CAL-based design flows
 
 **HoCL** is a joint project between the [Dream][dream] and [Vaader][vaader] research groups.
 
@@ -22,11 +32,12 @@ and generating tool-specific descriptions.
 [systemc]: https://www.accellera.org/downloads/standards/systemc
 [dream]: https://dream.ispr-ip.fr
 [vaader]: https://www.ietr.fr/spip.php?article1604
+[dif]: https://www.researchgate.net/publication/220714226_DIF_An_Interchange_Format_for_Dataflow-Based_Design_Tools
 
 DOCUMENTATION
 ------------
 
-Here's a short [tutorial](https://github.com/jserot/hocl/blob/master/doc/tutorial.pdf) on the language.
+A short [tutorial](https://github.com/jserot/hocl/blob/master/doc/tutorial.pdf) on the language.
 
 INSTALLATION
 ------------
@@ -50,7 +61,7 @@ To try examples :
 
 1. go the directory containing the example (*e.g.* `cd examples/working/simple/basic`)
 2. type `make dot` to generate the `.dot` representation (`make` will also display it)
-3. type `make preesm` to invoke the PREESM backend (code will be generated in
-   sub-directory `preesm`)
-4. type `make systemc` to invoke the SystemC backend (code will be generated in
+3. type `make systemc` to invoke the SystemC backend (code will be generated in
    sub-directory `systemc`); to test the generated code: `cd systemc; make`
+4. type `make preesm` to invoke the PREESM backend (code will be generated in
+   sub-directory `preesm`)

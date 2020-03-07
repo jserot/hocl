@@ -1,13 +1,5 @@
 GENERAL
 - find a smarter name ?
-- describe as hl language for description, simulation and code generation of DF apps
-- backends :
-  . dot (for visu)
-  . systemc (for simulation)
-  . dif (for i/f to analysis tools)
-  . preesm (for code generation on HMC platforms)
-  . vhdl (for code generation on HW platforms)
-  . cal (?)
 
 COMPILER
 - merged decls (ex: wire w1,w2: int)

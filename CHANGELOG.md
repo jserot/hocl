@@ -1,6 +1,6 @@
 # Changes
 
-# 1.0a (Mar 6, 2020)
+# 1.0a (Mar 7, 2020)
 
 * Fully revised syntax, with [node] and [graph] declarations, and a new way of
   declaring and passing parameters 
