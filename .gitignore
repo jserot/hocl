@@ -1,5 +1,6 @@
 doc/um
-doc/tutorial
+doc/*.pdf
+doc/tutorial/examples/*/dot/*.pdf
 lib/etc/config
 _build/
 src/parser.output
