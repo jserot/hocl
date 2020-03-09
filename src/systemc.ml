@@ -16,6 +16,7 @@ open Printf
 open Types
 open Typing
 open Static
+open Backend
 
 exception Error of string
                  
@@ -54,6 +55,8 @@ let cfg = {
     "\"stream_out.h\"";
     "\"param_in.h\"";
     "\"delay.h\"";
+    "\"switch.h\"";
+    "\"merge.h\"";
     "\"bcast.h\"" ];
   sc_trace = false;
   sc_dump_fifos = false;
@@ -95,18 +98,17 @@ let rec string_of_type t  = match real_type t with (* TO REFINE *)
  *   | Expr.Val_float v, _ -> string_of_float v
  *      failwith ("Systemc.string_of_val: no sensible SystemC representation for value " ^ (Expr.string_of_val v)) *)
 
-
 let mod_name b =
-  let type_of b = match b.b_ins with
+  let type_of b = match b.b_outs with
       (_,(_,ty,_))::_ -> string_of_type ty
     | _ -> Misc.fatal_error "mod_name" in (* should not happen *)
   match b.b_tag with
-  | ActorB when b.b_name = "delay" ->
-     "Delay" ^ "<" ^ type_of b ^">"
-  | ActorB | GraphB | EBcastB ->
-     String.capitalize_ascii b.b_name
+  | ActorB when is_special_actor b.b_name ->
+     String.capitalize_ascii b.b_name ^ "<" ^ type_of b ^">"
   | IBcastB ->
      "Bcast" ^ string_of_int (List.length b.b_outs) ^ "<" ^ type_of b ^">"
+  | ActorB | GraphB | EBcastB ->
+     String.capitalize_ascii b.b_name
   | LocalParamB | InParamB ->
      "Param" ^ string_of_int b.b_id
   | _ ->
@@ -121,64 +123,7 @@ let box_name bid b =
   | _ ->
      Misc.not_implemented "Systemc.box_name"
 
-(* Param and rate expressions *)
-
-let rec string_of_core_expr ?(localize_ids=false) e =
-  match e.Syntax.ce_desc with
-  | Syntax.EInt n -> string_of_int n
-  | Syntax.EBool b -> string_of_bool b
-  | Syntax.EVar v -> if localize_ids then localize_id v else v
-  | Syntax.EBinop (op, e1, e2) -> string_of_core_expr' ~localize_ids e1 ^ op ^ string_of_core_expr' ~localize_ids e2
-
-and string_of_core_expr' ?(localize_ids=false) e =
-  if Syntax.is_simple_core_expr e
-  then string_of_core_expr ~localize_ids e
-  else "(" ^ string_of_core_expr ~localize_ids e ^ ")"
-
 (* Dumping actor interface and implementation *)
-
-let is_actual_actor_io (id,(ty,_)) = not (is_unit_type ty)
-
-let string_of_io_rate rate = match rate with
-  | None -> "1"
-  | Some e -> Syntax.string_of_rate_expr e
-
-let get_rate_annot anns = 
-  List.find_opt (function Syntax.IA_Rate _ -> true | _ -> false) anns
-
-let get_rate_expr anns =
-  match get_rate_annot anns with
-  | Some (IA_Rate e) -> Some e
-  | _ -> None
-
-type delay_spec = {
-    ds_typ: typ;
-    ds_iv: string;
-    ds_i: string;
-    ds_irate: Syntax.core_expr option;
-    ds_o: string;
-    ds_orate: Syntax.core_expr option
-  }
-      
-(* let no_delay_spec = { ds_typ=no_type; ds_iv=""; ds_i=""; ds_irate=None; ds_o=""; ds_orate=None } *)
-                  
-let get_delay_spec name intf =
-     let iv_name, ty =
-       match List.find_opt (fun (id, _) -> id = "ival") intf.t_params with
-       | None -> Error.missing_ival_param name
-       | Some (id,ty) -> id, ty in
-     let get_io_spec ios =
-       match ios with
-       | [id,(ty,annots)] -> id, get_rate_expr annots
-       | _ -> Error.illegal_interface "delay" name " (should have exactly one input and one output)" in
-     let i_name, i_rate = get_io_spec intf.t_ins in
-     let o_name, o_rate = get_io_spec intf.t_outs in
-     let rate_expr_eq e1 e2 = match e1, e2 with
-       | None, None -> true
-       | Some e1, Some e2 -> Syntax.core_expr_equal e1 e2
-       | _, _ -> false in
-     if not (rate_expr_eq i_rate o_rate) then Error.illegal_interface "delay" name " (input and output rates do not match)";
-     { ds_typ=ty; ds_iv=iv_name; ds_i=i_name; ds_irate=i_rate; ds_o=o_name; ds_orate=o_rate }
 
 let dump_module_intf oc name intf =
   let modname = String.capitalize_ascii name in
@@ -256,18 +201,9 @@ let string_of_io (id,ty,kind) = localize_id id
    * | DataIn -> "&" ^ localize_id id
    * | DataOut -> "&" ^ localize_id id *)
 
-let get_impl_fns name attrs =
-  match List.assoc_opt "incl_file" attrs,
-        List.assoc_opt "loop_fn" attrs,
-        List.assoc_opt "init_fn" attrs
-  with
-  | Some f, Some f', Some f'' -> f, f', f'', List.mem_assoc "is_delay" attrs
-  | Some f, Some f', None -> f, f', "", List.mem_assoc "is_delay" attrs
-  | _, _, _ -> Error.incomplete_actor_impl "systemc" name
-
 let rec dump_actor_impl prefix oc name intf attrs =
   let modname = String.capitalize_ascii name in
-  let incl_file, loop_fn, init_fn, is_delay = get_impl_fns name attrs in
+  let incl_file, loop_fn, init_fn, is_delay = get_impl_fns "systemc" name attrs in
   let params = List.map (function (id,ty) -> id,ty,ParamIn) intf.t_params in
   let dinps = List.map (function (id,(ty,_)) -> id,ty,DataIn) intf.t_real_ins in
   let doutps = List.map (function (id,(ty,_)) -> id,ty,DataOut) intf.t_real_outs in
@@ -433,7 +369,7 @@ let rec dump_param_impl prefix oc modname b =
   fprintf oc "void %s::main(void) {\n" modname;
   fprintf oc "    while ( 1 ) { \n";
   if inps = [] then begin (* Constant/source/non dep parameter *)
-    fprintf oc "      _o = %s;\n" (string_of_core_expr ~localize_ids:true b.b_val.bv_lit);
+    fprintf oc "      _o = %s;\n" (string_of_core_expr ~localize_id:localize_id b.b_val.bv_lit);
     List.iter (fun (id,_) -> fprintf oc "      %s.write(%s);\n" id (localize_id id)) b.b_outs; (* Constant *)
     fprintf oc "      wait(%s.posedge_event());\n" cfg.sc_mod_clock
     end
@@ -444,7 +380,7 @@ let rec dump_param_impl prefix oc modname b =
           fprintf oc "      %s = %s.read();\n" id' id;
           fprintf oc "      if ( trace ) cout << modname << \" read \" << %s << \" at \" << sc_time_stamp() << endl;\n" id')
         b.b_ins;
-    fprintf oc "      _o = %s;\n" (string_of_core_expr ~localize_ids:true b.b_val.bv_lit);
+    fprintf oc "      _o = %s;\n" (string_of_core_expr ~localize_id:localize_id b.b_val.bv_lit);
     List.iter
       (fun (id,_) ->
         let id' = localize_id id in
@@ -556,7 +492,7 @@ let rec dump_graph ~toplevel path prefix id intf g =
     List.fold_left
       (fun acc (bid,b) -> add acc (f_name b))
       []
-      (List.filter (fun (_,b) -> not (is_builtin_delay_box b)) g.sg_boxes) in
+      (List.filter (fun (_,b) -> not (is_builtin_box b)) g.sg_boxes) in
   dump_banner oc;
   List.iter (function h -> fprintf oc "#include %s\n" h) (cfg.sc_top_headers @ headers);
   (* let bcasters = Static.extract_bcast_boxes sp in *)
@@ -578,13 +514,11 @@ let rec dump_graph ~toplevel path prefix id intf g =
   if cfg.sc_trace_fifos then begin
     List.iter
       (function (i,_) -> fprintf oc "  w%d.trace(fifo_trace_file);\n" i)
-      (List.filter is_fifo_wire sub_wires);
+      (List.filter is_data_wire sub_wires);
     end;
   fprintf oc "};\n" ;
   Logfile.write fname;
   close_out oc
-
-and is_fifo_wire (wid,(_,_,kind)) = kind=DataW
 
 and is_io_wire boxes w =  is_src_wire boxes w || is_dst_wire boxes w
 and is_src_wire boxes w = match (get_src_box boxes w).b_tag with SourceB | InParamB -> true | _ -> false
@@ -594,8 +528,10 @@ and is_io_box toplevel b =
   | SourceB | SinkB -> true
   | InParamB -> not toplevel
   | _ -> false
-and is_builtin_delay_box b = b.b_name = "delay"  (* TO FIX ? Should we use a dedicated tag instead ? *)
-  
+and is_builtin_box b =
+  match b.b_name with    (* TO FIX ? Should we use dedicated tags instead ? *)
+  | "delay" | "switch" | "merge" -> true
+  | _ -> false 
 
 and dump_wire_decl oc ((wid,(((src,_),(dst,_)),ty,kind)) as w) =
   (* if is_dep_wire then
@@ -667,13 +603,12 @@ and owire_name g wid = wire_name get_dst_box [SinkB] g wid
 and string_of_wire_inst (wid,(_,_,kind)) = 
   let cap = match kind with DataW -> cfg.sc_data_fifo_capacity | ParamW -> cfg.sc_param_fifo_capacity in
   sprintf "w%d(\"w%d\",%d)" wid wid cap
-    
 
 (* Printing node description file(s) *)
 
 let dump_node path prefix (id,n) =
   match id, n.sn_impl with
-  | "delay", _ -> ()  (* Handled specially *)
+  | _ , _ when is_special_actor id -> ()  (* Handled specially *)
   | _, NI_Actor a -> dump_actor path prefix id n.sn_intf a
   | _, NI_Graph g -> dump_graph ~toplevel:false path prefix id n.sn_intf g
                   

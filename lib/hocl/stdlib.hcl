@@ -113,7 +113,13 @@ val rec foldr f z xs =
   | x::xs' -> f (x, foldr f z xs')
 ;
 
--- Predefined actor. Do not change its name, it is recognized by the various backends
--- Its implementation will be backend-dependent
+-- Predefined actors. Do not change their name, it is recognized by the various backends
+-- Their implementation will be backend-dependent
 
 node delay param (iv: int) in (i: int) out (o: int);
+
+node switch in (b: bool, i: int) out (o1: int, o2: int);
+
+node merge in (b: bool, i1: int, i2: int) out (o: int);
+
+node pmerge param (b: bool) in (i1: int, i2: int) out (o: int);

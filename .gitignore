@@ -34,3 +34,4 @@ examples/working/*/*/systemc/*.cpp
 examples/working/*/*/systemc/*.h
 examples/working/*/*/systemc/*.o
 examples/working/*/*/systemc/main_sc
+examples/working/*/*/dot/*.pdf
