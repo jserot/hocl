@@ -77,7 +77,7 @@ let set_sc_dump_fifos () = Systemc.cfg.Systemc.sc_dump_fifos <- true
 let set_sc_dump_fifo_stats () = Systemc.cfg.Systemc.sc_dump_fifo_stats <- true
 let set_sc_fifo_stats_file f = Systemc.cfg.Systemc.sc_fifo_stats_file <- f
 (* PREESM related options *)
-(* let set_preesm_name n = Preesm.cfg.Preesm.top_name <- n *)
+let set_preesm_name n = Preesm.cfg.Preesm.top_name <- n
 (* XDF related options *)
 (* let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p *)
 
@@ -96,7 +96,7 @@ let options_spec = [
 (* "-insert_fifos", Arg.Unit (do_insert_fifos), "insert fifos between actors"; *)
 "-dot", Arg.Unit (do_dot), "generate .dot representation of the program";
 "-systemc", Arg.Unit (do_systemc), "activate the SystemC backend";
-(* "-preesm", Arg.Unit (do_preesm), "activate the Preesm backend"; *)
+"-preesm", Arg.Unit (do_preesm), "activate the Preesm backend";
 (* "-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network"; *)
 (* "-dif", Arg.Unit (do_dif), "generate .dif representation of the program";
  * "-vhdl", Arg.Unit (do_vhdl), "activate the VHDL backend"; *)

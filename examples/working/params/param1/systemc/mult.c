@@ -1,1 +1,1 @@
-src/mult.c
+../src/mult.c

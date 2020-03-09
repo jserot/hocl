@@ -3,8 +3,6 @@ HOCLC=$(HOCL)/bin/hoclc
 DOTVIEWER=graphviz
 VCDVIEWER=gtkwave
 TXTVIEWER=nano
-PREESM_REP=/Users/jserot/Desktop/SF2/preesm-dev
-PREESM_PROJ=/Users/jserot/Desktop/SF2/preesm-dev/$(PROJ)
 
 all: check
 #all: dot.show
@@ -28,14 +26,14 @@ preesm: $(SRCS)
 	$(HOCLC) $(GEN_OPTS) -preesm $(PREESM_OPTS) $(SRCS)
 
 preesm.proj: 
-	if [ ! -d $(PREESM_PROJ) ]; then mkdir $(PREESM_PROJ); fi
-	if [ ! -d $(PREESM_PROJ)/Algo ]; then mkdir $(PREESM_PROJ)/Algo; fi
-	if [ ! -d $(PREESM_PROJ)/include ]; then mkdir $(PREESM_PROJ)/include; fi
-	if [ ! -d $(PREESM_PROJ)/src ]; then mkdir $(PREESM_PROJ)/src; fi
-	if [ ! -e $(PREESM_PROJ)/.project ]; then sed -e 's/%%NAME%%/$(PROJ)/' $(HOCL)/lib/preesm/.project.templ > $(PREESM_PROJ)/.project; fi
-	cp include/*.h $(PREESM_PROJ)/include
-	cp src/*.c $(PREESM_PROJ)/src
-	cp preesm/*.pi $(PREESM_PROJ)/Algo
+	if [ ! -d $(PREESM_REP) ]; then mkdir $(PREESM_REP); fi
+	if [ ! -d $(PREESM_REP)/Algo ]; then mkdir $(PREESM_REP)/Algo; fi
+	if [ ! -d $(PREESM_REP)/include ]; then mkdir $(PREESM_REP)/include; fi
+	if [ ! -d $(PREESM_REP)/src ]; then mkdir $(PREESM_REP)/src; fi
+	if [ ! -e $(PREESM_REP)/.project ]; then sed -e 's/%%NAME%%/$(PREESM_PROJ)/' $(HOCL)/lib/preesm/.project.templ > $(PREESM_REP)/.project; fi
+	cp include/*.h $(PREESM_REP)/include
+	cp src/*.c $(PREESM_REP)/src
+	cp preesm/*.pi $(PREESM_REP)/Algo
 
 systemc: $(SRCS)
 	$(HOCLC) $(GEN_OPTS) -systemc $(SYSTEMC_OPTS) $(SRCS)

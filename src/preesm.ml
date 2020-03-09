@@ -15,6 +15,7 @@
 open Printf
 open Ssval
 open Static
+open Backend
 
 type preesm_config = {
     mutable xml_version: string;
@@ -23,7 +24,6 @@ type preesm_config = {
     mutable code_prefix: string;
     mutable algo_dir: string;
     mutable default_port_rate: string;
-    mutable default_port_ann: string;
     mutable default_incl_dir: string;
     mutable default_src_dir: string
   }
@@ -35,7 +35,6 @@ let cfg = {
   code_prefix = "";
   algo_dir = "Algo";
   default_port_rate = "1";
-  default_port_ann = "";
   default_incl_dir = "../include";
   default_src_dir = "../src"
 }
@@ -67,217 +66,234 @@ exception Error of string
 
 let string_of_type t  = 
   match Types.real_type t with
-  | TyConstr ("nat", []) -> "int"
+  | TyConstr ("int", []) -> "int"
   | TyConstr ("bool", []) -> "bool"
   | TyConstr (n, []) -> n
   | _ -> Misc.not_implemented ("PREESM translation of type " ^ Pr_type.string_of_type t)
 
-let string_of_val v = match v with  
-    SVNat n -> string_of_int n
-  | SVBool b -> string_of_bool b
-  | _ -> Misc.not_implemented ("PREESM translation of value " ^ Ssval.string_of_ssval v) 
+(* let string_of_val v = match v with  
+ *     SVInt n -> string_of_int n
+ *   | SVBool b -> string_of_bool b
+ *   | _ -> Misc.not_implemented ("PREESM translation of value " ^ Ssval.string_of_ssval v)  *)
 
-let rec string_of_expr e =
-  match e.Syntax.ne_desc with
-    Syntax.NNat n -> string_of_int n
-  | Syntax.NBool b -> string_of_bool b
-  | Syntax.NVar v -> v
-  | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar op},{Syntax.ne_desc=Syntax.NTuple [e1;e2]}) when Syntax.is_binop op -> 
-      string_of_expr' e1 ^ op ^ string_of_expr' e2
-  | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar op},e) when Syntax.is_unop op -> op ^ "(" ^ string_of_expr e ^ ")"
-  (* | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar f}, es) ->
-   *     f ^ "(" ^ Misc.string_of_list string_of_expr "," es ^ ")" *)
-  | _ -> Misc.not_implemented ("Preesm.string_of_expr: " ^  (Syntax.string_of_net_expr e))
+(* let rec string_of_expr e =
+ *   match e.Syntax.ne_desc with
+ *     Syntax.NInt n -> string_of_int n
+ *   | Syntax.NBool b -> string_of_bool b
+ *   | Syntax.NVar v -> v
+ *   | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar op},{Syntax.ne_desc=Syntax.NTuple [e1;e2]}) when Syntax.is_binop op -> 
+ *       string_of_expr' e1 ^ op ^ string_of_expr' e2
+ *   | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar op},e) when Syntax.is_unop op -> op ^ "(" ^ string_of_expr e ^ ")"
+ *   (\* | Syntax.NApp ({Syntax.ne_desc=Syntax.NVar f}, es) ->
+ *    *     f ^ "(" ^ Misc.string_of_list string_of_expr "," es ^ ")" *\)
+ *   | _ -> Misc.not_implemented ("Preesm.string_of_expr: " ^  (Syntax.string_of_net_expr e))
+ * 
+ * and string_of_expr' e =
+ *   if is_simple_expr e then string_of_expr e else "(" ^ string_of_expr e ^ ")"
+ * 
+ * and is_simple_expr e = match e.Syntax.ne_desc with
+ *     Syntax.NInt _ -> true
+ *   | Syntax.NBool _ -> true
+ *   | Syntax.NVar v -> true
+ *   | _ -> false *)
 
-and string_of_expr' e =
-  if is_simple_expr e then string_of_expr e else "(" ^ string_of_expr e ^ ")"
+let box_name i b =
+  match b.b_tag with
+  | LocalParamB | InParamB -> b.b_name
+  | _ -> b.b_name ^ "_" ^ string_of_int i
 
-and is_simple_expr e = match e.Syntax.ne_desc with
-    Syntax.NNat _ -> true
-  | Syntax.NBool _ -> true
-  | Syntax.NVar v -> true
-  | _ -> false
+(* let is_param_box b = b.b_tag = LocalParamB || b.b_tag = InParamB *)
 
-let lookup_box boxes bid = 
-      try List.assoc bid boxes
-      with Not_found -> Misc.fatal_error "Preesm.lookup_box"
-
-let lookup_wire wires wid = 
-      try List.assoc wid wires
-      with Not_found -> Misc.fatal_error "Preesm.lookup_wire"
-
-let is_param_box b = b.b_tag = LocalParamB || b.b_tag = InParamB
-
-let output_actor_box_io oc dir is_config id ty =                            
+let dump_actor_io oc dir is_config id ty =                            
   fprintf oc "          <param direction=\"%s\" isConfig=\"%s\" name=\"%s\" type=\"%s\"/>\n"
     dir (string_of_bool is_config) id (string_of_type ty)
 
-let output_actor_box_inp oc is_param (id, (wid,ty,rate,ann)) =
-  output_actor_box_io oc "IN" is_param id ty
+let dump_actor_inp oc is_param (id, (wid,ty,ann)) =
+  dump_actor_io oc "IN" is_param id ty
 
-let output_actor_box_outp oc (id, (wids,ty,rate,ann)) =
-  output_actor_box_io oc "OUT" false (* TO FIX *) id ty
+let dump_actor_outp oc (id, (wids,ty,ann)) =
+  dump_actor_io oc "OUT" false (* TO FIX *) id ty
 
-let output_actor_box_iinit oc (id, (wid,ty,rate,ann)) =
+let dump_actor_iinit oc (id, (wid,ty,ann)) =
   fprintf oc "        <param direction=\"IN\" isConfig=\"true\" name=\"%s\" type=\"%s\"/>\n" id (string_of_type ty)
 
-let output_actor_box_port oc dir is_param (id, (wid,ty,rate,ann)) =
+let dump_actor_port oc dir is_param (id, (wid,ty,annots)) =
   if is_param then
     fprintf oc "      <port kind=\"cfg_%s\" name=\"%s\"/>\n" dir id
   else
+    let rate, other_anns =
+      List.fold_left
+        (fun (acc,acc') ann ->
+          match ann with
+          | Syntax.IA_Rate e -> Some e, acc'
+          | Syntax.IA_Other s -> acc, s::acc')
+        (None,[])
+        annots in
     fprintf oc "      <port kind=\"%s\" name=\"%s\" expr=\"%s\" annotation=\"%s\"/>\n"
       dir
       id
-      (match rate with Some _ -> Syntax.string_of_io_rate rate | None -> cfg.default_port_rate)
-      (match ann with Some _ -> Syntax.string_of_io_annot ann | None -> cfg.default_port_ann)
+      (match rate with Some e -> Syntax.string_of_rate_expr e | None -> cfg.default_port_rate)
+      (Misc.string_of_list Misc.id " " other_anns)
 
-let output_actor_box oc sp (i,b) =
-  let is_param (id, (wid,ty,_,kind)) = 
-    match lookup_wire sp.wires wid with
-      _, _, ParamW -> true
-    | _, _, _ -> false in
-    (* is_param_box (Static.src_box_of_wire sp.boxes w) in *)
+let is_param_wire (wid,(_,_,kind)) = kind=ParamW
+
+let dump_actor oc sp g (i,b)  =
+  let intf, impls =
+    match List.assoc b.b_name sp.sp_nodes with
+    | { sn_intf=intf; sn_impl=NI_Actor impl } -> intf, impl
+    | { sn_intf=intf; sn_impl=_ } -> Misc.fatal_error "Preesm.dump_actor" (* should not happen *)
+    | exception Not_found -> Error.missing_actor_impl "preesm" b.b_name in
+  let attrs =
+    try List.assoc "preesm" impls
+    with Not_found -> Error.missing_actor_impl "preesm" b.b_name in
+  let param_ins, data_ins = List.partition (is_param_input g.sg_wires) b.b_ins in 
   match b.b_tag with
   | ActorB ->
-     let id = box_name sp (i,b) in 
-     let incl_file, loop_fn, init_fn, period = 
-       begin match get_pragma_desc "code" b.b_name sp with 
-       | [incl_file; loop_fn] -> incl_file, loop_fn, "", "0"
-       | [incl_file; loop_fn; init_fn] -> incl_file, loop_fn, init_fn, "0"
-       | _ -> Error.no_pragma_desc b.b_name; cfg.default_incl_dir ^ "/" ^ b.b_name ^ ".h", b.b_name, "", "0"
-       end in
+     let id = box_name i b in 
+     let incl_file, loop_fn, init_fn, is_delay, param_exec = get_impl_fns "preesm" id attrs in
+     let period = "0" in (* TO FIX *)
      fprintf oc "    <node id=\"%s\" kind=\"actor\" period=\"%s\">\n" id period;
      fprintf oc "      <data key=\"graph_desc\">%s</data>\n" incl_file;
      fprintf oc "      <loop name=\"%s\">\n" loop_fn;
-     let param_ins, fifo_ins = List.partition is_param b.b_ins in 
-     List.iter (output_actor_box_inp oc true) param_ins;
-     List.iter (output_actor_box_inp oc false) fifo_ins;
-     List.iter (output_actor_box_outp oc) b.b_outs;
+     List.iter (dump_actor_inp oc true) param_ins;
+     List.iter (dump_actor_inp oc false) data_ins;
+     List.iter (dump_actor_outp oc) b.b_outs;
      fprintf oc "      </loop>\n";
      if init_fn <> "" then  begin
          fprintf oc "      <init name=\"%s\">\n" init_fn;
-         List.iter (output_actor_box_iinit oc) param_ins;
+         List.iter (dump_actor_iinit oc) param_ins;
          fprintf oc "      </init>\n";
        end;
-     List.iter (output_actor_box_port oc "input" true) param_ins;
-     List.iter (output_actor_box_port oc "input" false) fifo_ins;
-     List.iter (output_actor_box_port oc "output" false) b.b_outs;
+     List.iter (dump_actor_port oc "input" true) param_ins;
+     List.iter (dump_actor_port oc "input" false) data_ins;
+     List.iter (dump_actor_port oc "output" false) b.b_outs;
      fprintf oc "    </node>\n"
-  | GraphB ->
-     let id = box_name sp (i,b) in 
-     let incl_file = 
-       begin match get_pragma_desc "code" b.b_name sp with 
-       | [incl_file] -> incl_file
-       | _ -> raise (Error ("cannot find valid #pragma description for actor " ^ b.b_name))
-       end in
-     fprintf oc "    <node id=\"%s\" kind=\"actor\">\n" id;
-     fprintf oc "      <data key=\"graph_desc\">%s/%s</data>\n" cfg.algo_dir (Misc.replace_suffix "pi" incl_file);
-     let param_ins, fifo_ins = List.partition is_param b.b_ins in 
-     List.iter (output_actor_box_port oc "input" true) param_ins;
-     List.iter (output_actor_box_port oc "input" false) fifo_ins;
-     List.iter (output_actor_box_port oc "output" false) b.b_outs;
-     fprintf oc "    </node>\n"
+  (* | GraphB ->
+   *    let id = box_name i b in 
+   *    let incl_file = 
+   *      begin match get_pragma_desc "code" b.b_name sp with 
+   *      | [incl_file] -> incl_file
+   *      | _ -> raise (Error ("cannot find valid #pragma description for actor " ^ b.b_name))
+   *      end in
+   *    fprintf oc "    <node id=\"%s\" kind=\"actor\">\n" id;
+   *    fprintf oc "      <data key=\"graph_desc\">%s/%s</data>\n" cfg.algo_dir (Misc.replace_suffix "pi" incl_file);
+   *    let param_ins, data_ins = List.partition is_param b.b_ins in 
+   *    List.iter (dump_actor_port oc "input" true) param_ins;
+   *    List.iter (dump_actor_port oc "input" false) data_ins;
+   *    List.iter (dump_actor_port oc "output" false) b.b_outs;
+   *    fprintf oc "    </node>\n" *)
   | EBcastB
   | IBcastB ->
-     let id = box_name sp (i,b) in 
+     let id = box_name i b in 
      fprintf oc "    <node id=\"%s\" kind=\"broadcast\">\n" id;
-     let param_ins, fifo_ins = List.partition is_param b.b_ins in 
-     List.iter (output_actor_box_port oc "input" true) param_ins;
-     List.iter (output_actor_box_port oc "input" false) fifo_ins;
-     List.iter (output_actor_box_port oc "output" false) b.b_outs;
+     List.iter (dump_actor_port oc "input" true) param_ins;
+     List.iter (dump_actor_port oc "input" false) data_ins;
+     List.iter (dump_actor_port oc "output" false) b.b_outs;
      fprintf oc "    </node>\n"
-  | DelayB ->
-     let id = box_name sp (i,b) in 
-     let param_ins, fifo_ins = List.partition is_param b.b_ins in 
-     let rate = match fifo_ins with
-         [_,(_,_,r,_)] -> r
-       | _ -> Error.illegal_interface "delay" b.b_name " (there should be exactly one input)" in
-     fprintf oc "    <node id=\"%s\" kind=\"delay\" getter=\"\" setter=\"\" level=\"permanent\" expr=\"%s\">\n"
-       id
-       (Syntax.string_of_io_rate rate);
-     (* List.iter (output_actor_box_port oc "input" true) param_ins; *) (* No explicit parameters for delays ? *)
-     List.iter (output_actor_box_port oc "input" false) fifo_ins; 
-     List.iter (output_actor_box_port oc "output" false) b.b_outs;
-     fprintf oc "    </node>\n"
+  (* | DelayB ->
+   *    let id = box_name i b in 
+   *    let rate = match data_ins with
+   *        [_,(_,_,r,_)] -> r
+   *      | _ -> Error.illegal_interface "delay" b.b_name " (there should be exactly one input)" in
+   *    fprintf oc "    <node id=\"%s\" kind=\"delay\" getter=\"\" setter=\"\" level=\"permanent\" expr=\"%s\">\n"
+   *      id
+   *      (Syntax.string_of_io_rate rate);
+   *    (\* List.iter (dump_actor_port oc "input" true) param_ins; *\) (\* No explicit parameters for delays ? *\)
+   *    List.iter (dump_actor_port oc "input" false) data_ins; 
+   *    List.iter (dump_actor_port oc "output" false) b.b_outs;
+   *    fprintf oc "    </node>\n" *)
   | SourceB ->
-     let id = box_name sp (i,b) in 
+     let id = box_name i b in 
      fprintf oc "    <node id=\"%s\" kind=\"src\">\n" id;
-     List.iter (output_actor_box_port oc "output" false) b.b_outs;
+     List.iter (dump_actor_port oc "output" false) b.b_outs;
      fprintf oc "    </node>\n"
   | SinkB ->
-     let id = box_name sp (i,b) in 
+     let id = box_name i b in 
      fprintf oc "    <node id=\"%s\" kind=\"snk\">\n" id;
-     List.iter (output_actor_box_port oc "input" false) b.b_ins;
+     List.iter (dump_actor_port oc "input" false) b.b_ins;
      fprintf oc "    </node>\n"
   | _ ->
       () 
 
-let output_parameter oc sp (i,b) =
-  match b.b_tag, b.b_val with
-  | LocalParamB, v ->
-     fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (Syntax.string_of_param_expr v.bv_lit) b.b_name 
-  | InParamB, _ ->
+let dump_parameter oc ~toplevel (i,b) =
+  match b.b_tag, b.b_val, toplevel with
+  | LocalParamB, v, _ ->
+     fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (Syntax.string_of_core_expr v.bv_lit) b.b_name 
+  | InParamB, v, true ->
+     fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (Syntax.string_of_core_expr v.bv_lit) b.b_name 
+  | InParamB, _, false ->
      fprintf oc "    <node id=\"%s\" kind=\"cfg_in_iface\"/>\n" b.b_name 
   | _ -> ()
 
-let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,kind))=
+
+let dump_connexion oc boxes (wid,((((s,ss),(d,ds)),ty,kind) as w))=
   let src_name, src_slot =
-    let b = lookup_box sp.boxes s in
+    let b = get_src_box boxes w in
     match b.b_tag with
-    | ActorB | EBcastB | IBcastB | GraphB | DelayB -> box_name sp (s,b), fst (List.nth b.b_outs ss)
-    | LocalParamB | InParamB  -> box_name sp (s,b), ""
-    | SourceB -> box_name sp (s,b), box_name sp (s,b)
+    | ActorB | EBcastB | IBcastB | GraphB (*| DelayB*) -> box_name s b, fst (List.nth b.b_outs ss)
+    | LocalParamB | InParamB  -> box_name s b, ""
+    | SourceB -> box_name s b, box_name s b
     | _ -> Misc.fatal_error "Preesm.output_connexion" in
   let dst_name, dst_slot =
-    let b = lookup_box sp.boxes d in
+    let b = get_dst_box boxes w in
     match b.b_tag with
-    | ActorB | EBcastB | IBcastB | GraphB | DelayB -> box_name sp (d,b), fst (List.nth b.b_ins ds)
-    | LocalParamB -> box_name sp (d,b), ""
-    | SinkB | SourceB -> box_name sp (d,b), box_name sp (d,b) 
+    | ActorB | EBcastB | IBcastB | GraphB (*| DelayB*) -> box_name d b, fst (List.nth b.b_ins ds)
+    | LocalParamB -> box_name d b, ""
+    | SinkB | SourceB -> box_name d b, box_name d b 
     | _ -> Misc.fatal_error "Preesm.output_connexion" in
   let mk_field name v = if v = "" then "" else Printf.sprintf "%s=\"%s\"" name v in
   match kind with
-  | RegularW | ParamW ->
+  | DataW | ParamW ->
      fprintf oc "    <edge kind=\"%s\" source=\"%s\" %s target=\"%s\" %s %s/>\n"
        (match kind with ParamW -> "dependency" | _ -> "fifo")
        src_name
        (mk_field "sourceport" src_slot)
        dst_name
        (mk_field "targetport" dst_slot)
-       (mk_field "type" (match kind with RegularW | DelayW -> string_of_type ty | ParamW -> ""))
-  | DelayW ->
-     fprintf oc "    <edge kind=\"%s\" source=\"%s\" %s target=\"%s\" %s %s>\n"
-       "fifo"
-       src_name
-       (mk_field "sourceport" src_slot)
-       dst_name
-       (mk_field "targetport" dst_slot)
-       (mk_field "type" (match kind with RegularW | DelayW -> string_of_type ty | ParamW -> ""));
-     fprintf oc "      <data key=\"delay\">%s</data>\n" "Delay";
-     fprintf oc "    </edge>\n"
+       (mk_field "type" (match kind with DataW (*| DelayW *) -> string_of_type ty | ParamW -> ""))
+  (* | DelayW ->
+   *    fprintf oc "    <edge kind=\"%s\" source=\"%s\" %s target=\"%s\" %s %s>\n"
+   *      "fifo"
+   *      src_name
+   *      (mk_field "sourceport" src_slot)
+   *      dst_name
+   *      (mk_field "targetport" dst_slot)
+   *      (mk_field "type" (match kind with DataW | DelayW -> string_of_type ty | ParamW -> ""));
+   *    fprintf oc "      <data key=\"delay\">%s</data>\n" "Delay";
+   *    fprintf oc "    </edge>\n" *)
 
-let is_regular_connexion sp (wid,(((s,ss),(d,ds)),ty,kind))=
-  (* Note: [kind] is still [RegularW] before [shorten_delay_connexions] *) 
-    let bs = lookup_box sp.boxes s in
-    let bd = lookup_box sp.boxes d in
-    bs.b_tag <> DelayB && bd.b_tag <> DelayB
+(* let is_regular_connexion sp (wid,(((s,ss),(d,ds)),ty,kind))=
+ *   (\* Note: [kind] is still [DataW] before [shorten_delay_connexions] *\) 
+ *     let bs = lookup_box sp.boxes s in
+ *     let bd = lookup_box sp.boxes d in
+ *     bs.b_tag <> DelayB && bd.b_tag <> DelayB *)
 
-let shorten_delay_connexions sp cnxs =
-  (* ActorB1 -w1<regular>-> DelayB -w2<regular>-> ActorB2 ==> ActorB1 -w<delay>-> ActorB2 *)
-  let scan acc (wid,(((s,ss),(d,ds)),ty,kind)) =
-    let b = lookup_box sp.boxes d in
-    if b.b_tag = DelayB && kind=RegularW then (* For each DelayB box *)
-      let b1,bs1 = s,ss in   (* Get source box *)
-      let _,(((_,_),(b2,bs2)),_,_) = (* Get destination box *)
-        try List.find (function (wid,(((s,ss),(_,_)),ty,kind)) -> s=d) cnxs 
-        with Not_found -> Misc.fatal_error "Preesm.shorten_delay_connexions" in (* Should not happen *)
-      let w' = ((b1,bs1),(b2,bs2)), ty, DelayW in (* Created wire *)
-      (new_wid(),w') :: acc
-    else
-      acc in
-  List.fold_left scan [] cnxs
+(* let shorten_delay_connexions sp cnxs =
+ *   (\* ActorB1 -w1<regular>-> DelayB -w2<regular>-> ActorB2 ==> ActorB1 -w<delay>-> ActorB2 *\)
+ *   let scan acc (wid,(((s,ss),(d,ds)),ty,kind)) =
+ *     let b = lookup_box sp.boxes d in
+ *     if b.b_tag = DelayB && kind=DataW then (\* For each DelayB box *\)
+ *       let b1,bs1 = s,ss in   (\* Get source box *\)
+ *       let _,(((_,_),(b2,bs2)),_,_) = (\* Get destination box *\)
+ *         try List.find (function (wid,(((s,ss),(_,_)),ty,kind)) -> s=d) cnxs 
+ *         with Not_found -> Misc.fatal_error "Preesm.shorten_delay_connexions" in (\* Should not happen *\)
+ *       let w' = ((b1,bs1),(b2,bs2)), ty, DelayW in (\* Created wire *\)
+ *       (new_wid(),w') :: acc
+ *     else
+ *       acc in
+ *   List.fold_left scan [] cnxs *)
 
-let output oc name sp = 
+let is_actor_box (_,b) = match b.b_tag with
+  | ActorB | EBcastB -> true
+  | _ -> false
+
+let is_param_box (_,b) = match b.b_tag with 
+  | LocalParamB | InParamB -> true
+  | _ -> false
+       
+let dump_graph ~toplevel path prefix sp id intf g = 
+  let fname = path ^ id ^ ".pi" in
+  let oc = open_out fname in
   fprintf oc "<?xml version=\"%s\" encoding=\"%s\"?>\n" cfg.xml_version cfg.xml_encoding;
   fprintf oc "<graphml xmlns=\"http://graphml.graphdrawing.org/xmlns\">\n";
   fprintf oc "  <key attr.name=\"parameters\" for=\"graph\" id=\"parameters\"/>\n";
@@ -287,27 +303,33 @@ let output oc name sp =
   fprintf oc "  <key attr.name=\"graph_desc\" attr.type=\"string\" for=\"node\"/>\n";
   fprintf oc "  <key attr.name=\"delay\" attr.type=\"string\" for=\"edge\"/>\n";
   fprintf oc "  <graph edgedefault=\"directed\">\n";
-  fprintf oc "    <data key=\"name\">%s</data>\n" name;
-  List.iter (output_parameter oc sp) sp.boxes;
-  List.iter (output_actor_box oc sp) sp.boxes;
-  let regular_cnxs, delay_cnxs =
-    List.fold_left
-      (fun (acc,acc') ((wid,(((s,ss),(d,ds)),ty,kind)) as w) ->
-        match (lookup_box sp.boxes s).b_tag, (lookup_box sp.boxes d).b_tag, kind with
-        | DelayB, _, RegularW -> acc, w::acc' (* DelayB-> *)
-        | _, DelayB, RegularW -> acc, w::acc' (* ->DelayB *)
-        | _, _, _ -> w::acc, acc')            (* other *)
-      ([],[])
-      sp.wires in
-  List.iter (output_connexion oc sp) regular_cnxs;
-  let delay_cnxs' = shorten_delay_connexions sp delay_cnxs in
-  List.iter (output_connexion oc sp) delay_cnxs';
+  fprintf oc "    <data key=\"name\">%s</data>\n" id;
+  let actors = List.filter is_actor_box g.sg_boxes in
+  let parameters = List.filter is_param_box g.sg_boxes in
+  List.iter (dump_parameter ~toplevel oc) parameters;
+  List.iter (dump_actor oc sp g) actors;
+  let regular_cnxs, delay_cnxs = g.sg_wires, [] in
+  (* let regular_cnxs, delay_cnxs =
+   *   List.fold_left
+   *     (fun (acc,acc') ((wid,(((s,ss),(d,ds)),ty,kind)) as w) ->
+   *       match (lookup_box sp.boxes s).b_tag, (lookup_box sp.boxes d).b_tag, kind with
+   *       | DelayB, _, DataW -> acc, w::acc' (\* DelayB-> *\)
+   *       | _, DelayB, DataW -> acc, w::acc' (\* ->DelayB *\)
+   *       | _, _, _ -> w::acc, acc')            (\* other *\)
+   *     ([],[])
+   *     sp.wires in *)
+  List.iter (dump_connexion oc g.sg_boxes) regular_cnxs;
+  (* let delay_cnxs' = shorten_delay_connexions sp delay_cnxs in
+   * List.iter (output_connexion oc sp) delay_cnxs'; *)
   fprintf oc "  </graph>\n";
-  fprintf oc "</graphml>\n"
-
-let dump fname sp =
-  let name = if cfg.top_name = "" then Misc.file_prefix fname else cfg.top_name in
-  let oc = open_out fname in
-  output oc name sp;
+  fprintf oc "</graphml>\n";
   Logfile.write fname;
   close_out oc
+
+let dump_top_graph path prefix sp (id,g) =
+  (* let name = if cfg.top_name = "" then Misc.file_prefix fname else cfg.top_name in *)
+  dump_graph ~toplevel:true path prefix sp id g.tg_intf g.tg_impl
+
+let dump path prefix sp =
+  List.iter (dump_top_graph path prefix sp) sp.sp_graphs;
+  

@@ -69,7 +69,7 @@ and ss_box = {
     b_tag: box_tag;
     b_name: string;                  (* For regular (resp. param) boxes, name of the instanciated actor (resp. param) *)
     b_typ: typ;                      (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
-    b_params: (string * (wid * typ)) list;  (* TODO : get rid of this : parameters are then viewed as inputs ! *)
+    b_params: (string * (wid * typ)) list;  (* TODO : get rid of this : parameters are now viewed as inputs ! *)
     b_ins: (string * (wid * typ * Syntax.io_annot list)) list;
     b_outs: (string * (wid list * typ * Syntax.io_annot list)) list;
     mutable b_val: b_val;            (* For parameter boxes *)
@@ -92,6 +92,7 @@ and bid = int
 
 and b_val = { 
     bv_lit: core_expr;     (* Original expression *)
+    bv_sub: core_expr;     (* Original expression after substitution of dependencies (ex: "k+1" -> "i1+1") *)
     bv_val: ss_val         (* Statically computed value - SVUnit if N/A *)
   }
 
@@ -161,7 +162,7 @@ let new_wid =
 
 let no_bval =
   let no_expr = {ce_desc=EVar ""; ce_loc=Location.no_location; ce_typ=no_type } in
-  { bv_lit=no_expr; bv_val=SVUnit }
+  { bv_lit=no_expr; bv_sub=no_expr; bv_val=SVUnit }
           
 let new_box tag name ty ins outs =
   let bid = new_bid () in
@@ -289,12 +290,12 @@ let rec static_value senv expr =
 
 let rec eval_param_expr senv expr =
   let eval_int_param n = 
-     let l, b = new_param_box LocalParamB type_int { bv_lit = expr; bv_val = SVInt n } in
+     let l, b = new_param_box LocalParamB type_int { bv_lit = expr; bv_sub=expr; bv_val = SVInt n } in
      SVLoc (l,0,type_int,SV_Param),
      [l,b],
      [] in
   let eval_bool_param n =
-     let l, b =  new_param_box LocalParamB type_bool { bv_lit = expr; bv_val = SVBool n } in
+     let l, b =  new_param_box LocalParamB type_bool { bv_lit = expr; bv_sub=expr; bv_val = SVBool n } in
      SVLoc (l,0,type_bool,SV_Param),
      [l,b],
      [] in
@@ -311,11 +312,11 @@ let rec eval_param_expr senv expr =
   | EBinop (op, e1,e2) ->
      let v =  static_value senv expr in 
      let ty = expr.ce_typ in
-     let l, b =  new_param_box LocalParamB ty { bv_lit = expr; bv_val = static_value senv expr } in 
+     let l, b =  new_param_box LocalParamB ty { bv_lit = expr; bv_sub=expr; bv_val = static_value senv expr } in 
      let bindings = extract_param_deps senv (l,0) expr in (* TO FIX !!! Will not be 0 for multi-deps !! *)
      if List.length bindings > 1 then
        Misc.not_implemented "Static.eval_param_expression: multi-dependent parameter expression";
-     let _ = b.b_val <- { bv_lit=subst_param_deps bindings b.b_val.bv_lit ; bv_val=b.b_val.bv_val } in
+     let _ = b.b_val <- { b.b_val with bv_sub=subst_param_deps bindings b.b_val.bv_lit } in
      SVLoc (l,0,ty,SV_Param),
      [l,b],
      List.map snd bindings
@@ -448,7 +449,7 @@ let eval_gnode_decl gid tp (senv,bs,ws) { gn_desc = nid, n; gn_loc = loc } =
 
 let eval_param_value = function
   | None -> no_bval
-  | Some v -> { bv_lit=v; bv_val=eval_core_expr [] v }
+  | Some v -> { bv_lit=v; bv_sub=v; bv_val=eval_core_expr [] v }
        
 let rec eval_param_decl (env,boxes) (id,ty) v =
   let v' = eval_param_value v in

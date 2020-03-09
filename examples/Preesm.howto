@@ -1,5 +1,5 @@
 Check generated Preesm code 
-- set project name in $(CWD)/Makefile
+- set project directory (PREESM_REP) and name (PREESM_PROJ_NAME) in $(CWD)/Makefile
 - make preesm
 - make preesm.proj
 - From Preesm: Menu File > Open Project from File System

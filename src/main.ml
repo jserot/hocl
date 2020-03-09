@@ -55,9 +55,7 @@ let output pfx sp =
      (* if has_splitters sp then 
       *   Systemc.dump_split_actors sp; *)
   | Preesm ->
-     (* let fname = mk_fname pfx ".pi" in
-      * Preesm.dump fname sp *)
-     ()
+     Preesm.dump path pfx sp
   | Xdf ->
      (* let fname = mk_fname pfx ".xdf" in
       * Xdf.dump fname sp *)

@@ -57,6 +57,7 @@ let cfg = {
     "\"delay.h\"";
     "\"switch.h\"";
     "\"merge.h\"";
+    "\"pmerge.h\"";
     "\"bcast.h\"" ];
   sc_trace = false;
   sc_dump_fifos = false;
@@ -203,7 +204,7 @@ let string_of_io (id,ty,kind) = localize_id id
 
 let rec dump_actor_impl prefix oc name intf attrs =
   let modname = String.capitalize_ascii name in
-  let incl_file, loop_fn, init_fn, is_delay = get_impl_fns "systemc" name attrs in
+  let incl_file, loop_fn, init_fn, is_delay, param_exec = get_impl_fns "systemc" name attrs in
   let params = List.map (function (id,ty) -> id,ty,ParamIn) intf.t_params in
   let dinps = List.map (function (id,(ty,_)) -> id,ty,DataIn) intf.t_real_ins in
   let doutps = List.map (function (id,(ty,_)) -> id,ty,DataOut) intf.t_real_outs in
@@ -265,19 +266,21 @@ let rec dump_actor_impl prefix oc name intf attrs =
     end
   else
    begin
-    fprintf oc "      %s(%s);\n" loop_fn (Misc.string_of_list string_of_io ", " (params @ dinps @ doutps));
-    List.iter
-      (fun (id,(ty,anns)) ->
-        let rate = get_rate_expr anns in
-        fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
-          (string_of_io_rate' rate) id (localize_id id);
-        if cfg.sc_trace then begin
-            fprintf oc "      cout << modname << \": wrote: \";\n";
-            fprintf oc "      for ( int __k=0; __k<%s; __k++ ) cout << %s[__k] << \" \";\n"
-              (string_of_io_rate' rate) (localize_id id);
-            fprintf oc "      cout << \" at \" << sc_time_stamp() << endl;\n"
-          end)
-      intf.t_real_outs
+     fprintf oc "      %s(%s);\n"
+       loop_fn
+       (Misc.string_of_list string_of_io ", " ((if param_exec then [] else params) @ dinps @ doutps));
+     List.iter
+       (fun (id,(ty,anns)) ->
+         let rate = get_rate_expr anns in
+         fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
+           (string_of_io_rate' rate) id (localize_id id);
+         if cfg.sc_trace then begin
+             fprintf oc "      cout << modname << \": wrote: \";\n";
+             fprintf oc "      for ( int __k=0; __k<%s; __k++ ) cout << %s[__k] << \" \";\n"
+               (string_of_io_rate' rate) (localize_id id);
+             fprintf oc "      cout << \" at \" << sc_time_stamp() << endl;\n"
+           end)
+       intf.t_real_outs
     end;
   List.iter  (* Dynamically de-allocate buffers for non-constant sized IOs *)
     (fun (id,(ty,anns)) ->
@@ -369,7 +372,7 @@ let rec dump_param_impl prefix oc modname b =
   fprintf oc "void %s::main(void) {\n" modname;
   fprintf oc "    while ( 1 ) { \n";
   if inps = [] then begin (* Constant/source/non dep parameter *)
-    fprintf oc "      _o = %s;\n" (string_of_core_expr ~localize_id:localize_id b.b_val.bv_lit);
+    fprintf oc "      _o = %s;\n" (string_of_core_expr ~localize_id:localize_id b.b_val.bv_sub);
     List.iter (fun (id,_) -> fprintf oc "      %s.write(%s);\n" id (localize_id id)) b.b_outs; (* Constant *)
     fprintf oc "      wait(%s.posedge_event());\n" cfg.sc_mod_clock
     end
@@ -380,7 +383,7 @@ let rec dump_param_impl prefix oc modname b =
           fprintf oc "      %s = %s.read();\n" id' id;
           fprintf oc "      if ( trace ) cout << modname << \" read \" << %s << \" at \" << sc_time_stamp() << endl;\n" id')
         b.b_ins;
-    fprintf oc "      _o = %s;\n" (string_of_core_expr ~localize_id:localize_id b.b_val.bv_lit);
+    fprintf oc "      _o = %s;\n" (string_of_core_expr ~localize_id:localize_id b.b_val.bv_sub);
     List.iter
       (fun (id,_) ->
         let id' = localize_id id in
@@ -492,7 +495,7 @@ let rec dump_graph ~toplevel path prefix id intf g =
     List.fold_left
       (fun acc (bid,b) -> add acc (f_name b))
       []
-      (List.filter (fun (_,b) -> not (is_builtin_box b)) g.sg_boxes) in
+      (List.filter (fun (_,b) -> not (is_special_actor b.b_name)) g.sg_boxes) in
   dump_banner oc;
   List.iter (function h -> fprintf oc "#include %s\n" h) (cfg.sc_top_headers @ headers);
   (* let bcasters = Static.extract_bcast_boxes sp in *)
@@ -528,10 +531,10 @@ and is_io_box toplevel b =
   | SourceB | SinkB -> true
   | InParamB -> not toplevel
   | _ -> false
-and is_builtin_box b =
-  match b.b_name with    (* TO FIX ? Should we use dedicated tags instead ? *)
-  | "delay" | "switch" | "merge" -> true
-  | _ -> false 
+(* and is_builtin_box b =
+ *   match b.b_name with    (\* TO FIX ? Should we use dedicated tags instead ? *\)
+ *   | "delay" | "switch" | "merge" -> true
+ *   | _ -> false  *)
 
 and dump_wire_decl oc ((wid,(((src,_),(dst,_)),ty,kind)) as w) =
   (* if is_dep_wire then
@@ -630,7 +633,7 @@ and dump_main_param oc pfx b =
     | _ -> Misc.not_implemented ("Systemc backend: multiply connected input parameter: " ^ pfx ^ "." ^ b.b_name) in
   fprintf oc "  sc_fifo<%s> w%d(\"w%d\",%d);\n" ty wid wid cfg.sc_param_fifo_capacity;
   fprintf oc "  %s<%s> %s(\"%s\",%s,%b);\n"
-    cfg.sc_param_input_module_name ty name name (string_of_core_expr b.b_val.bv_lit) cfg.sc_trace;
+    cfg.sc_param_input_module_name ty name name (string_of_core_expr b.b_val.bv_sub) cfg.sc_trace;
   fprintf oc "  %s.%s(%s);\n" name cfg.sc_mod_clock cfg.sc_mod_clock;
   fprintf oc "  %s.o(w%d);\n\n" name wid
 
