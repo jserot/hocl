@@ -99,7 +99,7 @@ let string_of_type t  =
 
 let box_name i b =
   match b.b_tag with
-  | LocalParamB | InParamB -> b.b_name
+  | LocalParamB | InParamB | SourceB | SinkB -> b.b_name
   | _ -> b.b_name ^ "_" ^ string_of_int i
 
 (* let is_param_box b = b.b_tag = LocalParamB || b.b_tag = InParamB *)
@@ -138,18 +138,18 @@ let dump_actor_port oc dir is_param (id, (wid,ty,annots)) =
 let is_param_wire (wid,(_,_,kind)) = kind=ParamW
 
 let dump_actor oc sp g (i,b)  =
-  let intf, impls =
-    match List.assoc b.b_name sp.sp_nodes with
-    | { sn_intf=intf; sn_impl=NI_Actor impl } -> intf, impl
-    | { sn_intf=intf; sn_impl=_ } -> Misc.fatal_error "Preesm.dump_actor" (* should not happen *)
-    | exception Not_found -> Error.missing_actor_impl "preesm" b.b_name in
-  let attrs =
-    try List.assoc "preesm" impls
-    with Not_found -> Error.missing_actor_impl "preesm" b.b_name in
   let param_ins, data_ins = List.partition (is_param_input g.sg_wires) b.b_ins in 
   match b.b_tag with
   | ActorB ->
      let id = box_name i b in 
+     let intf, impls =
+       match List.assoc b.b_name sp.sp_nodes with
+       | { sn_intf=intf; sn_impl=NI_Actor impl } -> intf, impl
+       | { sn_intf=intf; sn_impl=_ } -> Misc.fatal_error "Preesm.dump_actor" (* should not happen *)
+       | exception Not_found -> Error.missing_actor_impl "preesm" b.b_name in
+     let attrs =
+       try List.assoc "preesm" impls
+       with Not_found -> Error.missing_actor_impl "preesm" b.b_name in
      let incl_file, loop_fn, init_fn, is_delay, param_exec = get_impl_fns "preesm" id attrs in
      let period = "0" in (* TO FIX *)
      fprintf oc "    <node id=\"%s\" kind=\"actor\" period=\"%s\">\n" id period;
@@ -168,20 +168,20 @@ let dump_actor oc sp g (i,b)  =
      List.iter (dump_actor_port oc "input" false) data_ins;
      List.iter (dump_actor_port oc "output" false) b.b_outs;
      fprintf oc "    </node>\n"
-  (* | GraphB ->
-   *    let id = box_name i b in 
-   *    let incl_file = 
-   *      begin match get_pragma_desc "code" b.b_name sp with 
-   *      | [incl_file] -> incl_file
-   *      | _ -> raise (Error ("cannot find valid #pragma description for actor " ^ b.b_name))
-   *      end in
-   *    fprintf oc "    <node id=\"%s\" kind=\"actor\">\n" id;
-   *    fprintf oc "      <data key=\"graph_desc\">%s/%s</data>\n" cfg.algo_dir (Misc.replace_suffix "pi" incl_file);
-   *    let param_ins, data_ins = List.partition is_param b.b_ins in 
-   *    List.iter (dump_actor_port oc "input" true) param_ins;
-   *    List.iter (dump_actor_port oc "input" false) data_ins;
-   *    List.iter (dump_actor_port oc "output" false) b.b_outs;
-   *    fprintf oc "    </node>\n" *)
+  | GraphB ->
+     let id = box_name i b in 
+     (* let intf, impl =
+      *   match List.assoc b.b_name sp.sp_nodes with
+      *   | { sn_intf=intf; sn_impl=NI_Graph g } -> intf, g
+      *   | { sn_intf=intf; sn_impl=_ } -> Misc.fatal_error "Preesm.dump_actor" (\* should not happen *\)
+      *   | exception Not_found -> Error.missing_actor_impl "preesm" b.b_name in *)
+     let incl_file = b.b_name ^ ".pi" in
+     fprintf oc "    <node id=\"%s\" kind=\"actor\">\n" id;
+     fprintf oc "      <data key=\"graph_desc\">%s/%s</data>\n" cfg.algo_dir incl_file;
+     List.iter (dump_actor_port oc "input" true) param_ins;
+     List.iter (dump_actor_port oc "input" false) data_ins;
+     List.iter (dump_actor_port oc "output" false) b.b_outs;
+     fprintf oc "    </node>\n"
   | EBcastB
   | IBcastB ->
      let id = box_name i b in 
@@ -284,7 +284,7 @@ let dump_connexion oc boxes (wid,((((s,ss),(d,ds)),ty,kind) as w))=
  *   List.fold_left scan [] cnxs *)
 
 let is_actor_box (_,b) = match b.b_tag with
-  | ActorB | EBcastB -> true
+  | ActorB | EBcastB | GraphB | SourceB | SinkB  -> true
   | _ -> false
 
 let is_param_box (_,b) = match b.b_tag with 
@@ -330,6 +330,18 @@ let dump_top_graph path prefix sp (id,g) =
   (* let name = if cfg.top_name = "" then Misc.file_prefix fname else cfg.top_name in *)
   dump_graph ~toplevel:true path prefix sp id g.tg_intf g.tg_impl
 
+let collect_sub_graphs sp = 
+    List.fold_left
+      (fun acc (id,n) ->
+        match n.sn_impl with
+        | NI_Graph g -> (id,(n.sn_intf,g))::acc
+        | _ -> acc)
+      []
+      sp.sp_nodes
+                                                                       
 let dump path prefix sp =
   List.iter (dump_top_graph path prefix sp) sp.sp_graphs;
+  List.iter
+    (fun (id,(intf,g)) -> dump_graph ~toplevel:false path prefix sp id intf g)
+    (collect_sub_graphs sp)
   

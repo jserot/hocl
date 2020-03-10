@@ -20,7 +20,8 @@ PREESM BACKEND
   + the current implementation of [hoclc] and [pi2hcl] use the explicit form
 - support expr-annot for src and snk nodes in subgraphs (cf SIFT/Htop_sift.pi/{image}src for ex)
 - dynamic parameters
-- conditionals 
+- delays
+- conditional activation of actors (to support parameter-based conditional, a la PiSDF)
 
 TOOLS/PI2HCL
 - translation of cyclic graphs (ex: examples/sift)
