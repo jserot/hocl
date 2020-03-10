@@ -25,8 +25,10 @@ PREESM BACKEND
 - conditional activation of actors (to support parameter-based conditional, a la PiSDF)
 
 DIF BACKEND
+- support parameters and hierarchy
 
 VHDL BACKEND
+- TBW
 
 TOOLS/PI2HCL
 - translation of cyclic graphs (ex: examples/sift)

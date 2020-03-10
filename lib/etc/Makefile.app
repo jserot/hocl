@@ -41,6 +41,9 @@ systemc: $(SRCS)
 xdf: $(SRCS)
 	$(HOCLC) $(GEN_OPTS) -xdf $(XDF_OPTS) $(SRCS)
 
+dif: $(SRCS)
+	$(HOCLC) $(GEN_OPTS) -dif $(DIF_OPTS) $(SRCS)
+
 clean:
 	@\rm -f *.dot
 	@\rm -f *.xdf

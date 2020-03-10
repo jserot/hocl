@@ -36,6 +36,11 @@ let is_param_input wires (iid, (wid,ty,annots)) =
   | _, _, Ssval.ParamW -> true
   | _, _, _ -> false
 
+let get_param_value backend g wid =
+  match get_src_box g.sg_boxes (find_wire g.sg_wires wid) with
+  | { b_tag=LocalParamB; b_val={bv_val=v} } -> v
+  | _ -> Misc.fatal_error (backend ^ " backend cannot retrieve parameter value")
+
 let get_impl_fns target name attrs =
   match List.assoc_opt "incl_file" attrs,
         List.assoc_opt "loop_fn" attrs,

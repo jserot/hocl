@@ -58,6 +58,8 @@ let output pfx sp =
      Preesm.dump path pfx sp
   | Xdf ->
      Xdf.dump path pfx sp
+  | Dif ->
+     Dif.dump path pfx sp
 
 let insert_bcasts sp = 
   if cfg.insert_bcasts then

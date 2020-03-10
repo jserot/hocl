@@ -35,3 +35,5 @@ examples/working/*/*/systemc/*.h
 examples/working/*/*/systemc/*.o
 examples/working/*/*/systemc/main_sc
 examples/working/*/*/dot/*.pdf
+examples/working/*/*/xdf/*.xdf
+examples/working/*/*/dif/*.dif

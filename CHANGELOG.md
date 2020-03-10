@@ -10,6 +10,7 @@
 * Increased the number of SystemC examples 
 * `switch` and `merge` dedicated actors for expressing DDF-style conditional (see 
    `examples/working/misc/cond_ddf`)
+* Added an (minimal) DIF backend
 
 # 0.3 (Nov 10, 2019)
 * Updated implementation of _broadcast_ nodes. Insertion of _broadcast_ node is now automatic when

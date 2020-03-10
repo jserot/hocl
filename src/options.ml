@@ -13,7 +13,7 @@
 let print_version () =
   Printf.printf "This is the HoCL compiler, version %s\n" Version.version
 
-type output_format = NoOutput | Dot | Systemc | Preesm | Xdf (* | Dif | Vhdl *)
+type output_format = NoOutput | Dot | Systemc | Preesm | Xdf | Dif (* | Vhdl *)
 
 type cfg = {
     mutable stdlib: string;
@@ -58,8 +58,8 @@ let do_dot () = cfg.output_fmt <- Dot
 let do_systemc () = begin cfg.output_fmt <- Systemc; Static.cfg.Static.insert_bcasts <- true end
 let do_preesm () = begin cfg.output_fmt <- Preesm; Static.cfg.Static.insert_bcasts <- true end
 let do_xdf () = cfg.output_fmt <- Xdf
-(* let do_dif () = output_fmt := Dif
- * let do_vhdl () = output_fmt := Vhdl *)
+let do_dif () = cfg.output_fmt <- Dif
+(* let do_vhdl () = output_fmt := Vhdl *)
 let do_dot_unlabeled_edges () = Dot.cfg.Dot.labeled_edges <- false
 let do_dot_show_indexes () = Dot.cfg.Dot.show_indexes <- true
 let do_dot_wire_annots () = Dot.cfg.Dot.show_wire_annots <- true
@@ -98,8 +98,8 @@ let options_spec = [
 "-systemc", Arg.Unit (do_systemc), "activate the SystemC backend";
 "-preesm", Arg.Unit (do_preesm), "activate the Preesm backend";
 "-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network";
-(* "-dif", Arg.Unit (do_dif), "generate .dif representation of the program";
- * "-vhdl", Arg.Unit (do_vhdl), "activate the VHDL backend"; *)
+"-dif", Arg.Unit (do_dif), "generate .dif representation of the program";
+(* "-vhdl", Arg.Unit (do_vhdl), "activate the VHDL backend"; *)
 "-version", Arg.Unit (print_version), "print version of the compiler";
 "--v", Arg.Unit (print_version), "print version of the compiler";
 "-dot_rank_dir", Arg.String (set_dot_rank_dir), "set rank direction for DOT output graph (default: LR)";

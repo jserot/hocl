@@ -83,13 +83,8 @@ let string_of_val v = match v with
   | SVBool b -> string_of_bool b
   | _ -> Misc.not_implemented ("XDF translation of value " ^ Ssval.string_of_ssval v) 
 
-let get_param_value g wid =
-  match get_src_box g.sg_boxes (find_wire g.sg_wires wid) with
-  | { b_tag=LocalParamB; b_val={bv_val=v} } -> v
-  | _ -> Misc.not_implemented "XDF backend: non constant parameter"
-       
 let dump_inst_param oc g (name,(wid,ty,anns)) =
-  let v = get_param_value g wid in
+  let v = get_param_value "XDF" g wid in
   fprintf oc "  <Parameter name=\"%s\">\n" name; 
   fprintf oc "    <Expr kind=\"Literal\" literal-kind=\"%s\" value=\"%s\"/>\n" (string_of_type ty) (string_of_val v);
   fprintf oc "  </Parameter>\n"
