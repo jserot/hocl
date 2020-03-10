@@ -20,7 +20,7 @@ dot.show: dot
 		for f in .*.dot; do $(DOTVIEWER) $$f; done; \
 	fi 
 
-.PHONY: dot preesm systemc preesm.proj
+.PHONY: dot preesm systemc preesm.proj xdf dif vhdl
 
 preesm: $(SRCS)
 	$(HOCLC) $(GEN_OPTS) -preesm $(PREESM_OPTS) $(SRCS)

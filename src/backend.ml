@@ -111,3 +111,13 @@ let get_delay_spec name intf =
        | _, _ -> false in
      if not (rate_expr_eq i_rate o_rate) then Error.illegal_interface "delay" name " (input and output rates do not match)";
      { ds_typ=ty; ds_iv=iv_name; ds_i=i_name; ds_irate=i_rate; ds_o=o_name; ds_orate=o_rate }
+
+let collect_sub_graphs sp = 
+    List.fold_left
+      (fun acc (id,n) ->
+        match n.sn_impl with
+        | NI_Graph g -> (id,(n.sn_intf,g))::acc
+        | _ -> acc)
+      []
+      sp.sp_nodes
+                                                                       

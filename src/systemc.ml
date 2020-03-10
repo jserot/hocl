@@ -18,7 +18,7 @@ open Typing
 open Static
 open Backend
 
-exception Error of string
+(* exception Error of string *)
                  
 type sc_config = {
   mutable sc_act_headers: string list;
