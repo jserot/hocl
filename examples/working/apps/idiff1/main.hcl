@@ -6,6 +6,7 @@ node ReadYUV
   out (y: uchar[height*width], u: uchar[height/2*width/2], v: uchar[height/2*width/2])
 actor
   systemc(loop_fn="yuvRead", init_fn="yuvReadInit", incl_file="include/yuvRead.h", src_file="src/yuvRead.c")
+  preesm(loop_fn="yuvRead", init_fn="yuvReadInit", incl_file="include/yuvRead.h", src_file="src/yuvRead.c")
 end
 ;
 
@@ -15,6 +16,7 @@ node DisplayYUV
   out ()
 actor
   systemc(loop_fn="yuvDisplay", init_fn="yuvDisplayInit", incl_file="include/yuvDisplay.h", src_file="src/yuvDisplay.c")
+  preesm(loop_fn="yuvDisplay", init_fn="yuvDisplayInit", incl_file="include/yuvDisplay.h", src_file="src/yuvDisplay.c")
 end
 ;
 
@@ -24,6 +26,7 @@ node ImDiff
   out (output: uchar[height*width], result: uchar[height*width])
 actor
   systemc(loop_fn="im_diff", incl_file="include/im_diff.h", src_file="src/im_diff.c")
+  preesm(loop_fn="im_diff", incl_file="include/im_diff.h", src_file="src/im_diff.c")
 end;
 
 node ImDelay
@@ -32,6 +35,7 @@ node ImDelay
   out (output: uchar[height*width])
 actor
   systemc(loop_fn="im_delay", init_fn="im_delay_init", incl_file="include/im_delay.h", src_file="src/im_delay.c", is_delay)
+  preesm(loop_fn="im_delay", init_fn="im_delay_init", incl_file="include/im_delay.h", src_file="src/im_delay.c", is_delay)
 end;
 
 graph top
