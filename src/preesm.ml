@@ -39,7 +39,7 @@ let cfg = {
   default_src_dir = "../src"
 }
 
-exception Error of string
+(* exception Error of string *)
         
 (* type preesm_type = 
  *   | Integer of bool * int option (\* signed, width *\)
@@ -330,15 +330,6 @@ let dump_top_graph path prefix sp (id,g) =
   (* let name = if cfg.top_name = "" then Misc.file_prefix fname else cfg.top_name in *)
   dump_graph ~toplevel:true path prefix sp id g.tg_intf g.tg_impl
 
-let collect_sub_graphs sp = 
-    List.fold_left
-      (fun acc (id,n) ->
-        match n.sn_impl with
-        | NI_Graph g -> (id,(n.sn_intf,g))::acc
-        | _ -> acc)
-      []
-      sp.sp_nodes
-                                                                       
 let dump path prefix sp =
   List.iter (dump_top_graph path prefix sp) sp.sp_graphs;
   List.iter

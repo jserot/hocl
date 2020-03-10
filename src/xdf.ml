@@ -15,6 +15,7 @@
 open Printf
 open Ssval
 open Static
+open Backend
 
 type xdf_config = {
     mutable xml_version: string;
@@ -44,10 +45,9 @@ let rec type_of t  =
   | TyConstr("bool", []) -> Boolean
   | TyConstr("float", []) -> Real
   | TyConstr("int", []) -> Integer (cfg.default_int_size)
-  | TyConstr("nat", []) -> Integer (cfg.default_int_size)
   | _ -> Misc.not_implemented ("XDF translation of type " ^ Pr_type.string_of_type t)
 
-(* let output_io_port oc dir name ty = 
+(* let dump_io_port oc dir name ty = 
  *   let open Types in
  *   fprintf oc "<Port kind=\"%s\" name=\"%s\">\n" dir name;
  *   begin match type_of ty with
@@ -66,10 +66,10 @@ let rec type_of t  =
  *   end;
  *   fprintf oc "</Port>\n" *)
 
-(* let output_port oc (i,b) =
+(* let dump_port oc (i,b) =
  *   match b.ib_tag with
- *     InpB Syntax.StreamIO -> output_io_port oc "Input" b.ib_name b.ib_typ
- *   | OutB Syntax.StreamIO ->output_io_port oc "Output" b.ib_name b.ib_typ
+ *     InpB Syntax.StreamIO -> dump_io_port oc "Input" b.ib_name b.ib_typ
+ *   | OutB Syntax.StreamIO ->dump_io_port oc "Output" b.ib_name b.ib_typ
  *   | _ -> () *)
 
 let string_of_type t  = 
@@ -79,49 +79,56 @@ let string_of_type t  =
   | Real -> "Real"
 
 let string_of_val v = match v with  
-    SVNat n -> string_of_int n
+    SVInt n -> string_of_int n
   | SVBool b -> string_of_bool b
   | _ -> Misc.not_implemented ("XDF translation of value " ^ Ssval.string_of_ssval v) 
 
-let output_inst_param oc (name,(ty,v)) =
+let get_param_value g wid =
+  match get_src_box g.sg_boxes (find_wire g.sg_wires wid) with
+  | { b_tag=LocalParamB; b_val={bv_val=v} } -> v
+  | _ -> Misc.not_implemented "XDF backend: non constant parameter"
+       
+let dump_inst_param oc g (name,(wid,ty,anns)) =
+  let v = get_param_value g wid in
   fprintf oc "  <Parameter name=\"%s\">\n" name; 
   fprintf oc "    <Expr kind=\"Literal\" literal-kind=\"%s\" value=\"%s\"/>\n" (string_of_type ty) (string_of_val v);
   fprintf oc "  </Parameter>\n"
 
-let box_id sp i b = Static.box_name sp (i,b)
+let box_name i b = b.b_name ^ "_" ^ string_of_int i
 
 let full_actor_name n = match cfg.target_package with
     "" -> n
   | p -> p ^ "." ^ n (* ^ "_act" *)
        
-let output_instance oc sp (i,b) =
+let dump_instance oc g (i,b) =
   match b.b_tag with
   | ActorB ->
-      fprintf oc "<Instance id=\"%s\">\n" (box_id sp i b);
+      fprintf oc "<Instance id=\"%s\">\n" (box_name i b);
       fprintf oc "  <Class name=\"%s\"/>\n" (full_actor_name b.b_name);
-      List.iter (output_inst_param oc) b.b_params;
+      let params = List.filter (is_param_input g.sg_wires) b.b_ins in 
+      List.iter (dump_inst_param oc g) params;
       fprintf oc "</Instance>\n"
   | _ ->
       () 
 
-let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
+let dump_connexion oc g (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
   let lookup bid = 
-      try List.assoc bid sp.boxes
-      with Not_found -> Misc.fatal_error "Xdf.output_connexion" in
+    try List.assoc bid g.sg_boxes
+    with Not_found -> Misc.fatal_error "Xdf.dump_connexion" in
   let src_id, src_slot =
     let b = lookup s in
-    box_id sp s b, fst (List.nth b.b_outs ss) in
+    box_name s b, fst (List.nth b.b_outs ss) in
     (*  match b.b_tag with
      *   RegularB -> box_id s b, fst (List.nth b.ib_outs ss)
      * | InpB Syntax.StreamIO -> "", b.ib_name
-     * | _ -> Misc.fatal_error "Xdf.output_connexion" in *)
+     * | _ -> Misc.fatal_error "Xdf.dump_connexion" in *)
   let dst_id, dst_slot =
     let b = lookup d in
-    box_id sp d b, fst (List.nth b.b_ins ds) in
+    box_name d b, fst (List.nth b.b_ins ds) in
     (*  match b.ib_tag with
      *   RegularB -> box_id d b, fst (List.nth b.ib_ins ds)
      * | OutB Syntax.StreamIO -> "", b.ib_name 
-     * | _ -> Misc.fatal_error "Xdf.output_connexion" in *)
+     * | _ -> Misc.fatal_error "Xdf.dump_connexion" in *)
   fprintf oc "<Connection dst=\"%s\" dst-port=\"%s\" src=\"%s\" src-port=\"%s\">\n" dst_id dst_slot src_id src_slot;
   (* begin try
    *     match List.assoc ("w" ^ string_of_int wid) anns with
@@ -134,17 +141,23 @@ let output_connexion oc sp (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
    *   Not_found -> () *)
   fprintf oc "</Connection>\n"
 
-let output oc sp = 
-  fprintf oc "<?xml version=\"%s\" encoding=\"%s\"?>\n" cfg.xml_version cfg.xml_encoding;
-  fprintf oc "<XDF name=\"%s\">\n" cfg.top_name; 
-  (* List.iter (output_port oc) sp.b_boxes; *)
-  List.iter (output_instance oc sp) sp.boxes;
-  List.iter (output_connexion oc sp) sp.wires;
-  fprintf oc "</XDF>\n"
-
-let dump fname sp =
-  if cfg.top_name = "" then cfg.top_name <- Misc.file_prefix fname;
+let dump_graph ~toplevel path prefix sp id intf g = 
+  let fname = path ^ id ^ ".xdf" in
   let oc = open_out fname in
-  output oc sp;
+  fprintf oc "<?xml version=\"%s\" encoding=\"%s\"?>\n" cfg.xml_version cfg.xml_encoding;
+  fprintf oc "<XDF name=\"%s\">\n" id;
+  (* List.iter (dump_port oc) sp.b_boxes; *)
+  List.iter (dump_instance oc g) g.sg_boxes;
+  List.iter (dump_connexion oc g) g.sg_wires;
+  fprintf oc "</XDF>\n";
   Logfile.write fname;
   close_out oc
+
+let dump_top_graph path prefix sp (id,g) =
+  dump_graph ~toplevel:true path prefix sp id g.tg_intf g.tg_impl
+
+let dump path prefix sp =
+  List.iter (dump_top_graph path prefix sp) sp.sp_graphs;
+  List.iter
+    (fun (id,(intf,g)) -> dump_graph ~toplevel:false path prefix sp id intf g)
+    (collect_sub_graphs sp)

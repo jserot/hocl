@@ -57,9 +57,7 @@ let output pfx sp =
   | Preesm ->
      Preesm.dump path pfx sp
   | Xdf ->
-     (* let fname = mk_fname pfx ".xdf" in
-      * Xdf.dump fname sp *)
-     ()
+     Xdf.dump path pfx sp
 
 let insert_bcasts sp = 
   if cfg.insert_bcasts then

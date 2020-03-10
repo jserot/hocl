@@ -6,6 +6,7 @@ COMPILER
 - check that types infered from a node impl match those given in the interface (typing.ml)
 - allow arbitrary infix operators to be defined in prelude or elsewhere (the set of such operators
   is currently restricted by the lexer)
+- relocalize backend-specific error handling fns in the corresp. source file (?)
 
 DOT BACKEND
 - cluster-based drawing of hierarchy graphical in the .dot backend (?)
@@ -22,6 +23,10 @@ PREESM BACKEND
 - dynamic parameters
 - delays
 - conditional activation of actors (to support parameter-based conditional, a la PiSDF)
+
+DIF BACKEND
+
+VHDL BACKEND
 
 TOOLS/PI2HCL
 - translation of cyclic graphs (ex: examples/sift)

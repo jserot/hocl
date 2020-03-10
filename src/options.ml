@@ -79,7 +79,7 @@ let set_sc_fifo_stats_file f = Systemc.cfg.Systemc.sc_fifo_stats_file <- f
 (* PREESM related options *)
 let set_preesm_name n = Preesm.cfg.Preesm.top_name <- n
 (* XDF related options *)
-(* let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p *)
+let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p
 
 let options_spec = [
 "-stdlib", Arg.String (set_stdlib), "set location of the standard library file (default: " ^ Version.stdlib ^ ")";
@@ -97,7 +97,7 @@ let options_spec = [
 "-dot", Arg.Unit (do_dot), "generate .dot representation of the program";
 "-systemc", Arg.Unit (do_systemc), "activate the SystemC backend";
 "-preesm", Arg.Unit (do_preesm), "activate the Preesm backend";
-(* "-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network"; *)
+"-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network";
 (* "-dif", Arg.Unit (do_dif), "generate .dif representation of the program";
  * "-vhdl", Arg.Unit (do_vhdl), "activate the VHDL backend"; *)
 "-version", Arg.Unit (print_version), "print version of the compiler";
@@ -118,5 +118,5 @@ let options_spec = [
 "-sc_dump_fifo_stats", Arg.Unit (set_sc_dump_fifo_stats), "dump fifo usage statistics after run";
 "-sc_fifo_stats_file", Arg.String (set_sc_fifo_stats_file), "set file for dumping fifo statistics (default: fifo_stats.dat)";
 (* "-preesm_top_name", Arg.String (set_preesm_name), "set top level name for Preesm graph (default: base name of input file"; *)
-(* "-xdf_package", Arg.String (set_xdf_package), "set package name for the generated XDF code"; *)
+"-xdf_package", Arg.String (set_xdf_package), "set package name for the generated XDF code";
 ];
