@@ -14,5 +14,5 @@ end;
 
 graph top in (i: int) out (o: int)
 fun
-  val o = let rec (y,z) = foo (i, delay<0> z) in y
+  val rec (o,z) = foo (i, delay<0> z)
 end;
