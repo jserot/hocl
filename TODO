@@ -1,11 +1,8 @@
-GENERAL
-- find a smarter name ?
-
 SYNTAX
-- merged decls (ex: wire w1,w2: int)
 - `initially` clause for specifying delays (ex: `val rec (o,z) = f (i, z initially 0)`) 
 
 COMPILER
+- isolate intermediate representation (used by the backends) in a separate module (distinct from `Static`)
 - new typing scheme separating wires and regular values (and maybe parameters) (see `examples/tofix/intvsnat`)
 - check that types infered from a node impl match those given in the interface (typing.ml)
 - allow arbitrary infix operators to be defined in prelude or elsewhere (the set of such operators
