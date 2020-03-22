@@ -1,7 +1,7 @@
 -- HOCL standard library
 -- v1.0 - Mar 6, 2020 - JS
 
--- [|>] is the reverse application operator : [x >> f] is [f x]
+-- [|>] is the reverse application operator : [x |> f] is [f x]
 -- It allows expressions such as [f1 (f2 (f3 x))], for ex, to be written as [x |> f1 |> f2 |> f3]
 
 val (|>) x f = f x;
@@ -10,15 +10,15 @@ val (|>) x f = f x;
 
 val (|->) i f = f (i ());
 
+-- [@@] is the classical function composition operator
+
+val ( @@ ) g f x = g (f x);
+
 -- The [repl] higher-order function
 -- has type [nat -> 'a -> 'a bundle]
 -- and can be defined as : [repl n x = [x, ..., x]]
 --                                      \---v---/
 --                                       n times
-
--- [@@] is the classical function composition operator
-
-val ( @@ ) g f x = g (f x);
 
 val rec repl n x =
   if n=0 then []
@@ -121,5 +121,3 @@ node delay param (iv: int) in (i: int) out (o: int);
 node switch in (b: bool, i: int) out (o1: int, o2: int);
 
 node merge in (b: bool, i1: int, i2: int) out (o: int);
-
-node pmerge param (b: bool) in (i1: int, i2: int) out (o: int);
