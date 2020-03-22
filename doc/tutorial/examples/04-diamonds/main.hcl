@@ -14,18 +14,8 @@ end;
 -- Two levels, structural
 graph top2s in (i: int) out (o: int)
 struct
-  wire w1: int
-  wire w2: int
-  wire w3: int
-  wire w4: int
-  wire w5: int
-  wire w6: int
-  wire w7: int
-  wire w8: int
-  wire w9: int
-  wire w10: int
-  wire w11: int
-  wire w12: int
+  wire w1, w2, w3, w4, w5, w6: int
+  wire w7, w8, w9, w10, w11, w12: int
   node f1: f(i)(w1,w2)
   node f2: f(w1)(w3,w4)
   node f3: f(w2)(w5,w6)

@@ -157,13 +157,13 @@ let node_decl_of = function NodeDecl d -> d | _ -> Misc.fatal_error "Parser.node
 let graph_decl_of = function GraphDecl d -> d | _ -> Misc.fatal_error "Parser.graph_decl_of"             
 
 type struct_decl =
-  | GWireDecl of Syntax.gwire_decl
+  | GWireDecl of Syntax.gwire_decl list
   | GNodeDecl of Syntax.gnode_decl
 
 let is_gwire_decl = function GWireDecl _ -> true | _ -> false             
 let is_gnode_decl = function GNodeDecl _ -> true | _ -> false             
 
-let gwire_decl_of = function GWireDecl d -> d | _ -> Misc.fatal_error "Parser.wgire_decl_of"             
+let gwire_decl_of = function GWireDecl ds -> ds | _ -> Misc.fatal_error "Parser.wgire_decl_of"             
 let gnode_decl_of = function GNodeDecl d -> d | _ -> Misc.fatal_error "Parser.gnode_decl_of"             
 %}
 
@@ -366,16 +366,16 @@ graph_defn:
 
 struct_graph_desc:
   | ds = my_list(struct_defn)
-           { { gs_wires = ds |> List.filter is_gwire_decl |> List.map gwire_decl_of;
+           { { gs_wires = ds |> List.filter is_gwire_decl |> Misc.flat_map gwire_decl_of;
                gs_nodes = ds |> List.filter is_gnode_decl |> List.map gnode_decl_of } }
 
 struct_defn:
-  | d=gwire_defn { GWireDecl d }
+  | ds=gwire_defn { GWireDecl ds }
   | d=gnode_defn { GNodeDecl d }
 
 gwire_defn:
-  | WIRE id=IDENT COLON t=simple_type_expr
-     { mk_wire_decl $loc (id,t) }
+  | WIRE ids=my_separated_list(COMMA, IDENT) COLON t=simple_type_expr
+     { List.map (fun id -> mk_wire_decl $loc (id,t)) ids }
 
 gnode_defn:
   | NODE id=IDENT COLON name=IDENT params=opt_gnode_params inps=gnode_ios outps=gnode_ios

@@ -98,6 +98,8 @@ let rec filter_map p f l = match l with
    [] -> []
 | x::xs -> if p x then f x :: filter_map p f xs else filter_map p f xs
 
+let flat_map f l = List.flatten @@ List.map f l
+                 
 (* [opt_map f l] is the list built by applying [f] to each element of [l] and retaining only results [Some _].
    Ex: [opt_map (function x -> if x mod 2 then Some (x*10) else None) [1;2;3;4]] gives [[20;40]] *)
          

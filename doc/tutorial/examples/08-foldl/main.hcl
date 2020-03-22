@@ -1,10 +1,13 @@
 type t;
 
-actor f in (i: t) out (o: t);
-actor g in (i1: t, i2: t) out (o: t);
-actor i in () out (o: t);
-actor z in () out (o: t);
-actor o in (i: t) out ();
+node f in (i: t) out (o: t);
+node g in (i1: t, i2: t) out (o: t);
+node i in () out (o: t);
+node z in () out (o: t);
+node o in (i: t) out ();
 
-let xs = i|> mapf (repl 4 f);
-let _ = xs >> foldl g (z()) >> o;
+graph top in (i: t) out (o: t)
+fun
+  val xs = i|> mapf (repl 4 f)
+  val o = xs |> foldl g (z())
+end;

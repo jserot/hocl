@@ -8,10 +8,7 @@ node h in (i1: t, i2: t) out ();
 
 graph top_s in () out ()
 struct
-  wire w1: t
-  wire w2: t
-  wire w3: t
-  wire w4: t
+  wire w1, w2, w3, w4: t
   node n1: f()(w1,w2)
   node n2: g(w1)(w3)
   node n3: g(w2)(w4)

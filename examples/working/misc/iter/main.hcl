@@ -6,11 +6,7 @@ node g in (i: t) out (o: t);
 
 graph top_s in (x: t) out (y: t) -- structural description (not generic)
 struct
-  wire w1: t
-  wire w2: t
-  wire w3: t
-  wire w4: t
-  wire w5: t
+  wire w1,w2,w3,w4,w5: t
   node g1: g(x)(w1)
   node g2: g(w1)(w2)
   node g3: g(w2)(w3)
