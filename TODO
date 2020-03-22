@@ -1,12 +1,20 @@
 GENERAL
 - find a smarter name ?
 
-COMPILER
+SYNTAX
 - merged decls (ex: wire w1,w2: int)
+- `initially` clause for specifying delays (ex: `val rec (o,z) = f (i, z initially 0)`) 
+
+COMPILER
+- new typing scheme separating wires and regular values (and maybe parameters) (see `examples/tofix/intvsnat`)
 - check that types infered from a node impl match those given in the interface (typing.ml)
 - allow arbitrary infix operators to be defined in prelude or elsewhere (the set of such operators
   is currently restricted by the lexer)
 - relocalize backend-specific error handling fns in the corresp. source file (?)
+
+
+STDLIB
+- add `mapi`, `iteri` HOFs
 
 DOT BACKEND
 - cluster-based drawing of hierarchy graphical in the .dot backend (?)
@@ -18,7 +26,7 @@ PREESM BACKEND
 - clarify the description of "src" and "snk" nodes in .pi files concerning the cfg inputs :
   + preesm seems to accept the explicit form ...
   + ... but some examples in the repo (ex: SIFT) seem to omit the decl of cfg input ports in src and snk nodes ..
-  + the current implementation of [hoclc] and [pi2hcl] use the explicit form
+  + the current implementation of `hoclc` and `pi2hcl` use the explicit form
 - support expr-annot for src and snk nodes in subgraphs (cf SIFT/Htop_sift.pi/{image}src for ex)
 - dynamic parameters
 - delays
@@ -28,7 +36,7 @@ DIF BACKEND
 - support parameters and hierarchy
 
 VHDL BACKEND
-- TBW
+- TBW ?
 
 TOOLS/PI2HCL
 - translation of cyclic graphs (ex: examples/sift)
@@ -38,7 +46,7 @@ TOOLS/PI2HCL
 
 DOC
 - update tutorial with support for bcast and bcast nodes
-- add a section on recursive fns/graphs (with example [misc/recfilt])
+- add a section on recursive fns/graphs (with example `misc/recfilt`)
 
 DIST
 - build lib/etc/Makefile.app by instantiating a template with paths obtained from configure
