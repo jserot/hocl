@@ -15,9 +15,8 @@ open Error
 open Misc
 open Types
 open Typing
-open Printf
-open Pr_type
-open Ssval
+open Semval
+open Interm
 
 type cfg = {
   mutable insert_bcasts: bool;
@@ -33,83 +32,13 @@ let cfg = {
   (* fifo_name = "fifo"; *)
   }
 
-type static_env = (string * ss_val) list
+type static_env = (string * sem_val) list
 
 let augment_env env' env = env' @ env
-
-type static_program = {
-  sp_gfuns: (string * ss_val) list;
-  sp_nodes: (string * sn_desc) list;  (* Declared nodes (with associated implementations) *)
-  sp_graphs: (string * tg_desc) list; (* Toplevel graphs *)
-  }
-               
-and sn_desc = {
-    sn_intf: Typing.typed_intf;
-    sn_impl: sn_impl; 
-  }
-
-and sn_impl =
-  | NI_Actor of Syntax.actor_desc   (* Opaque node, with external implementation(s) *)
-  | NI_Graph of sg_desc             (* Sub-graph *)
-
-(* and ni_desc = (string * string) list   (\* [attribute,value] *\) *)
-
-and tg_desc = {
-    tg_intf: Typing.typed_intf;
-    tg_impl: sg_desc; 
-  }
-
-and sg_desc = { 
-    sg_boxes: (bid * ss_box) list;
-    sg_wires: (wid * sv_wire) list;
-  }
-
-and ss_box = {
-    b_id: int;
-    b_tag: box_tag;
-    b_name: string;                  (* For regular (resp. param) boxes, name of the instanciated actor (resp. param) *)
-    b_typ: typ;                      (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
-    b_params: (string * (wid * typ)) list;  (* TODO : get rid of this : parameters are now viewed as inputs ! *)
-    b_ins: (string * (wid * typ * Syntax.io_annot list)) list;
-    b_outs: (string * (wid list * typ * Syntax.io_annot list)) list;
-    mutable b_val: b_val;            (* For parameter boxes *)
-}
-
-and box_tag = 
-    ActorB
-  | IBcastB (* Implicit bcast (inserted automatically) *)
-  | EBcastB (* Explicit bcast *)
-  | SourceB
-  | SinkB
-  | GraphB
-  | LocalParamB
-  | InParamB
-  (* | DelayB *)
-  | DummyB  (* Temporary boxes used for handling recursive defns *)
-
-and wid = int
-and bid = int
-
-and b_val = { 
-    bv_lit: core_expr;     (* Original expression *)
-    bv_sub: core_expr;     (* Original expression after substitution of dependencies (ex: "k+1" -> "i1+1") *)
-    bv_val: ss_val         (* Statically computed value - SVUnit if N/A *)
-  }
 
 let lookup_env loc senv id = 
       if List.mem_assoc id senv then List.assoc id senv
       else unbound_value_err id loc
-
-let find_box boxes bid = 
-    try List.assoc bid boxes
-    with Not_found -> Misc.fatal_error "Static.find_box: cannot find box from id" (* should not happen *)
-
-let find_wire wires wid = 
-    try List.assoc wid wires
-    with Not_found -> Misc.fatal_error "Static.find_wire: cannot find wire from id" (* should not happen *)
-
-let get_src_box boxes (((s,ss),(d,ds)), ty, _) = find_box boxes s
-let get_dst_box boxes (((s,ss),(d,ds)), ty, _) = find_box boxes d
 
 (* Core level *)
           
@@ -368,21 +297,21 @@ let eval_gnode_decl gid tp (senv,bs,ws) { gn_desc = nid, n; gn_loc = loc } =
   let update senv k v = Misc.assoc_update k v senv in
   let ni, tag, ty =
     match lookup n.gn_name with
-    | SVNode (n,_) -> n, tag_of_kind n.sb_kind, type_instance n.sb_typ
+    | SVNode (n,_) -> n, tag_of_kind n.sn_kind, type_instance n.sn_typ
     | _ -> illegal_node_instanciation loc in
   let is_real_io (id,ty,_) = not (is_unit_type ty) in
   let bins =
       List.map
       (fun (id,ty) -> (id,(0,ty,[])))
-      ni.sb_params
+      ni.sn_params
     @ List.map
       (fun (id,ty,anns) -> (id,(0,ty,anns)))
-      (List.filter is_real_io  ni.sb_ins) in
+      (List.filter is_real_io  ni.sn_ins) in
   let bouts =
     List.map
       (fun (id,ty,anns) -> (id,([0],ty,anns)))
-      (List.filter is_real_io  ni.sb_outs) in
-  let l, b = new_box tag ni.sb_id ty (*[]*) bins bouts in
+      (List.filter is_real_io  ni.sn_outs) in
+  let l, b = new_box tag ni.sn_id ty (*[]*) bins bouts in
   let mk_param_wire dst (senv,ws,bs) expr =
     match eval_param_expr senv expr with
     | SVLoc(i,j,ty,_), bs', ws' ->
@@ -429,7 +358,7 @@ let eval_gnode_decl gid tp (senv,bs,ws) { gn_desc = nid, n; gn_loc = loc } =
        (* The corresponding box output is connected to an already-connected wire *)
        multiply_connected_wire gid id
     | _ -> Misc.fatal_error "Static.eval_gnode_decl" in
-  let np = List.length ni.sb_params in
+  let np = List.length ni.sn_params in
   let senv_p, ws_p, bs_p = (* connect param wires *)
     Misc.foldl_index
       (fun k (se,ws,bs) id -> mk_param_wire (l,k) (se,ws,bs) id)
@@ -640,7 +569,7 @@ and eval_net_application (bs,ws) senv loc val_fn val_arg =
       (* TO FIX: adding [senv] here creates duplicates since all the scoped symbols are already in [cl_env] (?) *)
       (* eval_net_expr nodes (augment_env (nenv'' @ nenv') senv) nexp *)
   | SVNode (n, val_params), _ -> 
-     let tag = tag_of_kind n.sb_kind in
+     let tag = tag_of_kind n.sn_kind in
      instanciate_actor_or_graph tag senv loc n val_params val_arg
   | SVPrim f, _ -> f val_arg, [], [] 
   | _, _ ->
@@ -762,28 +691,28 @@ and instanciate_actor_or_graph tag nenv loc n params args =
   let bparams =
     List.map
       (fun (id,ty) -> (id,(0,ty,[])))
-      n.sb_params in
+      n.sn_params in
   let bins =
     List.map
       (fun (id,ty,anns) -> (id,(0,ty,anns)))
-      (List.filter is_real_io n.sb_ins) in
+      (List.filter is_real_io n.sn_ins) in
   let bouts =
     List.map
       (fun (id,ty,anns) -> (id,([0],ty,anns)))
-      (List.filter is_real_io n.sb_outs) in
-  (* let tag' = match n.sb_kind with BRegular -> tag | BBcast -> EBcastB in *)
+      (List.filter is_real_io n.sn_outs) in
+  (* let tag' = match n.sn_kind with BRegular -> tag | BBcast -> EBcastB in *)
   let tag' = tag in 
-  let l, b = new_box tag' n.sb_id (type_instance n.sb_typ) (bparams @ bins) bouts in
+  let l, b = new_box tag' n.sn_id (type_instance n.sn_typ) (bparams @ bins) bouts in
   let mk_wire kind dst v = match v with
     SVLoc(i,j,ty,_) -> new_wid(), (((i,j),dst),ty,kind)
   | _ -> illegal_application loc in
-  let tyins' = List.map Misc.snd3 n.sb_ins in
-  let tyouts' = List.map Misc.snd3 n.sb_outs in
+  let tyins' = List.map Misc.snd3 n.sn_ins in
+  let tyouts' = List.map Misc.snd3 n.sn_outs in
   let wps = 
     List.mapi
       (fun i v -> mk_wire ParamW (l,i) v)
       params in
-  let np = List.length n.sb_params in
+  let np = List.length n.sn_params in
   let args' = match tyins', args with
     | ts, SVCons _ when List.length ts > 1 ->  (* Bundle to tuple conversion *)
        begin match list_of_cons args with
@@ -933,7 +862,7 @@ let insert_bcast_after after_boxes (boxes,wires) (bid,box) =
   else
     boxes, wires
 
-let insert_bcasters after_boxes sp = 
+let insert_bcasters after_boxes ir = 
   let insert g =
     let boxes', wires' = List.fold_left (insert_bcast_after after_boxes) (g.sg_boxes,g.sg_wires) g.sg_boxes in
     { sg_boxes = boxes'; sg_wires = wires' } in
@@ -942,9 +871,9 @@ let insert_bcasters after_boxes sp =
     | NI_Graph g -> id, {n with sn_impl = NI_Graph (insert g)}
     | _ -> id,n in
   let insert_t (id,g) = id, { g with tg_impl = insert g.tg_impl } in
-  { sp with
-    sp_nodes = List.map insert_n sp.sp_nodes; 
-    sp_graphs = List.map insert_t sp.sp_graphs }
+  { ir with
+    ir_nodes = List.map insert_n ir.ir_nodes; 
+    ir_graphs = List.map insert_t ir.ir_graphs }
 
 (* Insert FIFOs - not used here 
  * 
@@ -1002,13 +931,13 @@ let insert_bcasters after_boxes sp =
 
 (* Graph evaluator *)
 
-let build_static_box id kind intf = {
-      sb_id = id;
-      sb_kind = kind;
-      sb_params = List.map (fun (id,ty) -> id, ty) intf.t_params;
-      sb_ins = List.map (fun (id,(ty,anns)) -> id,ty,anns) intf.t_ins;
-      sb_outs = List.map (fun (id,(ty,anns)) -> id,ty,anns) intf.t_outs;
-      sb_typ = intf.t_sig }
+let build_static_node id kind intf = {
+      sn_id = id;
+      sn_kind = kind;
+      sn_params = List.map (fun (id,ty) -> id, ty) intf.t_params;
+      sn_ins = List.map (fun (id,(ty,anns)) -> id,ty,anns) intf.t_ins;
+      sn_outs = List.map (fun (id,(ty,anns)) -> id,ty,anns) intf.t_outs;
+      sn_typ = intf.t_sig }
 
 let eval_graph_decl tp nodes (acc,senv) { g_desc=g } =
   let intf =
@@ -1022,7 +951,7 @@ let eval_graph_decl tp nodes (acc,senv) { g_desc=g } =
     end in
   let g' = { tg_intf=intf; tg_impl={sg_boxes=boxes; sg_wires=wires} } in
   let acc' = (g.g_id, g') :: acc in
-  let senv' = senv |> augment_env [g.g_id, SVNode (build_static_box g.g_id SV_Graph intf, [])] in
+  let senv' = senv |> augment_env [g.g_id, SVNode (build_static_node g.g_id SV_Graph intf, [])] in
   acc', senv'
   
 let eval_gval_decl senv { nd_desc=d; nd_loc=loc } = match d with
@@ -1051,7 +980,7 @@ let eval_node_decl tp (senv,nodes) n =
   let node = {
     sn_intf = intf;
     sn_impl = impl; } in
-  (id, SVNode (build_static_box id kind intf, [])) :: senv,
+  (id, SVNode (build_static_node id kind intf, [])) :: senv,
   (id,node)::nodes
 
 (* let extract_subgraph acc (id,n) = 
@@ -1060,17 +989,17 @@ let eval_node_decl tp (senv,nodes) n =
  *     | NI_Graph g -> (id,g)::acc *)
   
 let build_static tp senv p =
-  let senv_f = List.fold_left eval_gval_decl senv p.gvals in
-  let senv_n, nodes = List.fold_left (eval_node_decl tp) (senv_f,[]) p.nodes in
+  let senv_v = List.fold_left eval_gval_decl senv p.gvals in
+  let senv_n, nodes = List.fold_left (eval_node_decl tp) (senv_v,[]) p.nodes in
   (* let subgraphs = List.fold_left extract_subgraph [] nodes in *)
   let topgraphs, senv_g =
     List.fold_left 
       (eval_graph_decl tp nodes)
       ([], senv_n)
       p.graphs in
-  { sp_gfuns = senv_f;
-    sp_nodes = nodes;
-    sp_graphs = (*subgraphs @*) topgraphs }
+  { ir_values = senv_v;
+    ir_nodes = nodes;
+    ir_graphs = (*subgraphs @*) topgraphs }
 
 (* let extract_special_boxes name sp =
  *   List.fold_left
@@ -1081,92 +1010,9 @@ let build_static tp senv p =
  * let extract_bcast_boxes sp = extract_special_boxes cfg.bcast_name sp
  * let extract_fifo_boxes sp = extract_special_boxes cfg.fifo_name sp *)
 
-(* Printing *)
-
-let dump_gfun (id,v) = Printf.printf "%s: %s\n" id (string_of_ssval v)
-                      
-let string_of_typed_bin (id,(wid,ty,_)) = id ^ ":" ^ string_of_type ty ^ "(<-W" ^ string_of_int wid ^ ")"
-let string_of_typed_bout (id,(wids,ty,_)) = 
-    id ^ ":" ^ string_of_type ty ^ "(->["
-  ^ (Misc.string_of_list (function wid -> "W" ^ string_of_int wid) "," wids) ^ "])"
-
-let string_of_typed_io (id,(ty,anns)) = id ^ ":" ^ string_of_type ty ^ Syntax.string_of_io_annots anns
-let string_of_opt_value = function None -> "?" | Some v -> string_of_ssval v
-let string_of_typed_param (id,ty) = id ^ ":" ^ string_of_type ty 
-
-let string_of_impl m = match m with
-  | NI_Actor _ -> "actor"
-  | NI_Graph _ -> "subgraph"
-
-let dump_node (id,n) = 
-  Pr_type.reset_type_var_names ();
-  let i = n.sn_intf in 
-  Printf.printf "%s: %s : params=[%s] ins=[%s] outs=[%s] = %s\n"
-    id
-    (string_of_type_scheme i.t_sig)
-    (Misc.string_of_list string_of_typed_param ","  i.t_params)
-    (Misc.string_of_list string_of_typed_io ","  i.t_ins)
-    (Misc.string_of_list string_of_typed_io ","  i.t_outs)
-    (string_of_impl n.sn_impl)
-
-let box_prefix b = match b.b_tag with
-    IBcastB -> "Y"
-  | EBcastB -> "X"
-  (* | DelayB -> "D" *)
-  | SourceB -> "I"
-  | SinkB -> "O"
-  | ActorB -> "B"
-  | GraphB -> "G"
-  | LocalParamB -> "L"
-  | InParamB -> "P"
-  | DummyB -> "_"
-
-let string_of_box_value v =
-  "\"" ^ Syntax.string_of_core_expr v.bv_lit ^ "\"=" ^ Ssval.string_of_ssval v.bv_val
-
-let dump_box (i,b) =
-  Pr_type.reset_type_var_names ();
-  Printf.printf "%s%d: %s ins=[%s] outs=[%s] %s\n"
-        (box_prefix b)
-        i
-        b.b_name
-        (* (string_of_box_value b) *)
-        (Misc.string_of_list string_of_typed_bin ","  b.b_ins)
-        (Misc.string_of_list string_of_typed_bout ","  b.b_outs)
-        (match b.b_tag with InParamB | LocalParamB -> "val=" ^ string_of_box_value b.b_val | _ -> "")
-
-let dump_wire (i,(((s,ss),(d,ds)),ty,kind)) =
-  Printf.printf "W%d: %s: %s: (B%d,%d) -> (B%d,%d)\n" i (string_of_wire_kind kind) (string_of_type ty) s ss d ds
-
-let dump_graph (id,g) =
-  printf "* %s\n" id;
-  printf "- Boxes --------------------------\n";
-  List.iter dump_box g.sg_boxes;
-  printf "- Wires --------------------------\n";
-  List.iter dump_wire g.sg_wires;
-  printf "----------------------------------\n"
-
-let dump_graph_node (id,n) =
-  match n.sn_impl with
-  | NI_Graph g -> dump_graph (id,g)
-  | NI_Actor _ -> ()
-
-let dump_top_graph (id,g) = dump_graph (id, g.tg_impl)
-                         
-let dump_static sp =
-  printf "Static environment ---------------\n";
-  printf "- Global functions ---------------\n";
-  List.iter dump_gfun sp.sp_gfuns;
-  printf "- Nodes ---------------------------\n";
-  List.iter dump_node sp.sp_nodes;
-  printf "- Graphs --------------------------\n";
-  List.iter dump_top_graph sp.sp_graphs;
-  List.iter dump_graph_node sp.sp_nodes
-
-
 let dump_static_environment senv = 
   let dump_static_value (id,v) =
-    Printf.printf "value %s = %s\n" id (string_of_ssval v) in 
+    Printf.printf "value %s = %s\n" id (string_of_semval v) in 
   Printf.printf "Static environment ---------------\n";
   List.iter dump_static_value senv;
   Printf.printf "----------------------------------\n"

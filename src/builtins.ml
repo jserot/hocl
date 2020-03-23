@@ -13,7 +13,7 @@
 open Types
 open Misc
 open Typing
-open Ssval
+open Semval
 
 let type_arithm = trivial_scheme
   (type_arrow (type_pair type_int type_int) type_int)

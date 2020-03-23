@@ -13,7 +13,7 @@
 (* DOT backend *)
 
 open Printf
-open Static
+open Interm
 
 type dot_config = {
     mutable labeled_edges: bool;
@@ -71,8 +71,8 @@ let output_box ch (i,b) =
     else b.b_name in
   let bval = 
     let s1 = Syntax.string_of_core_expr b.b_val.bv_lit in
-    let s2 = Ssval.string_of_ssval b.b_val.bv_val in
-    if b.b_val.bv_lit.ce_desc = Syntax.EVar "" && b.b_val.bv_val=Ssval.SVUnit && s1 <> s2
+    let s2 = Semval.string_of_semval b.b_val.bv_val in
+    if b.b_val.bv_lit.ce_desc = Syntax.EVar "" && b.b_val.bv_val=SVUnit && s1 <> s2
     then s1 ^ "=" ^ s2
     else s1 in
   let output_regular_box style =
@@ -111,7 +111,7 @@ let output_box ch (i,b) =
      let lbl =
        begin match b.b_val.bv_val with
        | SVUnit -> bid
-       | v -> bid ^ "=" ^ Ssval.string_of_ssval v
+       | v -> bid ^ "=" ^ Semval.string_of_semval v
        end in
      fprintf ch "n%d [shape=%s,style=\"dashed\",label=\"%s\"];\n"
        i
@@ -126,7 +126,7 @@ let output_wire ch (wid,(((s,ss),(d,ds)),ty,kind))=
   let wire_annot wid =
     (* try Interm.string_of_wire_annot (List.assoc wid wire_annots)
     with Not_found -> *) "" in
-  let style = match kind with Ssval.ParamW -> "dashed" | _ -> "plain" in
+  let style = match kind with Semval.ParamW -> "dashed" | _ -> "plain" in
   match cfg.labeled_edges, cfg.show_indexes, cfg.show_wire_annots with
   | true, _, true ->
      fprintf ch "n%d:s%d -> n%d:e%d [label=\" w%d:%s\"; style=%s];\n" s ss d ds wid (wire_annot wid) style
@@ -159,6 +159,6 @@ let dump_node path prefix (id,n) =
 let dump_top_graph path prefix (id,g) =
   dump_graph path prefix id g.tg_impl
   
-let dump path pfx sp =
-  List.iter (dump_top_graph path pfx) sp.sp_graphs;
-  List.iter (dump_node path pfx) sp.sp_nodes
+let dump path pfx ir =
+  List.iter (dump_top_graph path pfx) ir.ir_graphs;
+  List.iter (dump_node path pfx) ir.ir_nodes

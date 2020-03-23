@@ -13,8 +13,8 @@
 (* DIF backend *)
 
 open Printf
-open Ssval
-open Static
+open Interm
+open Semval
 open Backend
 
 type dif_config = {
@@ -37,7 +37,7 @@ let edge_id i = cfg.edge_prefix ^ string_of_int i
 let string_of_val v = match v with  
     SVInt n -> string_of_int n
   | SVBool b -> string_of_bool b
-  | _ -> Misc.not_implemented ("DIF translation of value " ^ Ssval.string_of_ssval v) 
+  | _ -> Misc.not_implemented ("DIF translation of value " ^ Semval.string_of_semval v) 
 
 let string_of_node (i,b) = node_id i 
 
@@ -51,14 +51,14 @@ let string_of_edge (wid,(((s,ss),(d,ds)),ty,kind)) =
 
 let dump_io_decl oc g (i,b) = 
   match b.b_tag with 
-    Static.SourceB ->
+    SourceB ->
       let outp = "o" in
       fprintf oc "  actortype %s {\n" b.b_name;
       fprintf oc "    output %s;\n" outp;
       (* fprintf oc "    param %s;\n" cfg.src_ifile; *)
 (*       fprintf oc "    production %s:%d;\n" outp 1; *)
       fprintf oc "    }\n\n"
-  | Static.SinkB ->
+  | SinkB ->
       let inp = "i" in
       fprintf oc "  actortype %s {\n" b.b_name;
       fprintf oc "    input %s;\n" inp;
@@ -95,7 +95,7 @@ let dump_actor_inst oc g (i,b) =
   fprintf oc "    interface %s;\n" (Misc.string_of_two_lists string_of_inp string_of_outp ", " b.b_ins b.b_outs);
   fprintf oc "    }\n\n"
 
-let dump_graph ~toplevel path prefix sp id intf g = 
+let dump_graph ~toplevel path prefix ir id intf g = 
   let fname = path ^ id ^ ".dif" in
   let oc = open_out fname in
   fprintf oc "dif %s {\n\n" id;
@@ -110,14 +110,14 @@ let dump_graph ~toplevel path prefix sp id intf g =
    *   fprintf oc "    }\n\n"
    *   end; *)
   List.iter (dump_io_decl oc g) g.sg_boxes;
-  List.iter (dump_actor_decl oc g) sp.sp_nodes;
+  List.iter (dump_actor_decl oc g) ir.ir_nodes;
   List.iter (dump_actor_inst oc g) g.sg_boxes;
   fprintf oc "}\n";
   Logfile.write fname;
   close_out oc
 
-let dump_top_graph path prefix sp (id,g) =
-  dump_graph ~toplevel:true path prefix sp id g.tg_intf g.tg_impl
+let dump_top_graph path prefix ir (id,g) =
+  dump_graph ~toplevel:true path prefix ir id g.tg_intf g.tg_impl
 
-let dump path prefix sp =
-  List.iter (dump_top_graph path prefix sp) sp.sp_graphs
+let dump path prefix ir =
+  List.iter (dump_top_graph path prefix ir) ir.ir_graphs

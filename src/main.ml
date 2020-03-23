@@ -15,6 +15,7 @@ open Misc
 open Location
 open Builtins
 open Typing
+open Interm
 open Static
 
 exception Toplevel
@@ -44,33 +45,33 @@ let compile p =
 
 let mk_fname pfx sfx = Options.cfg.target_dir ^ "/" ^ pfx ^ sfx
 
-let output pfx sp = 
+let output pfx ir = 
   let path = Options.cfg.target_dir ^ "/"  in
   match Options.cfg.output_fmt with
   | NoOutput -> ()
   | Dot ->
-     Dot.dump path pfx sp
+     Dot.dump path pfx ir
    | Systemc ->
-      Systemc.dump path pfx sp
-     (* if has_splitters sp then 
-      *   Systemc.dump_split_actors sp; *)
+      Systemc.dump path pfx ir
+     (* if has_splitters ir then 
+      *   Systemc.dump_split_actors ir; *)
   | Preesm ->
-     Preesm.dump path pfx sp
+     Preesm.dump path pfx ir
   | Xdf ->
-     Xdf.dump path pfx sp
+     Xdf.dump path pfx ir
   | Dif ->
-     Dif.dump path pfx sp
+     Dif.dump path pfx ir
 
-let insert_bcasts sp = 
+let insert_bcasts ir = 
   if cfg.insert_bcasts then
     let after_boxes = match Options.cfg.output_fmt with
       | Dot -> [LocalParamB; InParamB; SourceB; ActorB (*; DelayB*)]
       | Systemc -> [LocalParamB; InParamB; SourceB; ActorB (*; DelayB*)]
       | Preesm -> [SourceB; ActorB (*; DelayB*)]
       | _ -> [] in
-    Static.insert_bcasters after_boxes sp
+    Static.insert_bcasters after_boxes ir
   else
-    sp
+    ir
 
 let process_file p f =
   Printf.printf "Parsing file %s\n" f; flush stdout;
@@ -80,12 +81,12 @@ let process_file p f =
 let process_files fs =
   let p = List.fold_left process_file Syntax.empty_program fs in
   (* Syntax.dump_program p; *)
-  let sp = p |> compile |> insert_bcasts in
-  if Options.cfg.dump_static then dump_static sp;
+  let ir = p |> compile |> insert_bcasts in
+  if Options.cfg.dump_ir then Interm.dump_ir ir;
   if Options.cfg.output_fmt <> NoOutput then begin
       check_dir Options.cfg.target_dir;
       let pfx = Misc.file_prefix @@ List.hd @@ List.rev fs in
-      output pfx sp
+      output pfx ir
       end
 
 let main () =

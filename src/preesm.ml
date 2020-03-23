@@ -13,8 +13,7 @@
 (* Preesm backend *)
 
 open Printf
-open Ssval
-open Static
+open Interm
 open Backend
 
 type preesm_config = {
@@ -135,15 +134,15 @@ let dump_actor_port oc dir is_param (id, (wid,ty,annots)) =
       (match rate with Some e -> Syntax.string_of_rate_expr e | None -> cfg.default_port_rate)
       (Misc.string_of_list Misc.id " " other_anns)
 
-let is_param_wire (wid,(_,_,kind)) = kind=ParamW
+let is_param_wire (wid,(_,_,kind)) = kind=Semval.ParamW
 
-let dump_actor oc sp g (i,b)  =
+let dump_actor oc ir g (i,b)  =
   let param_ins, data_ins = List.partition (is_param_input g.sg_wires) b.b_ins in 
   match b.b_tag with
   | ActorB ->
      let id = box_name i b in 
      let intf, impls =
-       match List.assoc b.b_name sp.sp_nodes with
+       match List.assoc b.b_name ir.ir_nodes with
        | { sn_intf=intf; sn_impl=NI_Actor impl } -> intf, impl
        | { sn_intf=intf; sn_impl=_ } -> Misc.fatal_error "Preesm.dump_actor" (* should not happen *)
        | exception Not_found -> Error.missing_actor_impl "preesm" b.b_name in
@@ -171,7 +170,7 @@ let dump_actor oc sp g (i,b)  =
   | GraphB ->
      let id = box_name i b in 
      (* let intf, impl =
-      *   match List.assoc b.b_name sp.sp_nodes with
+      *   match List.assoc b.b_name ir.ir_nodes with
       *   | { sn_intf=intf; sn_impl=NI_Graph g } -> intf, g
       *   | { sn_intf=intf; sn_impl=_ } -> Misc.fatal_error "Preesm.dump_actor" (\* should not happen *\)
       *   | exception Not_found -> Error.missing_actor_impl "preesm" b.b_name in *)
@@ -243,7 +242,7 @@ let dump_connexion oc boxes (wid,((((s,ss),(d,ds)),ty,kind) as w))=
     | _ -> Misc.fatal_error "Preesm.output_connexion" in
   let mk_field name v = if v = "" then "" else Printf.sprintf "%s=\"%s\"" name v in
   match kind with
-  | DataW | ParamW ->
+  | Semval.DataW | Semval.ParamW ->
      fprintf oc "    <edge kind=\"%s\" source=\"%s\" %s target=\"%s\" %s %s/>\n"
        (match kind with ParamW -> "dependency" | _ -> "fifo")
        src_name
@@ -291,7 +290,7 @@ let is_param_box (_,b) = match b.b_tag with
   | LocalParamB | InParamB -> true
   | _ -> false
        
-let dump_graph ~toplevel path prefix sp id intf g = 
+let dump_graph ~toplevel path prefix ir id intf g = 
   let fname = path ^ id ^ ".pi" in
   let oc = open_out fname in
   fprintf oc "<?xml version=\"%s\" encoding=\"%s\"?>\n" cfg.xml_version cfg.xml_encoding;
@@ -307,32 +306,32 @@ let dump_graph ~toplevel path prefix sp id intf g =
   let actors = List.filter is_actor_box g.sg_boxes in
   let parameters = List.filter is_param_box g.sg_boxes in
   List.iter (dump_parameter ~toplevel oc) parameters;
-  List.iter (dump_actor oc sp g) actors;
+  List.iter (dump_actor oc ir g) actors;
   let regular_cnxs, delay_cnxs = g.sg_wires, [] in
   (* let regular_cnxs, delay_cnxs =
    *   List.fold_left
    *     (fun (acc,acc') ((wid,(((s,ss),(d,ds)),ty,kind)) as w) ->
-   *       match (lookup_box sp.boxes s).b_tag, (lookup_box sp.boxes d).b_tag, kind with
+   *       match (lookup_box ir.boxes s).b_tag, (lookup_box ir.boxes d).b_tag, kind with
    *       | DelayB, _, DataW -> acc, w::acc' (\* DelayB-> *\)
    *       | _, DelayB, DataW -> acc, w::acc' (\* ->DelayB *\)
    *       | _, _, _ -> w::acc, acc')            (\* other *\)
    *     ([],[])
-   *     sp.wires in *)
+   *     ir.wires in *)
   List.iter (dump_connexion oc g.sg_boxes) regular_cnxs;
-  (* let delay_cnxs' = shorten_delay_connexions sp delay_cnxs in
-   * List.iter (output_connexion oc sp) delay_cnxs'; *)
+  (* let delay_cnxs' = shorten_delay_connexions ir delay_cnxs in
+   * List.iter (output_connexion oc ir) delay_cnxs'; *)
   fprintf oc "  </graph>\n";
   fprintf oc "</graphml>\n";
   Logfile.write fname;
   close_out oc
 
-let dump_top_graph path prefix sp (id,g) =
+let dump_top_graph path prefix ir (id,g) =
   (* let name = if cfg.top_name = "" then Misc.file_prefix fname else cfg.top_name in *)
-  dump_graph ~toplevel:true path prefix sp id g.tg_intf g.tg_impl
+  dump_graph ~toplevel:true path prefix ir id g.tg_intf g.tg_impl
 
-let dump path prefix sp =
-  List.iter (dump_top_graph path prefix sp) sp.sp_graphs;
+let dump path prefix ir =
+  List.iter (dump_top_graph path prefix ir) ir.ir_graphs;
   List.iter
-    (fun (id,(intf,g)) -> dump_graph ~toplevel:false path prefix sp id intf g)
-    (collect_sub_graphs sp)
+    (fun (id,(intf,g)) -> dump_graph ~toplevel:false path prefix ir id intf g)
+    (collect_sub_graphs ir)
   

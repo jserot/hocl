@@ -13,8 +13,7 @@
 (* XDF backend *)
 
 open Printf
-open Ssval
-open Static
+open Interm
 open Backend
 
 type xdf_config = {
@@ -78,10 +77,12 @@ let string_of_type t  =
   | Boolean -> "Boolean"
   | Real -> "Real"
 
-let string_of_val v = match v with  
+let string_of_val v =
+  let open Semval in
+  match v with  
     SVInt n -> string_of_int n
   | SVBool b -> string_of_bool b
-  | _ -> Misc.not_implemented ("XDF translation of value " ^ Ssval.string_of_ssval v) 
+  | _ -> Misc.not_implemented ("XDF translation of value " ^ string_of_semval v) 
 
 let dump_inst_param oc g (name,(wid,ty,anns)) =
   let v = get_param_value "XDF" g wid in
@@ -136,23 +137,23 @@ let dump_connexion oc g (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
    *   Not_found -> () *)
   fprintf oc "</Connection>\n"
 
-let dump_graph ~toplevel path prefix sp id intf g = 
+let dump_graph ~toplevel path prefix ir id intf g = 
   let fname = path ^ id ^ ".xdf" in
   let oc = open_out fname in
   fprintf oc "<?xml version=\"%s\" encoding=\"%s\"?>\n" cfg.xml_version cfg.xml_encoding;
   fprintf oc "<XDF name=\"%s\">\n" id;
-  (* List.iter (dump_port oc) sp.b_boxes; *)
+  (* List.iter (dump_port oc) ir.b_boxes; *)
   List.iter (dump_instance oc g) g.sg_boxes;
   List.iter (dump_connexion oc g) g.sg_wires;
   fprintf oc "</XDF>\n";
   Logfile.write fname;
   close_out oc
 
-let dump_top_graph path prefix sp (id,g) =
-  dump_graph ~toplevel:true path prefix sp id g.tg_intf g.tg_impl
+let dump_top_graph path prefix ir (id,g) =
+  dump_graph ~toplevel:true path prefix ir id g.tg_intf g.tg_impl
 
-let dump path prefix sp =
-  List.iter (dump_top_graph path prefix sp) sp.sp_graphs;
+let dump path prefix ir =
+  List.iter (dump_top_graph path prefix ir) ir.ir_graphs;
   List.iter
-    (fun (id,(intf,g)) -> dump_graph ~toplevel:false path prefix sp id intf g)
-    (collect_sub_graphs sp)
+    (fun (id,(intf,g)) -> dump_graph ~toplevel:false path prefix ir id intf g)
+    (collect_sub_graphs ir)

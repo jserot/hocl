@@ -14,7 +14,7 @@
 
 open Types
 open Typing
-open Static
+open Interm
 
 let lookup_box boxes bid = 
       try List.assoc bid boxes
@@ -29,11 +29,11 @@ let is_special_actor name =
   | "delay" | "switch" | "merge" | "pmerge" -> true
   | _ -> false
     
-let is_data_wire (wid,(_,_,kind)) = kind=Ssval.DataW
+let is_data_wire (wid,(_,_,kind)) = kind=Semval.DataW
 
 let is_param_input wires (iid, (wid,ty,annots)) = 
   match lookup_wire wires wid with
-  | _, _, Ssval.ParamW -> true
+  | _, _, Semval.ParamW -> true
   | _, _, _ -> false
 
 let get_param_value backend g wid =
@@ -50,12 +50,12 @@ let get_impl_fns target name attrs =
   | Some f, Some f', None -> f, f', "", List.mem_assoc "is_delay" attrs, List.mem_assoc "pexec" attrs
   | _, _, _ -> Error.incomplete_actor_impl target name
 
-let get_node_desc sp id =
-    try List.assoc id sp.sp_nodes
+let get_node_desc ir id =
+    try List.assoc id ir.ir_nodes
     with Not_found -> Misc.fatal_error "Backend.get_node_desc"
 
-let get_actor_desc sp target id = 
-  match get_node_desc sp id with
+let get_actor_desc ir target id = 
+  match get_node_desc ir id with
   | { sn_impl=NI_Actor impls } -> 
      begin
        try List.assoc target impls
@@ -117,12 +117,12 @@ let get_delay_spec name intf =
      if not (rate_expr_eq i_rate o_rate) then Error.illegal_interface "delay" name " (input and output rates do not match)";
      { ds_typ=ty; ds_iv=iv_name; ds_i=i_name; ds_irate=i_rate; ds_o=o_name; ds_orate=o_rate }
 
-let collect_sub_graphs sp = 
+let collect_sub_graphs ir = 
     List.fold_left
       (fun acc (id,n) ->
         match n.sn_impl with
         | NI_Graph g -> (id,(n.sn_intf,g))::acc
         | _ -> acc)
       []
-      sp.sp_nodes
+      ir.ir_nodes
                                                                        

@@ -15,7 +15,7 @@
 open Printf
 open Types
 open Typing
-open Static
+open Interm
 open Backend
 
 (* exception Error of string *)
@@ -688,11 +688,11 @@ and dump_main_output' oc pfx b =
   (* fprintf oc "  %s.%s(%s);\n" name cfg.sc_mod_clock cfg.sc_mod_clock; *)
   fprintf oc "  %s.%s(w%d);\n" name id wid
 
-let dump_main_module path prefix sp =
+let dump_main_module path prefix ir =
   let fname = path ^ prefix ^ ".cpp" in
   let oc = open_out fname in
   let header_name (id,_) = "\"" ^ id ^ cfg.sc_graph_suffix ^ ".h\"" in
-  let headers = List.map header_name sp.sp_graphs in
+  let headers = List.map header_name ir.ir_graphs in
   dump_banner oc;
   List.iter (function h -> fprintf oc "#include %s\n" h) (cfg.sc_top_headers @ headers);
   fprintf oc "\n";
@@ -700,14 +700,14 @@ let dump_main_module path prefix sp =
   fprintf oc "  sc_clock %s(\"%s\", %d, SC_NS, 0.5);\n" cfg.sc_mod_clock cfg.sc_mod_clock cfg.sc_clock_period_ns;
   fprintf oc "\n";
   (* Dummping toplevel IOs *)
-  List.iter (dump_main_ios oc) sp.sp_graphs; 
+  List.iter (dump_main_ios oc) ir.ir_graphs; 
   (* Dummping subgraphs *)
   List.iter
     (fun (id, g) ->
       fprintf oc "  %s %s(\"%s\");\n" (String.capitalize_ascii id) id id;
       fprintf oc "  %s.%s(%s);\n" id cfg.sc_mod_clock cfg.sc_mod_clock;
       dump_main_ios' oc (id,g))
-    sp.sp_graphs;
+    ir.ir_graphs;
   fprintf oc "\n";
   if cfg.sc_dump_fifo_stats then
     fprintf oc "  ofstream fifo_stat_file (\"%s\");\n" cfg.sc_fifo_stats_file;
@@ -736,7 +736,7 @@ let dump_top_graph path prefix (id,g) = dump_graph ~toplevel:false path prefix i
 
 (* Dumping program *)
   
-let dump path prefix sp =
+let dump path prefix ir =
   (* The SystemC backend writes 
      - a file [<prefix>.cpp] containing an instance of each toplevel graph (declared as "graph ...")
        and the global simulation clock
@@ -750,8 +750,8 @@ let dump path prefix sp =
      - for each local parameter, a file [<prefix>_<name>.h] containing the module implementing the 
        corresponding behavior (either as a constant generator or a module reading input parameter values
        and computing the resulting parameter value (ex: "k+1", for input "k")  *)
-  dump_main_module path prefix sp;
-  List.iter (dump_top_graph path prefix) sp.sp_graphs;
-  List.iter (dump_node path prefix) sp.sp_nodes;
-  List.iter (dump_top_parameters path prefix) sp.sp_graphs;
-  List.iter (dump_node_parameters path prefix) sp.sp_nodes
+  dump_main_module path prefix ir;
+  List.iter (dump_top_graph path prefix) ir.ir_graphs;
+  List.iter (dump_node path prefix) ir.ir_nodes;
+  List.iter (dump_top_parameters path prefix) ir.ir_graphs;
+  List.iter (dump_node_parameters path prefix) ir.ir_nodes

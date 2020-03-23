@@ -23,7 +23,7 @@ type cfg = {
     mutable dump_tenv: bool;
     mutable dump_senv: bool;
     mutable dump_typed: bool;
-    mutable dump_static: bool;
+    mutable dump_ir: bool;
     mutable dump_boxes: bool;
     mutable target_dir: string
   }
@@ -36,7 +36,7 @@ let cfg = {
   dump_tenv = false;
   dump_senv = false;
   dump_typed = false;
-  dump_static = false;
+  dump_ir = false;
   dump_boxes = false;
   target_dir = ".";
   }
@@ -50,7 +50,7 @@ let set_target_dir p = cfg.target_dir <- p
 let do_dump_tenv () = cfg.dump_tenv <- true
 let do_dump_senv () = cfg.dump_senv <- true
 let do_dump_typed () = cfg.dump_typed <- true
-let do_dump_static () = cfg.dump_static <- true
+let do_dump_ir () = cfg.dump_ir <- true
 let do_dump_boxes () = cfg.dump_boxes <- true
 let do_insert_bcasts () = Static.cfg.Static.insert_bcasts <- true
 (* let do_insert_fifos () = Static.cfg.Static.insert_fifos <- true *)
@@ -90,7 +90,7 @@ let options_spec = [
 "-dump_tenv", Arg.Unit (do_dump_tenv), "dump builtin typing environment (for debug only)";
 "-dump_senv", Arg.Unit (do_dump_senv), "dump builtin static environment (for debug only)";
 "-dump_typed", Arg.Unit (do_dump_typed), "dump typed program (for debug only)";
-"-dump_static", Arg.Unit (do_dump_static), "dump static representation (for debug only)";
+"-dump_ir", Arg.Unit (do_dump_ir), "dump intermediate representation (for debug only)";
 "-dump_boxes", Arg.Unit (do_dump_boxes), "dump static representation of boxes";
 "-insert_bcasts", Arg.Unit (do_insert_bcasts), "insert broadcast boxes";
 (* "-insert_fifos", Arg.Unit (do_insert_fifos), "insert fifos between actors"; *)

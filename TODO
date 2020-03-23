@@ -2,13 +2,11 @@ SYNTAX
 - `initially` clause for specifying delays (ex: `val rec (o,z) = f (i, z initially 0)`) 
 
 COMPILER
-- isolate intermediate representation (used by the backends) in a separate module (distinct from `Static`)
 - new typing scheme separating wires and regular values (and maybe parameters) (see `examples/tofix/intvsnat`)
 - check that types infered from a node impl match those given in the interface (typing.ml)
 - allow arbitrary infix operators to be defined in prelude or elsewhere (the set of such operators
   is currently restricted by the lexer)
 - relocalize backend-specific error handling fns in the corresp. source file (?)
-
 
 STDLIB
 - add `mapi`, `iteri` HOFs

@@ -10,22 +10,22 @@
 (*                                                                    *)
 (**********************************************************************)
 
-(* Static semantic domain *)
+(* Semantic values *)
 
 open Types
 open Pr_type
 
-type ss_val =
+type sem_val =
   | SVInt of int
   | SVBool of bool
   | SVUnit
-  | SVTuple of ss_val list
+  | SVTuple of sem_val list
   | SVClos of sv_clos
-  | SVPrim of (ss_val -> ss_val)
-  | SVCons of ss_val * ss_val
-  | SVList of ss_val list
+  | SVPrim of (sem_val -> sem_val)
+  | SVCons of sem_val * sem_val
+  | SVList of sem_val list
   | SVNil
-  | SVNode of sv_box * ss_val list (* node, with param values *)
+  | SVNode of sv_node * sem_val list (* node, with param values *)
   | SVLoc of idx * sel * typ * sv_tag (* node index, output selector, type, tag *)
   | SVWire of idx * sv_wire
 
@@ -38,23 +38,23 @@ and sv_tag =
 and sv_clos =
   { cl_pat: Syntax.net_pattern;
     cl_exp: Syntax.net_expr;
-    mutable cl_env: (string * ss_val) list }
+    mutable cl_env: (string * sem_val) list }
 
 and idx = int
 and sel = int
 
 and sv_loc = idx * sel
 
-and sv_box = {   (* Instanciable "box" (actor or (sub)graph) *)
-    sb_id: string;
-    sb_kind: sv_box_kind;
-    sb_params: (string * typ) list;
-    sb_ins: (string * typ * Syntax.io_annot list) list;
-    sb_outs: (string * typ * Syntax.io_annot list) list;
-    sb_typ: typ_scheme; (* TO SEE : rather [typ] ? Does it make sense to have polymorphic _boxes_ ? *)
+and sv_node = {   (* Node model (actor or (sub)graph) *)
+    sn_id: string;
+    sn_kind: sv_node_kind;
+    sn_params: (string * typ) list;
+    sn_ins: (string * typ * Syntax.io_annot list) list;
+    sn_outs: (string * typ * Syntax.io_annot list) list;
+    sn_typ: typ_scheme; (* TO SEE : rather [typ] ? Does it make sense to have polymorphic nodes ? *)
 }
 
-and sv_box_kind =
+and sv_node_kind =
   | SV_Actor
   (* | SV_Bcast *)
   | SV_Graph
@@ -89,32 +89,32 @@ let cons_of_list v =
   | SVList l -> h l
   | _ -> Misc.fatal_error "Ssval.cons_of_list"
 
-let rec size_of_ssval v = match v with
-  | SVNil -> 0
-  | SVCons (_,v) -> 1 + size_of_ssval v
-  | SVTuple vs -> List.length vs
-  | _ -> 1
+(* let rec size_of_ssval v = match v with
+ *   | SVNil -> 0
+ *   | SVCons (_,v) -> 1 + size_of_ssval v
+ *   | SVTuple vs -> List.length vs
+ *   | _ -> 1 *)
 
 (* Printing *)
 
-let rec output_ss_value oc v = output_string oc (string_of_ssval v)
+let rec output_sem_value oc v = output_string oc (string_of_semval v)
 
-and  string_of_ssval v = match v with
+and  string_of_semval v = match v with
   | SVInt v -> string_of_int v
   | SVBool v -> string_of_bool v
   | SVUnit -> "()"
   | SVNil -> "[]"
-  | SVCons (v1,v2) -> string_of_ssval v1 ^ "::" ^ string_of_ssval v2
+  | SVCons (v1,v2) -> string_of_semval v1 ^ "::" ^ string_of_semval v2
   | SVLoc (l,s,ty,_) -> "Loc(" ^ string_of_int l ^ "," ^ string_of_int s 
   | SVPrim p -> "Prim(...)"
   | SVNode _ -> "Node(...)"
   | SVClos _ -> "Clos(...)"
-  | SVTuple vs -> "(" ^ Misc.string_of_list string_of_ssval "," vs ^ ")"
-  | SVList vs -> "[" ^ Misc.string_of_list string_of_ssval "," vs ^ "]"
+  | SVTuple vs -> "(" ^ Misc.string_of_list string_of_semval "," vs ^ ")"
+  | SVList vs -> "[" ^ Misc.string_of_list string_of_semval "," vs ^ "]"
   | SVWire (id, ((l,l'),ty,kind)) ->
      "Wire(" ^ string_of_svloc l ^ "," ^ string_of_svloc l' ^ "," ^ string_of_type ty ^ "," ^ string_of_wire_kind kind  ^ ")"
 
 and string_of_svloc (l,s) =  "(" ^ string_of_int l ^ "," ^ string_of_int s ^ ")"
 and string_of_wire_kind = function DataW -> "data" | ParamW -> "param" (* | DelayW -> "delay" *)
 
-and output_ss_val_list oc sep l = Misc.output_list output_value oc sep l
+and output_sem_val_list oc sep l = Misc.output_list output_value oc sep l
