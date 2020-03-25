@@ -1,5 +1,5 @@
 SRCS=main.hcl
-GEN_OPTS=
+GEN_OPTS=#-dump_ir
 DOT_OPTS=-target_dir ./dot
 SYSTEMC_OPTS=-target_dir systemc -sc_stop_time 100 #-sc_trace
 PREESM_OPTS=-target_dir preesm

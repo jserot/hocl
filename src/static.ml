@@ -110,7 +110,7 @@ let new_dummy_box name ty =
   let bid = new_bid () in
   bid, { b_id=bid; b_tag=DummyB; b_name=name; b_params=[]; b_ins=[]; b_outs=["r",([0],ty,[])]; b_typ=ty; b_val=no_bval }
 
-let boxes_of_wire boxes (((s,ss),(d,ds)),ty,_) = 
+let boxes_of_wire boxes (((s,ss),(d,ds)),ty) = 
   try
     List.assoc s boxes, List.assoc d boxes
   with Not_found -> 
@@ -123,7 +123,7 @@ let dst_box_of_wire boxes (w:sv_wire) = snd (boxes_of_wire boxes w)
 
 exception BoxWiring of string * bid * wid
 
-let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * wire_kind)) list) (bid,b) =
+let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ)) list) (bid,b) =
   try
     bid,
     (match b.b_tag with
@@ -151,47 +151,49 @@ let rec update_wids (wires: (wid * (((bid*sel)*(bid*sel)) * typ * wire_kind)) li
 and add_source_outputs wires bname bid =
   let ws =
     List.filter
-      (function (wid, (((s,ss),(d,ds)), ty, _)) -> s=bid && ss=0)
+      (function (wid, (((s,ss),(d,ds)), ty)) -> s=bid && ss=0)
       wires in
   match ws with
     [] -> []
-  | (_,(_,ty,_))::_ -> [bname, (List.map fst ws, ty, [])]
+  | (_,(_,ty))::_ -> [bname, (List.map fst ws, ty, [])]
 
 and add_sink_inputs wires bname bid =
   let ws =
     List.filter
-      (function (wid, (((s,ss),(d,ds)), ty, _)) -> d=bid && ds=0)
+      (function (wid, (((s,ss),(d,ds)), ty)) -> d=bid && ds=0)
       wires in
   match ws with
     [] -> []
-  | [(wid,(_,ty,_))] -> [bname, (wid, ty, [])]
-  | _ -> List.mapi (fun i (wid,(_,ty,_)) -> bname ^ string_of_int (i+1), (wid, ty, [])) ws
+  | [(wid,(_,ty))] -> [bname, (wid, ty, [])]
+  | _ -> List.mapi (fun i (wid,(_,ty)) -> bname ^ string_of_int (i+1), (wid, ty, [])) ws
 
 and add_param_inputs wires bid =
   let ws =
     List.filter
-      (function (wid, (((s,ss),(d,ds)), ty, kind)) -> d=bid && ds=0 && kind=ParamW)
+      (* (function (wid, (((s,ss),(d,ds)), ty, kind)) -> d=bid && ds=0 && kind=ParamW) *)
+      (function (wid, (((s,ss),(d,ds)), ty)) -> d=bid && ds=0 && is_param_type ty)
       wires in
-  List.mapi (fun i (wid,(_,ty,_)) -> "i" ^ string_of_int (i+1), (wid, ty, [])) ws
+  List.mapi (fun i (wid,(_,ty)) -> "i" ^ string_of_int (i+1), (wid, ty, [])) ws
 
 and add_param_outputs wires bid =
   let ws =
     List.filter
-      (function (wid, (((s,ss),(d,ds)), ty, kind)) -> s=bid && ss=0 && kind=ParamW)
+      (* (function (wid, (((s,ss),(d,ds)), ty, kind)) -> s=bid && ss=0 && kind=ParamW) *)
+      (function (wid, (((s,ss),(d,ds)), ty)) -> s=bid && ss=0 && is_param_type ty)
       wires in
   match ws with
     [] -> []
-  | (_,(_,ty,_))::_ -> ["o", (List.map fst ws, ty, [])]
+  | (_,(_,ty))::_ -> ["o", (List.map fst ws, ty, [])]
 
 and find_src_wire wires bid sel =
-  let find wids (wid, ((_,(d,ds)),_,_)) = if d=bid && ds=sel then wid::wids else wids in
+  let find wids (wid, ((_,(d,ds)),_)) = if d=bid && ds=sel then wid::wids else wids in
   match List.fold_left find [] wires with
     [] -> raise (BoxWiring ("no wire connected to input",bid,sel))
   | [w] -> w
   | ws -> raise (BoxWiring ("more than one wire connected to input",bid,sel))
 
 and find_dst_wire wires bid sel =
-  let find wids (wid, (((s,ss),_),_,_)) = if s=bid && ss=sel then wid::wids else wids in
+  let find wids (wid, (((s,ss),_),_)) = if s=bid && ss=sel then wid::wids else wids in
   match List.fold_left find [] wires with
     [] ->  raise (BoxWiring ("no wire connected to output",bid,sel))
   | ws -> ws
@@ -219,15 +221,17 @@ let rec static_value senv expr =
 
 let rec eval_param_expr senv expr =
   let eval_int_param n = 
-     let l, b = new_param_box LocalParamB type_int { bv_lit = expr; bv_sub=expr; bv_val = SVInt n } in
-     SVLoc (l,0,type_int,SV_Param),
-     [l,b],
-     [] in
+    let ty = Types.type_param type_int in
+    let l, b = new_param_box LocalParamB ty { bv_lit = expr; bv_sub=expr; bv_val = SVInt n } in
+    SVLoc (l,0,ty,SV_Param),
+    [l,b],
+    [] in
   let eval_bool_param n =
-     let l, b =  new_param_box LocalParamB type_bool { bv_lit = expr; bv_sub=expr; bv_val = SVBool n } in
-     SVLoc (l,0,type_bool,SV_Param),
-     [l,b],
-     [] in
+    let ty = Types.type_param type_bool in
+    let l, b =  new_param_box LocalParamB ty { bv_lit = expr; bv_sub=expr; bv_val = SVBool n } in
+    SVLoc (l,0,ty,SV_Param),
+    [l,b],
+    [] in
   match expr.ce_desc with
   | EVar v ->
      begin
@@ -240,7 +244,7 @@ let rec eval_param_expr senv expr =
   | EBool n -> eval_bool_param n
   | EBinop (op, e1,e2) ->
      let v =  static_value senv expr in 
-     let ty = expr.ce_typ in
+     let ty = Types.type_param expr.ce_typ in
      let l, b =  new_param_box LocalParamB ty { bv_lit = expr; bv_sub=expr; bv_val = static_value senv expr } in 
      let bindings = extract_param_deps senv (l,0) expr in (* TO FIX !!! Will not be 0 for multi-deps !! *)
      if List.length bindings > 1 then
@@ -261,7 +265,8 @@ and extract_param_deps senv dst expr =
          begin match lookup_env expr.ce_loc senv v with
          | SVLoc(i,j,ty,SV_Param) -> (* [v] refers to an input parameter *)
             let src = i,j in
-            let w = new_wid(), ((src,dst),ty,ParamW) in
+            (* let w = new_wid(), ((src,dst),ty,ParamW) in *)
+            let w = new_wid(), ((src,dst),Types.type_param ty) in
             (v,w)::acc               (* Bind [v] to the refering wire *)
          | _ -> acc
          end
@@ -317,7 +322,8 @@ let eval_gnode_decl gid tp (senv,bs,ws) { gn_desc = nid, n; gn_loc = loc } =
     | SVLoc(i,j,ty,_), bs', ws' ->
        let src = i,j in
        senv,
-       (new_wid(), ((src,dst),ty,ParamW)) :: ws' @ ws,
+       (* (new_wid(), ((src,dst),ty,ParamW)) :: ws' @ ws, *)
+       (new_wid(), ((src,dst),Types.type_param ty)) :: ws' @ ws,
        bs @ bs'
     | _, _, _ -> Misc.fatal_error "Static.eval_gnode_decl" in
   let mk_inp_wire dst (senv,ws) id =
@@ -326,16 +332,16 @@ let eval_gnode_decl gid tp (senv,bs,ws) { gn_desc = nid, n; gn_loc = loc } =
        (* The corresponding box input is connected to another box output *)
        let src = i,j in
        senv,
-       (new_wid(), ((src,dst),ty,DataW)) :: ws
-    | SVWire (wid, ((l,l'),ty,_)) when l=sv_no_loc && l'=sv_no_loc ->
+       (new_wid(), ((src,dst),ty)) :: ws
+    | SVWire (wid, ((l,l'),ty)) when l=sv_no_loc && l'=sv_no_loc ->
        (* The corresponding box input is connected to a yet unconnected wire *)
-       update senv id (SVWire (wid, ((sv_no_loc,dst),ty,DataW))),
+       update senv id (SVWire (wid, ((sv_no_loc,dst),ty))),
        ws
-    | SVWire (wid, ((src,l'),ty,_)) when l'=sv_no_loc ->
+    | SVWire (wid, ((src,l'),ty)) when l'=sv_no_loc ->
        (* The corresponding box input is connected to src-connected wire *)
-       update senv id (SVWire (wid, ((src,dst),ty,DataW))),
-       (wid, ((src,dst),ty,DataW)) :: ws
-    | SVWire (wid, ((_,dst),_,_)) ->
+       update senv id (SVWire (wid, ((src,dst),ty))),
+       (wid, ((src,dst),ty)) :: ws
+    | SVWire (wid, ((_,dst),_)) ->
        (* The corresponding box input is connected to an already-connected wire *)
        multiply_connected_wire gid id
     | _ -> Misc.fatal_error "Static.eval_gnode_decl" in
@@ -345,16 +351,16 @@ let eval_gnode_decl gid tp (senv,bs,ws) { gn_desc = nid, n; gn_loc = loc } =
        (* The corresponding box output is connected to another box input *)
        let dst = i,j in
        senv,
-       (new_wid(), ((src,dst),ty,DataW)) :: ws
-    | SVWire (wid, ((l,l'),ty,_)) when l=sv_no_loc && l'=sv_no_loc ->
+       (new_wid(), ((src,dst),ty)) :: ws
+    | SVWire (wid, ((l,l'),ty)) when l=sv_no_loc && l'=sv_no_loc ->
        (* The corresponding box output is connected to a yet unconnected wire *)
-       update senv id (SVWire (wid, ((src,sv_no_loc),ty,DataW))),
+       update senv id (SVWire (wid, ((src,sv_no_loc),ty))),
        ws
-    | SVWire (wid, ((l,dst),ty,_)) when l=sv_no_loc ->
+    | SVWire (wid, ((l,dst),ty)) when l=sv_no_loc ->
        (* The corresponding box output is connected to a dst-connected wire *)
-       update senv id (SVWire (wid, ((src,dst),ty,DataW))),
-       (wid, ((src,dst),ty,DataW)) :: ws
-    | SVWire (wid, ((_,dst),_,_)) ->
+       update senv id (SVWire (wid, ((src,dst),ty))),
+       (wid, ((src,dst),ty)) :: ws
+    | SVWire (wid, ((_,dst),_)) ->
        (* The corresponding box output is connected to an already-connected wire *)
        multiply_connected_wire gid id
     | _ -> Misc.fatal_error "Static.eval_gnode_decl" in
@@ -382,8 +388,9 @@ let eval_param_value = function
        
 let rec eval_param_decl (env,boxes) (id,ty) v =
   let v' = eval_param_value v in
-  let l, b = new_io_box InParamB id ty ~bv:v' in
-  (id,SVLoc (l,0,ty,SV_Param)) :: env,
+  let ty' = Types.type_param ty in
+  let l, b = new_io_box InParamB id ty' ~bv:v' in
+  (id,SVLoc (l,0,ty',SV_Param)) :: env,
   (l,b) :: boxes
 
 let eval_io_decl tag (env,boxes) (id,(ty,_)) =
@@ -393,10 +400,10 @@ let eval_io_decl tag (env,boxes) (id,(ty,_)) =
     (l,b) :: boxes
 
 let eval_wire_decl { gw_desc = id, {te_typ=ty} } =
-  id, SVWire (new_wid(), new_wire ty DataW)
+  id, SVWire (new_wid(), new_wire ty)
   
 let check_wire gid (id,sv) = match sv with
-  | SVWire (wid,((src,dst),_,_)) when src=sv_no_loc || dst=sv_no_loc -> incomplete_wire gid id 
+  | SVWire (wid,((src,dst),_)) when src=sv_no_loc || dst=sv_no_loc -> incomplete_wire gid id 
   | _ -> ()
 
 let is_real_io (id,(ty,_)) = not (is_unit_type ty)
@@ -436,7 +443,7 @@ exception Matching_fail
 
 let rec net_matching nenv npat r =
   let mk_wire l l' = match l, l' with
-    | SVLoc (i,s,ty,_), SVLoc (i',s',_,_) -> new_wid(), (((i,s),(i',s')),ty,DataW)
+    | SVLoc (i,s,ty,_), SVLoc (i',s',_,_) -> new_wid(), (((i,s),(i',s')),ty)
     | _, _ -> Misc.fatal_error "Static.net_matching" in
   let oenv = List.filter (fun (id,sv) -> is_sink_loc sv) nenv in 
   match npat.np_desc, r with
@@ -678,10 +685,10 @@ and mk_subst loc nenv (rid,rv) =
     SVLoc(l,s,_,_), SVLoc(l',s',_,_) -> (l,s),(l',s')
   | _, _ -> illegal_rec_definition loc
 
-and apply_subst ((i,s),(i',s')) (wid,((src,dst),ty,b)) =
+and apply_subst ((i,s),(i',s')) (wid,((src,dst),ty)) =
   let sub (k,l) =
     if k=i then (i',s') else (k,l) in
-  (wid, ((sub src, sub dst), ty, b))
+  (wid, ((sub src, sub dst), ty))
 
 
 (* Auxilliaries *)
@@ -703,14 +710,14 @@ and instanciate_actor_or_graph tag nenv loc n params args =
   (* let tag' = match n.sn_kind with BRegular -> tag | BBcast -> EBcastB in *)
   let tag' = tag in 
   let l, b = new_box tag' n.sn_id (type_instance n.sn_typ) (bparams @ bins) bouts in
-  let mk_wire kind dst v = match v with
-    SVLoc(i,j,ty,_) -> new_wid(), (((i,j),dst),ty,kind)
+  let mk_wire dst v = match v with
+    SVLoc(i,j,ty,_) -> new_wid(), (((i,j),dst),ty)
   | _ -> illegal_application loc in
   let tyins' = List.map Misc.snd3 n.sn_ins in
   let tyouts' = List.map Misc.snd3 n.sn_outs in
   let wps = 
     List.mapi
-      (fun i v -> mk_wire ParamW (l,i) v)
+      (fun i v -> mk_wire (l,i) v)
       params in
   let np = List.length n.sn_params in
   let args' = match tyins', args with
@@ -727,12 +734,12 @@ and instanciate_actor_or_graph tag nenv loc n params args =
      [l,b],
      wps
   | [bi], [], SVLoc(l1,s1,ty,_) ->                                     (* APP_1_0 *)
-     let w = ((l1,s1),(l,np)), type_of bi, DataW in
+     let w = ((l1,s1),(l,np)), type_of bi(*, DataW*) in
      SVUnit,
      [l,b],
      wps @ [new_wid(),w]
   |  _, [], SVTuple vs ->                                             (* APP_m_0 *)
-     let ws'' = List.mapi (fun i v -> mk_wire DataW (l,np+i) v) vs in
+     let ws'' = List.mapi (fun i v -> mk_wire (*DataW*) (l,np+i) v) vs in
      SVUnit,
      [l,b],
      wps @ ws''
@@ -745,28 +752,27 @@ and instanciate_actor_or_graph tag nenv loc n params args =
       [l,b],
       wps
   | [bi], [bo], SVLoc(l1,s1,ty,_) ->                                    (* APP_1_1 *)
-      let w = ((l1,s1),(l,np)), type_of bi, DataW in
+      let w = ((l1,s1),(l,np)), type_of bi(*, DataW*) in
       SVLoc (l,0,type_of bo,SV_None),
       [l,b],
       wps @ [new_wid(),w]
   | [bi], bos, SVLoc(l1,s1,ty,_) ->                                      (* APP_1_n *)
-      let w = ((l1,s1),(l,np)), type_of bi, DataW in
+      let w = ((l1,s1),(l,np)), type_of bi(*, DataW*) in
       SVTuple (List.mapi (fun i bo -> SVLoc(l,i,type_of bo,SV_None)) bos),
       [l,b],
       wps @ [new_wid(),w]
   | _, [bo], SVTuple vs ->                                             (* APP_m_1 *)
-      let ws'' = List.mapi (fun i v -> mk_wire DataW (l,np+i) v) vs in
+      let ws'' = List.mapi (fun i v -> mk_wire (*DataW*) (l,np+i) v) vs in
       SVLoc (l,0,type_of bo,SV_None),
       [l,b],
       wps @ ws''
   | bis, bos, SVTuple vs ->                                               (* APP_m_n *)
-      let ws'' = List.mapi (fun i v -> mk_wire DataW (l,np+i) v) vs in
+      let ws'' = List.mapi (fun i v -> mk_wire (*DataW*) (l,np+i) v) vs in
       SVTuple (List.mapi (fun i bo -> SVLoc(l,i,type_of bo,SV_None)) bos),
       [l,b],
       wps @ ws''
   | _ ->
       illegal_application loc
-
 
 let eval_net_decl (senv,boxes,wires) { nd_desc = isrec, defns; nd_loc=loc } = 
   let nenv', boxes', wires' = eval_net_defns loc isrec senv defns in 
@@ -842,7 +848,8 @@ let rec insert_bcast bid oidx (boxes,wires,box) bout =
       let box' = { box with b_outs = Misc.assoc_replace id (function _ -> [wid'],ty,anns) box.b_outs } in
       let wires' = Misc.foldl_index (update_wires m) wires wids in
       let boxes' = Misc.assoc_replace bid (function b -> box') boxes in
-      (m,mb) :: boxes', (wid',(((bid,oidx),(m,0)),ty,get_wire_kind wires (List.hd wids))) :: wires', box'
+      (* (m,mb) :: boxes', (wid',(((bid,oidx),(m,0)),ty,get_wire_kind wires (List.hd wids))) :: wires', box' *)
+      (m,mb) :: boxes', (wid',(((bid,oidx),(m,0)),ty)) :: wires', box'
 
 and get_wire_kind wires wid =
   try
@@ -853,7 +860,8 @@ and get_wire_kind wires wid =
      Misc.fatal_error "Static.get_wire_kind"
 
 and update_wires s' j wires wid = 
-  Misc.assoc_replace wid (function ((s,ss),(d,ds)),ty,kind -> ((s',j),(d,ds)),ty,kind) wires 
+  (* Misc.assoc_replace wid (function ((s,ss),(d,ds)),ty,kind -> ((s',j),(d,ds)),ty,kind) wires  *)
+  Misc.assoc_replace wid (function ((s,ss),(d,ds)),ty -> ((s',j),(d,ds)),ty) wires 
 
 let insert_bcast_after after_boxes (boxes,wires) (bid,box) = 
   if List.mem box.b_tag after_boxes then 
@@ -954,7 +962,7 @@ let eval_graph_decl tp nodes (acc,senv) { g_desc=g } =
   let senv' = senv |> augment_env [g.g_id, SVNode (build_static_node g.g_id SV_Graph intf, [])] in
   acc', senv'
   
-let eval_gval_decl senv { nd_desc=d; nd_loc=loc } = match d with
+let eval_value_decl senv { nd_desc=d; nd_loc=loc } = match d with
   | isrec, [b] ->  
      begin match eval_net_defns loc isrec senv [b] with
      | [(id,SVClos c) as v], [], [] -> v :: senv
@@ -989,7 +997,7 @@ let eval_node_decl tp (senv,nodes) n =
  *     | NI_Graph g -> (id,g)::acc *)
   
 let build_static tp senv p =
-  let senv_v = List.fold_left eval_gval_decl senv p.gvals in
+  let senv_v = List.fold_left eval_value_decl senv p.values in
   let senv_n, nodes = List.fold_left (eval_node_decl tp) (senv_v,[]) p.nodes in
   (* let subgraphs = List.fold_left extract_subgraph [] nodes in *)
   let topgraphs, senv_g =

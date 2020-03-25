@@ -87,8 +87,8 @@ let find_wire wires wid =
     try List.assoc wid wires
     with Not_found -> Misc.fatal_error "Interm.find_wire: cannot find wire from id"
 
-let get_src_box boxes (((s,ss),(d,ds)), ty, _) = find_box boxes s
-let get_dst_box boxes (((s,ss),(d,ds)), ty, _) = find_box boxes d
+let get_src_box boxes (((s,ss),(d,ds)), ty(*, _*)) = find_box boxes s
+let get_dst_box boxes (((s,ss),(d,ds)), ty(*, _*)) = find_box boxes d
 
 (* Printing *)
 
@@ -144,8 +144,8 @@ let dump_box (i,b) =
         (Misc.string_of_list string_of_typed_bout ","  b.b_outs)
         (match b.b_tag with InParamB | LocalParamB -> "val=" ^ string_of_box_value b.b_val | _ -> "")
 
-let dump_wire (i,(((s,ss),(d,ds)),ty,kind)) =
-  Printf.printf "W%d: %s: %s: (B%d,%d) -> (B%d,%d)\n" i (string_of_wire_kind kind) (string_of_type ty) s ss d ds
+let dump_wire (i,(((s,ss),(d,ds)),ty(*,kind*))) =
+  Printf.printf "W%d: %s: (B%d,%d) -> (B%d,%d)\n" i (string_of_type ty) s ss d ds
 
 let dump_graph (id,g) =
   printf "* %s\n" id;

@@ -134,7 +134,8 @@ let dump_actor_port oc dir is_param (id, (wid,ty,annots)) =
       (match rate with Some e -> Syntax.string_of_rate_expr e | None -> cfg.default_port_rate)
       (Misc.string_of_list Misc.id " " other_anns)
 
-let is_param_wire (wid,(_,_,kind)) = kind=Semval.ParamW
+(* let is_param_wire (wid,(_,_,kind)) = kind=Semval.ParamW *)
+let is_param_wire (wid,(_,ty)) = Types.is_param_type ty
 
 let dump_actor oc ir g (i,b)  =
   let param_ins, data_ins = List.partition (is_param_input g.sg_wires) b.b_ins in 
@@ -225,7 +226,7 @@ let dump_parameter oc ~toplevel (i,b) =
   | _ -> ()
 
 
-let dump_connexion oc boxes (wid,((((s,ss),(d,ds)),ty,kind) as w))=
+let dump_connexion oc boxes (wid,((((s,ss),(d,ds)),ty) as w))=
   let src_name, src_slot =
     let b = get_src_box boxes w in
     match b.b_tag with
@@ -241,15 +242,17 @@ let dump_connexion oc boxes (wid,((((s,ss),(d,ds)),ty,kind) as w))=
     | SinkB | SourceB -> box_name d b, box_name d b 
     | _ -> Misc.fatal_error "Preesm.output_connexion" in
   let mk_field name v = if v = "" then "" else Printf.sprintf "%s=\"%s\"" name v in
-  match kind with
-  | Semval.DataW | Semval.ParamW ->
+  (* match kind with
+   * | Semval.DataW | Semval.ParamW -> *)
      fprintf oc "    <edge kind=\"%s\" source=\"%s\" %s target=\"%s\" %s %s/>\n"
-       (match kind with ParamW -> "dependency" | _ -> "fifo")
+       (* (match kind with ParamW -> "dependency" | _ -> "fifo") *)
+       (if Types.is_param_type ty then "dependency" else "fifo")
        src_name
        (mk_field "sourceport" src_slot)
        dst_name
        (mk_field "targetport" dst_slot)
-       (mk_field "type" (match kind with DataW (*| DelayW *) -> string_of_type ty | ParamW -> ""))
+       (* (mk_field "type" (match kind with DataW (\*| DelayW *\) -> string_of_type ty | ParamW -> "")) *)
+       (mk_field "type" (if Types.is_param_type ty then "" else string_of_type ty))
   (* | DelayW ->
    *    fprintf oc "    <edge kind=\"%s\" source=\"%s\" %s target=\"%s\" %s %s>\n"
    *      "fifo"

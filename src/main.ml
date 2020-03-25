@@ -93,14 +93,14 @@ let main () =
 try
   Sys.catch_break true;
   Arg.parse Options.options_spec anonymous usage;
-  Options.cfg.stdlib <- Version.stdlib;
   print_banner ();
   if Options.cfg.dump_tenv then
     dump_global_typing_environment "Initial typing environment" Builtins.builtin_typing_env;
   if Options.cfg.dump_senv then dump_static_environment Builtins.builtin_static_env;
   Logfile.start ();
   let sfs = match Options.cfg.stdlib with
-    | "" -> !source_files
+    | "none" -> !source_files
+    | "" -> Version.stdlib :: !source_files
     | f -> f :: !source_files in
   process_files sfs;
   Logfile.stop ()

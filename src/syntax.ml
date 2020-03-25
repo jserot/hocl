@@ -29,7 +29,7 @@ and type_expression_desc =
                 
 type program =
   { types: type_decl list;  (* Global, user-defined types *)
-    gvals: gval_decl list;  (* Global values, functions for functional graph and node descriptions typically *)
+    values: value_decl list;  (* Global values, functions for functional graph and node descriptions typically *)
     nodes: node_decl list;  (* Nodes *)
     graphs: graph_decl list }  (* Top-level graphs *)
 
@@ -39,7 +39,7 @@ and type_decl =
 and tdecl_desc =
   | Opaque_type_decl of string                                   (* name *)
 
-and gval_decl = net_defn
+and value_decl = net_defn
               
 and node_decl = 
   { n_intf: node_intf;
@@ -215,11 +215,11 @@ let no_annot = ""
 
 (* Program manipulation *)
 
-let empty_program = { types=[]; gvals=[]; nodes=[]; graphs=[] }
+let empty_program = { types=[]; values=[]; nodes=[]; graphs=[] }
 
 let add_program p1 p2 = { (* TODO : Flag redefinitions ? *)
     types= p1.types @ p2.types;
-    gvals= p1.gvals @ p2.gvals;
+    values= p1.values @ p2.values;
     nodes= p1.nodes @ p2.nodes;
     graphs= p1.graphs @ p2.graphs;
   }
@@ -398,7 +398,7 @@ and string_of_net_defn d = match d.nd_desc with
 and string_of_rec = function true -> " rec " | false -> ""
 
 let dump_type d = Printf.printf "type %s\n" (string_of_type_decl d)
-let dump_gval d = Printf.printf "val %s\n" (string_of_net_defn d)
+let dump_value d = Printf.printf "val %s\n" (string_of_net_defn d)
 let dump_node d = Printf.printf "%s = %s\n" (string_of_node_intf d.n_intf) (string_of_node_impl d.n_impl)
 let dump_graph d = Printf.printf "%s\n" (string_of_graph_decl d)
 
@@ -406,7 +406,7 @@ let rec dump_program p =
   Printf.printf "Types ---------------\n";
   List.iter dump_type p.types;
   Printf.printf "Global values -------\n";
-  List.iter dump_gval p.gvals;
+  List.iter dump_value p.values;
   Printf.printf "Nodes ---------------\n";
   List.iter dump_node p.nodes;
   Printf.printf "Graphs --------------\n";

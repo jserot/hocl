@@ -41,7 +41,7 @@ let string_of_val v = match v with
 
 let string_of_node (i,b) = node_id i 
 
-let string_of_edge (wid,(((s,ss),(d,ds)),ty,kind)) =
+let string_of_edge (wid,(((s,ss),(d,ds)),ty(*,kind*))) =
   edge_id wid ^ "(" ^ node_id s ^ "," ^ node_id d ^ ")"
 (* Q : how are I/O slot indexes handled in DIF ?? *)
 (*   sprintf "e%d(n%d:s%d -> n%d:e%d)" s ss d ds *)

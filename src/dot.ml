@@ -120,20 +120,26 @@ let output_box ch (i,b) =
   | DummyB ->  (* Should not occur *)
       fprintf ch "n%d [shape=box,style=dotted,label=\"%s\"];\n" i "dummy"
 
-let string_of_wtype ty = ":" ^ Pr_type.string_of_type ty
+let string_of_wire_type ty =
+  let ty' = match Types.real_type ty with
+    | TyConstr ("param", [t]) -> t
+    | TyConstr ("wire", [t]) -> t
+    | _ -> ty in
+  ":" ^ Pr_type.string_of_type ty'
 
-let output_wire ch (wid,(((s,ss),(d,ds)),ty,kind))=
+let output_wire ch (wid,(((s,ss),(d,ds)),ty(*,kind*)))=
   let wire_annot wid =
     (* try Interm.string_of_wire_annot (List.assoc wid wire_annots)
     with Not_found -> *) "" in
-  let style = match kind with Semval.ParamW -> "dashed" | _ -> "plain" in
+  (* let style = match kind with Semval.ParamW -> "dashed" | _ -> "plain" in *)
+  let style = if Types.is_param_type ty then "dashed" else "plain" in
   match cfg.labeled_edges, cfg.show_indexes, cfg.show_wire_annots with
   | true, _, true ->
      fprintf ch "n%d:s%d -> n%d:e%d [label=\" w%d:%s\"; style=%s];\n" s ss d ds wid (wire_annot wid) style
   | true, true, false ->
-     fprintf ch "n%d:s%d -> n%d:e%d [label=\" %s\"; style=%s];\n" s ss d ds ("w" ^ string_of_int wid ^ string_of_wtype ty) style
+     fprintf ch "n%d:s%d -> n%d:e%d [label=\" %s\"; style=%s];\n" s ss d ds ("w" ^ string_of_int wid ^ string_of_wire_type ty) style
   | true, false, false ->
-     fprintf ch "n%d:s%d -> n%d:e%d [label=\" %s\"; style=%s];\n" s ss d ds (string_of_wtype ty) style
+     fprintf ch "n%d:s%d -> n%d:e%d [label=\" %s\"; style=%s];\n" s ss d ds (string_of_wire_type ty) style
   | false, _, _ ->
      fprintf ch "n%d:s%d -> n%d:e%d [style=%s];\n" s ss d ds style
 
