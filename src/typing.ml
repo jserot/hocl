@@ -286,7 +286,7 @@ and type_definition is_rec genv { nb_desc=(pat,exp); nb_loc=loc } =
     else genv in
   let ty_exp = type_net_expression genv' exp in
   try_unify "definition" ty_pat ty_exp loc;
-  extract_type_bindings genv' loc pat ty_exp
+  extract_type_bindings genv loc pat ty_exp
 
 let type_application loc ty_fn ty_arg = 
   let ty_fn', tvs = full_type_instance ty_fn in
