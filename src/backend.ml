@@ -29,12 +29,12 @@ let is_special_actor name =
   | "delay" | "switch" | "merge" | "pmerge" -> true
   | _ -> false
     
-let is_data_wire (wid,(_,_,kind)) = kind=Semval.DataW
+let is_data_wire (wid,(_,ty(*,kind*))) = is_wire_type ty (*kind=Semval.DataW*)
 
-let is_param_input wires (iid, (wid,ty,annots)) = 
-  match lookup_wire wires wid with
-  | _, _, Semval.ParamW -> true
-  | _, _, _ -> false
+let is_param_input wires (iid, (wid,ty,annots)) = is_param_type ty
+  (* match lookup_wire wires wid with
+   * | _, _, Semval.ParamW -> true
+   * | _, _, _ -> false *)
 
 let get_param_value backend g wid =
   match get_src_box g.sg_boxes (find_wire g.sg_wires wid) with

@@ -142,17 +142,17 @@ let mk_cbinop l (op,l') e1 e2 = mk_core_expr l (EBinop (op,  e1, e2))
 
 type top_decl =
   | TyDecl of Syntax.type_decl
-  | GvalDecl of Syntax.gval_decl
+  | ValueDecl of Syntax.value_decl
   | NodeDecl of Syntax.node_decl
   | GraphDecl of Syntax.graph_decl
 
 let is_type_decl = function TyDecl _ -> true | _ -> false             
-let is_gval_decl = function GvalDecl _ -> true | _ -> false             
+let is_value_decl = function ValueDecl _ -> true | _ -> false             
 let is_node_decl = function NodeDecl _ -> true | _ -> false             
 let is_graph_decl = function GraphDecl _ -> true | _ -> false             
 
 let type_decl_of = function TyDecl d -> d | _ -> Misc.fatal_error "Parser.type_decl_of"             
-let gval_decl_of = function GvalDecl d -> d | _ -> Misc.fatal_error "Parser.gval_decl_of"             
+let value_decl_of = function ValueDecl d -> d | _ -> Misc.fatal_error "Parser.value_decl_of"             
 let node_decl_of = function NodeDecl d -> d | _ -> Misc.fatal_error "Parser.node_decl_of"             
 let graph_decl_of = function GraphDecl d -> d | _ -> Misc.fatal_error "Parser.graph_decl_of"             
 
@@ -202,7 +202,7 @@ let gnode_decl_of = function GNodeDecl d -> d | _ -> Misc.fatal_error "Parser.gn
 program:
   | decls = my_list(decl) EOF
       { { Syntax.types = decls |> List.filter is_type_decl |> List.map type_decl_of;
-          Syntax.gvals = decls |> List.filter is_gval_decl |> List.map gval_decl_of;
+          Syntax.values = decls |> List.filter is_value_decl |> List.map value_decl_of;
           Syntax.nodes = decls |> List.filter is_node_decl |> List.map node_decl_of;
           Syntax.graphs = decls |> List.filter is_graph_decl |> List.map graph_decl_of } }
 
@@ -210,7 +210,7 @@ program:
 
 decl:
     d = type_decl SEMI { TyDecl d }
-  | d = gval_decl SEMI { GvalDecl d }
+  | d = value_decl SEMI { ValueDecl d }
   | d = node_decl SEMI { NodeDecl d }
   | d = graph_decl SEMI { GraphDecl d }
           
@@ -222,7 +222,7 @@ type_decl:
 
 (* GLOBAL FUNCTION DECLARATION (in prelude file typically) *)
 
-gval_decl:
+value_decl:
   | VAL r=optional(REC) b=net_binding
       { mk_net_defn $loc (r, [b]) }
 

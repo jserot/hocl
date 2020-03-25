@@ -53,7 +53,7 @@ and dump_value tag (name, ty_sch) =
 
 type typed_program = {
   (* tp_types: (string * type_desc) list;     (\* Type constructors *\) *)
-  tp_gvals: (string * typ_scheme) list;
+  tp_values: (string * typ_scheme) list;
   tp_nodes: (string * typed_intf) list;
   tp_graphs: (string * (typed_intf * typed_desc)) list;
   }
@@ -113,8 +113,11 @@ let rec type_of_type_expression tenv te =
   
 let rec type_core_expression genv expr =
   let lookup id = type_instance (lookup_value expr.ce_loc genv id) in
+  let type_unparam t = match real_type t with
+  | TyConstr ("param",[t']) -> t'
+  | _ -> t in
   let ty = match expr.ce_desc with
-  | EVar id -> lookup id
+  | EVar id -> type_unparam (lookup id)
   | EInt _ ->  type_int
   | EBool _ ->  type_bool
   | EBinop (op, e1, e2) ->
@@ -185,7 +188,7 @@ let rec type_net_expression genv expr =
      type_instance (lookup_value expr.ne_loc genv id)
   | NPVar(id, pvs) ->
       let ty_fn = type_instance (lookup_value expr.ne_loc genv id) in
-      let ty_params = type_product (List.map (type_core_expression genv) pvs) in
+      let ty_params = type_product (List.map (type_param_expression genv) pvs) in
       let ty_result = new_type_var () in
       try_unify "expression" ty_fn (type_arrow ty_params ty_result) expr.ne_loc;
       ty_result
@@ -255,6 +258,8 @@ let rec type_net_expression genv expr =
   expr.ne_typ <- ty;
   ty
 
+and type_param_expression tenv ce = Types.type_param @@ type_core_expression tenv ce
+                            
 and extract_type_bindings tenv loc pat ty = match (pat.np_desc, Types.real_type ty) with
   | NPat_var id, ty ->
       [id, generalize tenv.te_values ty]
@@ -334,7 +339,7 @@ let type_net_defn genv { nd_desc=d } = match d with
 (* Typing (sub-)graph decls *)
 
 let rec type_struct_graph_desc loc genv intf g =
-  let ty_wires = List.map (type_wire genv) g.gs_wires in
+  let ty_wires = List.map (type_wire_decl genv) g.gs_wires in
   let genv' = genv
               |> augment_values (List.map (fun (id,ty) -> id, trivial_scheme ty) intf.t_params)
               |> augment_values (List.map (fun (id,(ty,_)) -> id, trivial_scheme ty) intf.t_ins)
@@ -343,7 +348,7 @@ let rec type_struct_graph_desc loc genv intf g =
   let ty_nodes = List.map (type_node genv') g.gs_nodes in
   TD_Struct (ty_wires, ty_nodes)
 
-and type_wire tenv { gw_desc = (id,te) } = id, type_of_type_expression tenv te
+and type_wire_decl tenv { gw_desc = (id,te) } = id, type_wire @@ type_of_type_expression tenv te
 
 and type_node genv { gn_desc = (id,g); gn_loc = loc } =
   (* Typing a node decl such [node n: f (p1:t1,...) (i1:t'1,...) (o1:t''1,...)] gives type
@@ -352,7 +357,7 @@ and type_node genv { gn_desc = (id,g); gn_loc = loc } =
   let lookup id = type_instance (lookup_value loc genv id) in
   let ty_ins = List.map lookup g.gn_ins in
   let ty_outs = List.map lookup g.gn_outs in
-  let ty_params = List.map (type_core_expression genv) g.gn_params in
+  let ty_params = List.map (type_param_expression genv) g.gn_params in
   let ty = type_sig ty_params ty_ins ty_outs in
   let ty_f = lookup g.gn_name in
   try_unify "node declaration" ty_f ty loc;
@@ -392,7 +397,12 @@ let rec type_fun_graph_desc genv intf defns =
 let is_real_io (id,(ty,_)) = not (is_unit_type ty)
 
 let rec type_node_intf tenv { ni_desc=n } =
-  let ty_params = List.map (fun { pm_desc = (id,te,_) } -> id, type_of_type_expression tenv te) n.n_params in
+  let ty_params =
+    List.map
+      (fun { pm_desc = (id,te,_) } ->
+        let ty = type_of_type_expression tenv te
+        in id, type_param ty)
+      n.n_params in
   let tenv' = tenv |> augment_values @@ List.map (fun (id,ty) -> id, trivial_scheme ty) ty_params in
   let ty_ins = type_io tenv' n.n_ins in
   let ty_outs = type_io tenv' n.n_outs in
@@ -412,7 +422,8 @@ and type_io tenv = function
        List.map
          (fun { io_desc = (id,te,anns) } ->
            let _ = List.iter (type_io_annotation tenv) anns in
-           id, (type_of_type_expression tenv te, anns))
+           let ty = type_of_type_expression tenv te in
+           id, (type_wire ty, anns))
          ios
 
 and type_io_annotation tenv ann = match ann with
@@ -489,10 +500,10 @@ let rec type_program tenv p =
         can refer to previously defined actor or graph declaration) *)
   let typed_types = p.types |> List.map (type_type_decl tenv) in
   let tenv_t = tenv |> augment_types typed_types in
-  let typed_gvals, tenv_g = List.fold_left type_global_value ([],tenv_t) p.gvals in
+  let typed_values, tenv_g = List.fold_left type_global_value ([],tenv_t) p.values in
   let typed_nodes, tenv_n = List.fold_left type_node_decl ([],tenv_g) p.nodes in
   let typed_graphs, _ = List.fold_left type_graph_decl ([],tenv_n) p.graphs in
-  { tp_gvals = typed_gvals;
+  { tp_values = typed_values;
     tp_nodes = typed_nodes;
     tp_graphs = typed_graphs }
 
@@ -500,12 +511,12 @@ let rec type_program tenv p =
 
 let rec dump_typed_program tp =
   Printf.printf "Typed program ---------------\n";
-  List.iter dump_typed_gval tp.tp_gvals;
+  List.iter dump_typed_value tp.tp_values;
   List.iter dump_typed_node tp.tp_nodes;
   List.iter dump_typed_graph tp.tp_graphs;
   Printf.printf "----------------------------------\n"
 
-and dump_typed_gval (name, ts) =
+and dump_typed_value (name, ts) =
   Pr_type.reset_type_var_names ();
   Printf.printf "val %s : %s\n" name (Pr_type.string_of_type_scheme ts);
   flush stdout

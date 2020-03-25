@@ -59,16 +59,17 @@ and sv_node_kind =
   (* | SV_Bcast *)
   | SV_Graph
                            
-and sv_wire = (sv_loc * sv_loc) * typ * wire_kind   (* src, dest, type, kind *)
+and sv_wire = (sv_loc * sv_loc) * typ (** wire_kind*)   (* src, dest, type, kind *)
 
-and wire_kind =
-  | DataW   (* Data dependency *)
-  | ParamW  (* Parameter dependency *)
-  (* | DelayW  (\* Special case for handling delays in the Preesm backend *\) *)
+(* and wire_kind =
+ *   | DataW   (\* Data dependency *\)
+ *   | ParamW  (\* Parameter dependency *\)
+ *   (\* | DelayW  (\\* Special case for handling delays in the Preesm backend *\\) *\) *)
 
 let sv_no_loc = -1, -1
 
-let new_wire ty kind = (sv_no_loc,sv_no_loc), ty, kind
+(* let new_wire ty kind = (sv_no_loc,sv_no_loc), ty, kind *)
+let new_wire ty = (sv_no_loc,sv_no_loc), ty
                      
 let is_static_const = function
     SVInt _ | SVBool _ -> true
@@ -111,10 +112,10 @@ and  string_of_semval v = match v with
   | SVClos _ -> "Clos(...)"
   | SVTuple vs -> "(" ^ Misc.string_of_list string_of_semval "," vs ^ ")"
   | SVList vs -> "[" ^ Misc.string_of_list string_of_semval "," vs ^ "]"
-  | SVWire (id, ((l,l'),ty,kind)) ->
-     "Wire(" ^ string_of_svloc l ^ "," ^ string_of_svloc l' ^ "," ^ string_of_type ty ^ "," ^ string_of_wire_kind kind  ^ ")"
+  | SVWire (id, ((l,l'),ty)) ->
+     "Wire(" ^ string_of_svloc l ^ "," ^ string_of_svloc l' ^ "," ^ string_of_type ty ^ ")"
 
 and string_of_svloc (l,s) =  "(" ^ string_of_int l ^ "," ^ string_of_int s ^ ")"
-and string_of_wire_kind = function DataW -> "data" | ParamW -> "param" (* | DelayW -> "delay" *)
+(* and string_of_wire_kind = function DataW -> "data" | ParamW -> "param" (\* | DelayW -> "delay" *\) *)
 
 and output_sem_val_list oc sep l = Misc.output_list output_value oc sep l

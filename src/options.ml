@@ -42,7 +42,7 @@ let cfg = {
   }
 
 let set_stdlib path = cfg.stdlib <- path
-let no_stdlib () = cfg.stdlib <- ""
+let no_stdlib () = cfg.stdlib <- "none"
 let set_output_prefix name = cfg.output_prefix <- name
 (* let add_include_path path = Lexer.include_path <- !Lexer.include_path @ [path] *)
 let set_prefix p = cfg.prefix <- p

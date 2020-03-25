@@ -107,7 +107,7 @@ let dump_instance oc g (i,b) =
   | _ ->
       () 
 
-let dump_connexion oc g (wid,(((s,ss),(d,ds)),ty,is_param_dep))=
+let dump_connexion oc g (wid,(((s,ss),(d,ds)),ty(*,is_param_dep*)))=
   let lookup bid = 
     try List.assoc bid g.sg_boxes
     with Not_found -> Misc.fatal_error "Xdf.dump_connexion" in

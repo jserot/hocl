@@ -31,22 +31,6 @@ type typ_scheme =
 exception TypeConflict of typ * typ;;
 exception TypeCircularity of typ * typ;;
 
-let type_arrow t1 t2 = TyArrow (t1,t2)
-let type_arrow2 t1 t2 t3 = TyArrow (t1,TyArrow (t2,t3))
-let type_constr c ts = TyConstr(c, ts)
-let type_pair t1 t2 = TyProduct [t1;t2]
-let type_bundle t n = TyConstr("bundle", [t])
-let type_param t = TyConstr("param", [t])
-let type_nat = type_constr "nat" []
-let type_int = type_constr "int" []
-let type_bool = type_constr "bool" []
-let type_unit = type_constr "unit" []
-let no_type = type_constr "unknown" []
-let type_product = function
-    [] -> type_unit
-  | [t] -> t
-  | ts -> TyProduct ts
-
 let rec type_repr = function
   | TyVar({value = Known ty1} as var) ->
       let ty = type_repr ty1 in
@@ -60,6 +44,35 @@ let rec real_type ty =
   | TyProduct ts  -> TyProduct (List.map real_type ts)        
   | TyVar { value=Known ty'} -> ty'
   | ty -> ty
+
+let is_constr_type p t = match real_type t with
+  | TyConstr (name,_) -> p name 
+  | _ -> false
+
+let is_unit_type = is_constr_type (fun n -> n="unit")
+let is_nat_type = is_constr_type (fun n -> n="nat")
+let is_int_type = is_constr_type (fun n -> n="int")
+let is_bool_type = is_constr_type (fun n -> n="bool")
+let is_wire_type = is_constr_type (fun n -> n="wire")
+let is_param_type = is_constr_type (fun n -> n="param")
+
+let type_arrow t1 t2 = TyArrow (t1,t2)
+let type_arrow2 t1 t2 t3 = TyArrow (t1,TyArrow (t2,t3))
+let type_constr c ts = TyConstr(c, ts)
+let type_pair t1 t2 = TyProduct [t1;t2]
+let type_bundle t n = TyConstr("bundle", [t])
+let type_param t = if is_param_type t then t else TyConstr("param", [t])
+let type_wire t = if is_wire_type t then t else TyConstr("wire", [t])
+(* let type_nat = type_constr "nat" [] *)
+let type_int = type_constr "int" []
+let type_bool = type_constr "bool" []
+let type_unit = type_constr "unit" []
+let no_type = type_constr "unknown" []
+let type_product = function
+    [] -> type_unit
+  | [t] -> t
+  | ts -> TyProduct ts
+
 
 let occur_check var ty =
   let rec test t =
@@ -175,14 +188,6 @@ let type_instance ty_sch = fst (full_type_instance ty_sch)
 
 let type_copy t = type_instance (generalize [] t)  (* tofix ? *)
 
-let is_constr_type p t = match real_type t with
-  | TyConstr (name,_) -> p name 
-  | _ -> false
-
-let is_unit_type = is_constr_type (fun n -> n="unit")
-let is_nat_type = is_constr_type (fun n -> n="nat")
-let is_int_type = is_constr_type (fun n -> n="int")
-let is_bool_type = is_constr_type (fun n -> n="bool")
 
 (* let list_of_types ty = match real_type ty with
  *   TyProduct ts -> List.map real_type ts

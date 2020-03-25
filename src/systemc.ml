@@ -536,7 +536,7 @@ and is_io_box toplevel b =
  *   | "delay" | "switch" | "merge" -> true
  *   | _ -> false  *)
 
-and dump_wire_decl oc ((wid,(((src,_),(dst,_)),ty,kind)) as w) =
+and dump_wire_decl oc ((wid,(((src,_),(dst,_)),ty)) as w) =
   (* if is_dep_wire then
    *     fprintf oc "  sc_signal<%s > w%d(\"w%d\");\n" (string_of_type ty) wid wid
    * else *)
@@ -603,8 +603,11 @@ and wire_name get tags g wid =
 and iwire_name g wid = wire_name get_src_box [SourceB;InParamB] g wid
 and owire_name g wid = wire_name get_dst_box [SinkB] g wid
 
-and string_of_wire_inst (wid,(_,_,kind)) = 
-  let cap = match kind with DataW -> cfg.sc_data_fifo_capacity | ParamW -> cfg.sc_param_fifo_capacity in
+(* and string_of_wire_inst (wid,(_,_,kind)) = 
+ *   let cap = match kind with DataW -> cfg.sc_data_fifo_capacity | ParamW -> cfg.sc_param_fifo_capacity in
+ *   sprintf "w%d(\"w%d\",%d)" wid wid cap *)
+and string_of_wire_inst (wid,(_,ty)) = 
+  let cap = if Types.is_param_type ty then cfg.sc_param_fifo_capacity else cfg.sc_data_fifo_capacity in
   sprintf "w%d(\"w%d\",%d)" wid wid cap
 
 (* Printing node description file(s) *)
