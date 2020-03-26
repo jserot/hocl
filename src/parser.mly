@@ -121,6 +121,7 @@ let mk_core_expr l desc = { ce_desc = desc; ce_loc = mk_location l; ce_typ = Typ
 let rec mk_apply l f es = match es with
   | [] -> f
   | e2::e2s -> mk_apply l (mk_net_expr l (NApp(f, e2))) e2s (* TO FIX: location *)
+let rec mk_papply l f es = mk_net_expr l (NPApp(f, es))
 (* let rec mk_apply2 l f ps es = match es with
  *   | [] -> f
  *   | e2::e2s -> mk_apply l (mk_net_expr l (NApp2(f, ps, e2))) e2s (\* TO FIX: location *\) *)
@@ -454,7 +455,7 @@ simple_net_expr:
       | id=IDENT
           { mk_net_expr $loc (NVar id) }
       | id=IDENT LESS params=my_separated_nonempty_list(COMMA,core_expr) GREATER
-          { mk_net_expr $loc (NPVar (id,params)) }
+          { mk_papply $loc (mk_net_expr $loc (NVar id)) params }
       | LPAREN RPAREN
           { mk_net_expr $loc (NUnit) }
       | LBRACKET es=net_expr_comma_list RBRACKET

@@ -501,12 +501,13 @@ let rec eval_net_expr senv expr =
   | NBool b -> SVBool b, [], []
   | NUnit -> SVUnit, [], []
   | NVar v -> lookup v, [], []
-  | NPVar (v, params) ->
+  | NPApp (fn, params) ->
+     let val_fn, bs_f, ws_f = eval_net_expr senv fn in
      let val_params, bs_p, ws_p = List.fold_left (eval_net_param senv) ([],[],[]) params in
-     let r = match lookup v with
+     let r = match val_fn with
         | SVNode (n,[]) -> SVNode (n, val_params) 
         | _ -> illegal_application expr.ne_loc in (* Only actors and graphs can take parameters *)
-     r, bs_p, ws_p
+     r, bs_p@bs_f, ws_p@ws_f
   | NNil -> SVNil, [], []
   | NTuple es ->
       let rs, bs, ws = List.fold_right

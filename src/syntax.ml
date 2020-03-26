@@ -126,7 +126,7 @@ and gnode_decl =
 and graph_node_desc = string * graph_node
 
 and graph_node = 
-  { gn_name: string; (* Name of the instanciated node *)
+  { gn_name: string; (* Name of the instanciated model *)
     gn_params: core_expr list;
     gn_ins: string list;
     gn_outs: string list }
@@ -166,8 +166,8 @@ and net_expr =
 
 and net_expr_desc =
    | NVar of string
-   | NPVar of string * core_expr list
    | NApp of net_expr * net_expr
+   | NPApp of net_expr * core_expr list (* Parameter application. Ex: [foo<1,2>] *)
    | NTuple of net_expr list
    | NLet of bool * net_binding list * net_expr (* rec / non rec*)
    | NFun of net_pattern * net_expr (* single match here ! *)
@@ -249,8 +249,8 @@ let rec string_of_net_expr ne = string_of_net_exp ne.ne_desc
 
 and string_of_net_exp = function
    | NVar v -> v
-   | NPVar (v,ps) ->
-      v ^ "<" ^ Misc.string_of_list string_of_core_expr "," ps ^ ">"
+   | NPApp (e,ps) ->
+      string_of_net_expr e  ^ "<" ^ Misc.string_of_list string_of_core_expr "," ps ^ ">"
    | NApp (e1,e2) -> string_of_net_expr e1 ^ " " ^ string_of_net_expr e2
    | NTuple es -> "(" ^ Misc.string_of_list string_of_net_expr "," es ^ ")"
    | NLet (isrec,nbs,e) ->

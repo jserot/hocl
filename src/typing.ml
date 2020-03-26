@@ -186,8 +186,8 @@ let rec type_net_expression genv expr =
   let ty = match expr.ne_desc with
   | NVar id ->
      type_instance (lookup_value expr.ne_loc genv id)
-  | NPVar(id, pvs) ->
-      let ty_fn = type_instance (lookup_value expr.ne_loc genv id) in
+  | NPApp(fn, pvs) ->
+      let ty_fn = type_net_expression genv fn in
       let ty_params = type_product (List.map (type_param_expression genv) pvs) in
       let ty_result = new_type_var () in
       try_unify "expression" ty_fn (type_arrow ty_params ty_result) expr.ne_loc;
