@@ -26,7 +26,7 @@ exception Lexical_error of lexical_error * int * int
 
 let keyword_table = [
   "type", TYPE;
-  "nat", TY_NAT;
+  "int", TY_INT;
   "bool", TY_BOOL;
   "unit", TY_UNIT;
   "actor", ACTOR;
@@ -54,8 +54,6 @@ let keyword_table = [
   "else", ELSE;
   "rate", RATE;
   "other", OTHER;
-  (* "systemc", SYSTEMC;
-   * "preesm", PREESM; *)
   (* "initially", INITIALLY; *)
 ]
 

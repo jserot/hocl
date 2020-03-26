@@ -31,7 +31,7 @@
 %token RBRACE         (* "}"*)
 %token STAR           (* "*"*)
 %token COMMA          (* ","*)
-%token ARROW   (* "->"*)
+%token ARROW          (* "->"*)
 %token COLONCOLON     (* "::"*)
 %token SEMI           (* ";"*)
 %token COLON          (* ":"*)
@@ -39,38 +39,34 @@
 %token RBRACKET       (* "]"*)
 %token BAR            (* "|"*)
 %token UNDERSCORE     (* "_"*)
-%token END            (* "end"*)
-%token TYPE           (* "type"*)
-%token TY_NAT         (* "nat"*)
+%token END           
+%token TYPE         
+%token TY_INT         (* "int"*)
 %token TY_BOOL        (* "bool"*)
 %token TY_UNIT        (* "unit"*)
-(* %token BCAST          (\* "bcast"*\) *)
-(* %token DELAY          (\* "delay"*\) *)
-%token GRAPH          (* "graph"*)
-%token ACTOR          (* "actor"*)
-%token PARAM          (* "param"*)
-%token IN             (* "in"*)
-%token OUT            (* "out"*)
-%token FUN            (* "fun" *)
-%token STRUCT         (* "struct" *)
-%token NODE           (* "node" *)
-%token WIRE           (* "wire" *)
-%token MATCH          (* "match"*)
-%token WITH           (* "with"*)
-%token VAL            (* "val"*)
-%token LET            (* "let"*)
-%token AND            (* "and"*)
-%token REC            (* "rec"*)
-(* %token LIST           (\* "list"*\) *)
-%token IF             (* "if"*)
-%token THEN           (* "then"*)
-%token ELSE           (* "else"*)
-%token TRUE           (* "true"*)
-%token FALSE          (* "false"*)
+%token GRAPH          
+%token ACTOR         
+%token PARAM        
+%token IN          
+%token OUT        
+%token FUN       
+%token STRUCT   
+%token NODE    
+%token WIRE   
+%token MATCH 
+%token WITH 
+%token VAL 
+%token LET
+%token AND
+%token REC
+%token IF
+%token THEN
+%token ELSE
+%token TRUE
+%token FALSE
 %token RATE           (* "rate"*)
 %token OTHER          (* "other"*)
 (* %token INITIALLY      (\* "initially"*\) *)
-(* %token PRAGMA         /* "#pragma" */ *)
 
 (* Precedences and associativities. Lower precedences first.*)
 
@@ -122,9 +118,6 @@ let rec mk_apply l f es = match es with
   | [] -> f
   | e2::e2s -> mk_apply l (mk_net_expr l (NApp(f, e2))) e2s (* TO FIX: location *)
 let rec mk_papply l f es = mk_net_expr l (NPApp(f, es))
-(* let rec mk_apply2 l f ps es = match es with
- *   | [] -> f
- *   | e2::e2s -> mk_apply l (mk_net_expr l (NApp2(f, ps, e2))) e2s (\* TO FIX: location *\) *)
 let rec mk_fun l pats e = match pats with
   | [] -> Misc.fatal_error "mk_fun" (* should not happen *)
   | [p] -> mk_net_expr l (NFun (p,e))
@@ -136,10 +129,6 @@ let mk_binop l (op,l') e1 e2 = mk_net_expr l (NApp (mk_net_expr l' (NVar op), mk
  *   | _ -> mk_unop l ("~-",l') e *)
 let mk_infix l (op,l') e1 e2 = mk_apply l (mk_net_expr l' (NVar op)) [e1; e2]
 let mk_cbinop l (op,l') e1 e2 = mk_core_expr l (EBinop (op,  e1, e2))
-(* let mk_unop l (op,l') e = mk_net_expr l (NApp (mk_net_expr l' (NVar op),e)) *)
-(* let mk_uminus l l' e = match e.ne_desc with
- *   | NInt n -> { e with ne_desc = NInt (-n) }
- *   | _ -> mk_unop l ("~-",l') e *)
 
 type top_decl =
   | TyDecl of Syntax.type_decl
@@ -320,8 +309,8 @@ simple_type_expr:
           { mk_type_expr $loc (Typeconstr(id, [])) }
       | TY_UNIT 
           { mk_type_expr $loc (Typeconstr("unit", [])) }
-      | TY_NAT 
-          { mk_type_expr $loc (Typeconstr("nat", [])) }
+      | TY_INT 
+          { mk_type_expr $loc (Typeconstr("int", [])) }
       | TY_BOOL 
           { mk_type_expr $loc (Typeconstr("bool", [])) }
       | t=simple_type_expr id=IDENT

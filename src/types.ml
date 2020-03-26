@@ -63,7 +63,6 @@ let type_pair t1 t2 = TyProduct [t1;t2]
 let type_bundle t n = TyConstr("bundle", [t])
 let type_param t = if is_param_type t then t else TyConstr("param", [t])
 let type_wire t = if is_wire_type t then t else TyConstr("wire", [t])
-(* let type_nat = type_constr "nat" [] *)
 let type_int = type_constr "int" []
 let type_bool = type_constr "bool" []
 let type_unit = type_constr "unit" []
@@ -72,7 +71,6 @@ let type_product = function
     [] -> type_unit
   | [t] -> t
   | ts -> TyProduct ts
-
 
 let occur_check var ty =
   let rec test t =
@@ -187,7 +185,6 @@ let full_type_instance ty_sch =
 let type_instance ty_sch = fst (full_type_instance ty_sch)
 
 let type_copy t = type_instance (generalize [] t)  (* tofix ? *)
-
 
 (* let list_of_types ty = match real_type ty with
  *   TyProduct ts -> List.map real_type ts

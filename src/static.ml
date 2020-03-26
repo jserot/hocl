@@ -95,20 +95,20 @@ let no_bval =
           
 let new_box tag name ty ins outs =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=tag; b_name=name; b_params=[]; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
+  bid, { b_id=bid; b_tag=tag; b_name=name; b_ins=ins; b_outs=outs; b_typ=ty; b_val=no_bval }
 
 let new_io_box ?(bv=no_bval) tag name ty  =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=tag; b_name=name; b_params=[]; b_ins=[]; b_outs=[]; b_typ=ty; b_val=bv }
+  bid, { b_id=bid; b_tag=tag; b_name=name; b_ins=[]; b_outs=[]; b_typ=ty; b_val=bv }
 
 let new_param_box tag ty v =
   let bid = new_bid () in
   let name = "p" ^ string_of_int bid in
-  bid, { b_id=bid; b_tag=tag; b_name=name; b_params=[]; b_ins=[]; b_outs=[]; b_typ=ty; b_val=v }
+  bid, { b_id=bid; b_tag=tag; b_name=name; b_ins=[]; b_outs=[]; b_typ=ty; b_val=v }
 
 let new_dummy_box name ty =
   let bid = new_bid () in
-  bid, { b_id=bid; b_tag=DummyB; b_name=name; b_params=[]; b_ins=[]; b_outs=["r",([0],ty,[])]; b_typ=ty; b_val=no_bval }
+  bid, { b_id=bid; b_tag=DummyB; b_name=name; b_ins=[]; b_outs=["r",([0],ty,[])]; b_typ=ty; b_val=no_bval }
 
 let boxes_of_wire boxes (((s,ss),(d,ds)),ty) = 
   try
@@ -834,7 +834,7 @@ let eval_fun_graph_desc tp senv intf params defns =
 let new_bcast_box ty wid wids =
   let bid = new_bid () in
   let bos = List.mapi (fun i wid -> "o_" ^ string_of_int (i+1), ([wid],ty,[])) wids in 
-  bid, { b_id=bid; b_tag=IBcastB; b_name=cfg.bcast_name; b_params=[];
+  bid, { b_id=bid; b_tag=IBcastB; b_name=cfg.bcast_name; 
          b_ins=["i",(wid,ty,[])]; b_outs=bos; b_typ=ty; b_val=no_bval }
 
 let is_bcast_box boxes bid = (find_box boxes bid).b_name = cfg.bcast_name

@@ -24,13 +24,11 @@ let encode_int n =
     SVInt n
 let rec decode_int = function
   | SVInt n -> n
-  (* | SVLoc (_,_,_,SVInt n) -> n (\* Special case for parameters *\) *)
   | _ -> fatal_error "Builtins.decode_int" (* should not happen *)
 let encode_bool b =
     SVBool b
 let rec decode_bool = function
   | SVBool b -> b
-  (* | SVLoc (_,_,_,SVBool b) -> b (\* Special case for parameters *\) *)
   | _ -> fatal_error "Builtins.decode bool" (* should not happen *)
 
 let prim1 encode op decode =
@@ -41,13 +39,6 @@ let prim2 encode op decode1 decode2 =
        encode (op (decode1 v1) (decode2 v2))
    | _ -> fatal_error "Builtins.prim2")
 
-(* let delay_prim = SVPrim (fun z -> (SVPrim (fun v -> z)))
- *   (\* This is a fake defin. The [delay] primitive will never be evaluated statically *\) *)
-
-(* let type_delay =
- *   let ty = new_type_var () in
- *   type_arrow2 type_int ty ty *)
-  
 let builtin_primitives = [
     (* Id, type, static value *)
     "+",  (type_arithm, prim2 encode_int  ( + ) decode_int decode_int);
@@ -60,7 +51,6 @@ let builtin_primitives = [
     "<",  (type_compar, prim2 encode_bool ( < ) decode_int decode_int);
     ">",  (type_compar, prim2 encode_bool ( > ) decode_int decode_int);
     "not",  (trivial_scheme (type_arrow type_bool type_bool), prim1 encode_bool ( not ) decode_bool);
-    (* "delay", (generalize [] type_delay, delay_prim)  *)
   ]
 
 (* Initial typing environment *)

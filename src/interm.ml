@@ -22,13 +22,13 @@ open Semval
 
 type ir = {
   ir_values: (string * sem_val) list;
-  ir_nodes: (string * sn_desc) list;  (* Declared nodes (with associated implementations) *)
+  ir_nodes: (string * sn_desc) list;  (* Node models  *)
   ir_graphs: (string * tg_desc) list; (* Toplevel graphs *)
   }
                
 and sn_desc = {
-    sn_intf: Typing.typed_intf;
-    sn_impl: sn_impl; 
+  sn_intf: Typing.typed_intf;
+  sn_impl: sn_impl; 
   }
 
 and sn_impl =
@@ -36,25 +36,24 @@ and sn_impl =
   | NI_Graph of sg_desc             (* Sub-graph *)
 
 and tg_desc = {
-    tg_intf: Typing.typed_intf;
-    tg_impl: sg_desc; 
+  tg_intf: Typing.typed_intf;
+  tg_impl: sg_desc; 
   }
 
 and sg_desc = { 
-    sg_boxes: (bid * ir_box) list;
-    sg_wires: (wid * sv_wire) list;
+  sg_boxes: (bid * ir_box) list;
+  sg_wires: (wid * sv_wire) list;
   }
 
 and ir_box = {
-    b_id: int;
-    b_tag: box_tag;
-    b_name: string;                  (* For regular (resp. param) boxes, name of the instanciated actor (resp. param) *)
-    b_typ: typ;                      (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
-    b_params: (string * (wid * typ)) list;  (* TODO : get rid of this : parameters are now viewed as inputs ! *)
-    b_ins: (string * (wid * typ * Syntax.io_annot list)) list;
-    b_outs: (string * (wid list * typ * Syntax.io_annot list)) list;
-    mutable b_val: b_val;            (* For parameter boxes *)
-}
+  b_id: int;
+  b_tag: box_tag;
+  b_name: string;                  (* For regular (resp. param) boxes, name of the instanciated actor (resp. param) *)
+  b_typ: typ;                      (* "Functional" type, i.e. either [t_params -> t_ins -> t_outs] or [t_ins -> t_outs] *)
+  b_ins: (string * (wid * typ * Syntax.io_annot list)) list;
+  b_outs: (string * (wid list * typ * Syntax.io_annot list)) list;
+  mutable b_val: b_val;            (* For parameter boxes *)
+  }
 
 and box_tag = 
     ActorB
@@ -72,9 +71,9 @@ and wid = int
 and bid = int
 
 and b_val = { 
-    bv_lit: core_expr;     (* Original expression *)
-    bv_sub: core_expr;     (* Original expression after substitution of dependencies (ex: "k+1" -> "i1+1") *)
-    bv_val: sem_val         (* Statically computed value - SVUnit if N/A *)
+  bv_lit: core_expr;     (* Original expression *)
+  bv_sub: core_expr;     (* Original expression after substitution of dependencies (ex: "k+1" -> "i1+1") *)
+  bv_val: sem_val         (* Statically computed value - SVUnit if N/A *)
   }
 
 (* Accessors *)

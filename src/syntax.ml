@@ -28,10 +28,10 @@ and type_expression_desc =
 (* Programs *)
                 
 type program =
-  { types: type_decl list;  (* Global, user-defined types *)
-    values: value_decl list;  (* Global values, functions for functional graph and node descriptions typically *)
-    nodes: node_decl list;  (* Nodes *)
-    graphs: graph_decl list }  (* Top-level graphs *)
+  { types: type_decl list;    (* User-defined types *)
+    values: value_decl list;  (* Values *)
+    nodes: node_decl list;    (* Node models *)
+    graphs: graph_decl list } (* Top-level graphs *)
 
 and type_decl =
   { td_desc: tdecl_desc;
@@ -151,7 +151,7 @@ and net_pattern =
     mutable np_typ: Types.typ }
 
 and net_pattern_desc =
-  | NPat_var of string (* string option *) (* name, initial value *)
+  | NPat_var of string 
   | NPat_tuple of net_pattern list
   | NPat_nil
   | NPat_cons of net_pattern * net_pattern
@@ -169,7 +169,7 @@ and net_expr_desc =
    | NApp of net_expr * net_expr
    | NPApp of net_expr * core_expr list (* Parameter application. Ex: [foo<1,2>] *)
    | NTuple of net_expr list
-   | NLet of bool * net_binding list * net_expr (* rec / non rec*)
+   | NLet of bool * net_binding list * net_expr (* rec/non rec*)
    | NFun of net_pattern * net_expr (* single match here ! *)
    | NNil
    | NCons of net_expr * net_expr
@@ -181,11 +181,7 @@ and net_expr_desc =
    | NInt of int
    | NUnit
 
-and param_expr = core_expr
-and rate_expr = core_expr
-(* TO BE EXTENDED : param (and rate ?) expressions should also include fn application for ex. *)
-              
-and core_expr =
+and core_expr = 
   { ce_desc: core_expr_desc;
     ce_loc: location;
     mutable ce_typ: Types.typ }
@@ -195,6 +191,10 @@ and core_expr_desc =
    | EInt of int
    | EBool of bool
    | EBinop of string * core_expr * core_expr
+(* TO BE EXTENDED ? Should we include user-defined or primitive fn application ? *)
+
+and param_expr = core_expr
+and rate_expr = core_expr
 
 let core_expr_equal expr1 expr2 =  (* Structural comparison *)
   let rec cmp e1 e2 = match e1.ce_desc, e2.ce_desc with
@@ -307,28 +307,12 @@ let is_constant_core_expr e =
   | EBool _ -> true
   | _ -> false
        
-(* let constant_of_core_expr e =
- *   match e.ce_desc with
- *   | EInt n -> n
- *   | _ -> Misc.fatal_error "Syntax.constant_of_core_expr" *)
-  
 let subst_core_expr vs e = 
   let rec subst e = match e.ce_desc with
    | EVar v when List.mem_assoc v vs -> { e with ce_desc = EVar (List.assoc v vs) }
    | EBinop (op,e1,e2) -> { e with ce_desc = EBinop (op, subst e1, subst e2) }
    | _ -> e in
   subst e
-
-(* let string_of_param_expr = string_of_core_expr
- * let is_simple_param_expr = is_simple_core_expr
- * let is_constant_param_expr = is_constant_core_expr
- * let constant_of_param_expr = constant_of_core_expr
- * let subst_param_expr = subst_core_expr
- * 
- * let is_simple_rate_expr = is_simple_core_expr
- * let is_constant_rate_expr = is_constant_core_expr
- * let constant_of_rate_expr = constant_of_core_expr
- * let subst_rate_expr = subst_core_expr *)
 
 let string_of_rate_expr = string_of_core_expr
 

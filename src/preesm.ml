@@ -134,9 +134,6 @@ let dump_actor_port oc dir is_param (id, (wid,ty,annots)) =
       (match rate with Some e -> Syntax.string_of_rate_expr e | None -> cfg.default_port_rate)
       (Misc.string_of_list Misc.id " " other_anns)
 
-(* let is_param_wire (wid,(_,_,kind)) = kind=Semval.ParamW *)
-let is_param_wire (wid,(_,ty)) = Types.is_param_type ty
-
 let dump_actor oc ir g (i,b)  =
   let param_ins, data_ins = List.partition (is_param_input g.sg_wires) b.b_ins in 
   match b.b_tag with

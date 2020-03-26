@@ -35,10 +35,11 @@ and sv_tag =
   | SV_Param
   | SV_None
 
-and sv_clos =
-  { cl_pat: Syntax.net_pattern;
-    cl_exp: Syntax.net_expr;
-    mutable cl_env: (string * sem_val) list }
+and sv_clos = {
+  cl_pat: Syntax.net_pattern;
+  cl_exp: Syntax.net_expr;
+  mutable cl_env: (string * sem_val) list
+  }
 
 and idx = int
 and sel = int
@@ -46,20 +47,20 @@ and sel = int
 and sv_loc = idx * sel
 
 and sv_node = {   (* Node model (actor or (sub)graph) *)
-    sn_id: string;
-    sn_kind: sv_node_kind;
-    sn_params: (string * typ) list;
-    sn_ins: (string * typ * Syntax.io_annot list) list;
-    sn_outs: (string * typ * Syntax.io_annot list) list;
-    sn_typ: typ_scheme; (* TO SEE : rather [typ] ? Does it make sense to have polymorphic nodes ? *)
-}
+  sn_id: string;
+  sn_kind: sv_node_kind;
+  sn_params: (string * typ) list;
+  sn_ins: (string * typ * Syntax.io_annot list) list;
+  sn_outs: (string * typ * Syntax.io_annot list) list;
+  sn_typ: typ_scheme; (* TO SEE : rather [typ] ? Does it make sense to have polymorphic nodes ? *)
+  }
 
 and sv_node_kind =
   | SV_Actor
   (* | SV_Bcast *)
   | SV_Graph
                            
-and sv_wire = (sv_loc * sv_loc) * typ (** wire_kind*)   (* src, dest, type, kind *)
+and sv_wire = (sv_loc * sv_loc) * typ (** wire_kind*)   (* src, dest, type *)
 
 (* and wire_kind =
  *   | DataW   (\* Data dependency *\)
@@ -89,12 +90,6 @@ let cons_of_list v =
   match v with
   | SVList l -> h l
   | _ -> Misc.fatal_error "Ssval.cons_of_list"
-
-(* let rec size_of_ssval v = match v with
- *   | SVNil -> 0
- *   | SVCons (_,v) -> 1 + size_of_ssval v
- *   | SVTuple vs -> List.length vs
- *   | _ -> 1 *)
 
 (* Printing *)
 

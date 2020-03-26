@@ -83,16 +83,17 @@ let dump_actor_decl oc g (name, n) =
        end
      
 let dump_actor_inst oc g (i,b) = 
-  let string_of_param (n,(wid,ty)) = n ^ "=" ^ string_of_val (get_param_value "DIF" g wid) in
+  let string_of_param (n,(wid,ty,_)) = n ^ "=" ^ string_of_val (get_param_value "DIF" g wid) in
   let string_of_inp (id, (wid,ty,anns)) = edge_id wid ^ "->" ^ id  in
   let string_of_outp (id, (wids,ty,anns)) = 
     let string_of_woutp wid = id ^ "->" ^ edge_id wid in
     Misc.string_of_list string_of_woutp ", " wids in
+  let param_ins, data_ins = List.partition (is_param_input g.sg_wires) b.b_ins in 
   fprintf oc "  actor %s {\n" (node_id i);
   fprintf oc "    type: %s;\n" b.b_name;
-  if b.b_params <> [] then
-    fprintf oc "    param %s;\n" (Misc.string_of_list string_of_param ", " b.b_params);
-  fprintf oc "    interface %s;\n" (Misc.string_of_two_lists string_of_inp string_of_outp ", " b.b_ins b.b_outs);
+  if param_ins <> [] then
+    fprintf oc "    param %s;\n" (Misc.string_of_list string_of_param ", " param_ins);
+  fprintf oc "    interface %s;\n" (Misc.string_of_two_lists string_of_inp string_of_outp ", " data_ins b.b_outs);
   fprintf oc "    }\n\n"
 
 let dump_graph ~toplevel path prefix ir id intf g = 

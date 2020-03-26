@@ -352,7 +352,7 @@ and type_wire_decl tenv { gw_desc = (id,te) } = id, type_wire @@ type_of_type_ex
 
 and type_node genv { gn_desc = (id,g); gn_loc = loc } =
   (* Typing a node decl such [node n: f (p1:t1,...) (i1:t'1,...) (o1:t''1,...)] gives type
-     [(t1*...) -> (t'1*...) -> (t''1*...)] (just like an actor decl).
+     [(t1 param*...) -> (t'1 wire*...) -> (t''1 wire*...)]
      We also check that the resulting type unifies with the type of [f] obtained from the environment *)
   let lookup id = type_instance (lookup_value loc genv id) in
   let ty_ins = List.map lookup g.gn_ins in
@@ -456,8 +456,6 @@ let type_graph_decl (acc,genv) { g_desc=g } =
   (* Typing a graph declaration consists in
      - typing its interface, and adding the corresponding signature to the current NTE 
      - typing its definition, collecting the result and checking that it matches the interface *)
-  (* Printf.printf "** Typing graph decl %s\n" g.g_id;
-   * dump_global_typing_environment "current typing environment" genv; *)
   let type_param_value v = match v with
     | None -> new_type_var ()
     | Some v -> type_core_expression empty_tenv v in
@@ -487,20 +485,20 @@ let type_graph_decl (acc,genv) { g_desc=g } =
   let genv' = genv |> augment_values [g.g_id,ty_intf.t_sig] in
   List.rev acc', genv'
   
-let type_global_value (acc,tenv) d =
+let type_value_decl (acc,tenv) d =
   let typed_values = type_net_defn tenv d in
   typed_values @ acc,
   augment_values typed_values tenv
     
 let rec type_program tenv p = 
   (* Typing programs consists in
-     1. Typing type and global fns decls and adding the resulting types to the typing environment
+     1. Typing type and value decls and adding the resulting types to the typing environment
      2. Typing each node decl and, when done, adding all the resulting signatures (as a type scheme) to the TE
      3. Typing each graph declaration, adding each resulting signature to the TE (so that a given graph declaration
         can refer to previously defined actor or graph declaration) *)
   let typed_types = p.types |> List.map (type_type_decl tenv) in
   let tenv_t = tenv |> augment_types typed_types in
-  let typed_values, tenv_g = List.fold_left type_global_value ([],tenv_t) p.values in
+  let typed_values, tenv_g = List.fold_left type_value_decl ([],tenv_t) p.values in
   let typed_nodes, tenv_n = List.fold_left type_node_decl ([],tenv_g) p.nodes in
   let typed_graphs, _ = List.fold_left type_graph_decl ([],tenv_n) p.graphs in
   { tp_values = typed_values;
