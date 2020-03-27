@@ -17,13 +17,13 @@
           white-space: nowrap;
       }
       .specification th::after {
-          content: "\\a0::=\\a0";
+          content: "\a0::=\a0";
       }
       .specification th.bar {
           text-align: right;
       }
       .specification th.bar::after {
-          content: "|\\a0";
+          content: "|\a0";
       }
       .rule th, td {
           padding-top: .5em;
@@ -105,13 +105,9 @@
       
       <tr class="rule">
         <th><span class="nonterminal">node_intf</span></th>
-        <td><span class="nonterminal">node_kind</span>
+        <td>NODE
         IDENT
-        <span class="option">PARAM
-        LPAREN
-        <span class="nonterminal">my_separated_list(COMMA,
-        <span class="nonterminal">node_param_decl</span>)</span>
-        RPAREN</span>
+        <span class="option"><span class="nonterminal">node_params</span></span>
         IN
         <span class="nonterminal">io_decls</span>
         OUT
@@ -162,8 +158,11 @@
       </tr>
       
       <tr class="rule">
-        <th><span class="nonterminal">node_kind</span></th>
-        <td>NODE</td>
+        <th><span class="nonterminal">node_params</span></th>
+        <td>PARAM
+        LPAREN
+        <span class="nonterminal">node_param_decl</span><sup>*</sup><sub>COMMA</sub>
+        RPAREN</td>
       </tr>
       
       <tr class="rule">
@@ -271,36 +270,31 @@
       </tr>
       <tr>
         <th class="bar"></th>
-        <td>TY_UNIT</td>
-      </tr>
-      <tr>
-        <th class="bar"></th>
         <td>TY_INT</td>
       </tr>
       <tr>
         <th class="bar"></th>
         <td>TY_BOOL</td>
       </tr>
-      <tr>
-        <th class="bar"></th>
-        <td><span class="nonterminal">simple_type_expr</span>
-        IDENT</td>
-      </tr>
       
       <tr class="rule">
         <th><span class="nonterminal">graph_decl</span></th>
         <td>GRAPH
         IDENT
-        <span class="option">PARAM
-        LPAREN
-        <span class="nonterminal">my_separated_list(COMMA,
-        <span class="nonterminal">graph_param_value</span>)</span>
-        RPAREN</span>
+        <span class="option"><span class="nonterminal">graph_params</span></span>
         IN
         <span class="nonterminal">io_decls</span>
         OUT
         <span class="nonterminal">io_decls</span>
         <span class="nonterminal">graph_defn</span></td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">graph_params</span></th>
+        <td>PARAM
+        LPAREN
+        <span class="nonterminal">graph_param_value</span><sup>*</sup><sub>COMMA</sub>
+        RPAREN</td>
       </tr>
       
       <tr class="rule">
@@ -366,12 +360,16 @@
         IDENT
         COLON
         IDENT
-        <span class="option">LESS
-        <span class="nonterminal">my_separated_list(COMMA,
-        <span class="nonterminal">core_expr</span>)</span>
-        GREATER</span>
+        <span class="option"><span class="nonterminal">gnode_params</span></span>
         <span class="nonterminal">gnode_ios</span>
         <span class="nonterminal">gnode_ios</span></td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">gnode_params</span></th>
+        <td>LESS
+        <span class="nonterminal">core_expr</span><sup>*</sup><sub>COMMA</sub>
+        GREATER</td>
       </tr>
       
       <tr class="rule">

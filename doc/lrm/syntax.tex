@@ -1,0 +1,30 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%                                                                                     %%
+%%                This file is part of the HoCL Compiler distribution                  %%
+%%                                                                                     %%
+%%      Copyright 2019 Jocelyn SEROT (jocelyn.serot@uca.fr).  All rights reserved.     %%
+%%         This file is distributed under the terms of the MIT Library License         %%
+%%                                                                                     %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\chapter{Syntax}
+\label{chap:syntax}
+
+This appendix gives a BNF definition of the concrete syntax for \hocl programs.  The meta-syntax is
+conventional. Keywords are written in \textbf{bold} and non-terminals like $\gramnonterm{this}$.
+Vertical bars {\tt |} are used to indicate alternatives.  Constructs enclosed in brackets {\tt [}
+$\ldots$ {\tt ]} are optional. The notation $\grameps$ denotes an empty construct. The notation
+\gramseplist{s}{E} (resp.~\gramsepnelist{s}{E}) denotes a list of zero (resp. one) or more elements
+$E$ separated by $s$. Value-attributed terminals are denoted like \textit{this}. The terminals
+\textit{infix3}, \textit{infix2} and \textit{infix0} respectively correspond to infix operators
+\{\verb|*|,\verb|/|,\verb|%|\}, \{\verb|+|,\verb|-|\} and
+\{\verb|@@|, \verb'|>', \verb'|->'\}. The other definitions (\textit{ident}, \textit{int},
+\textit{string}) are classical.
+
+\input{grammar}
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "hocl-lrm"
+%%% End:

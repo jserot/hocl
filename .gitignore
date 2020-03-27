@@ -1,11 +1,12 @@
-doc/um
 doc/*.pdf
+doc/grammar.html
 !doc/tutorial.pdf
 doc/tutorial/examples/*/dot/*.pdf
 lib/etc/config
 _build/
 src/parser.output
 src/grammar.tex
+src/grammar-defns.sty
 *.html
 !doc/grammar.html
 /config-stamp
@@ -13,6 +14,11 @@ src/grammar.tex
 *~
 *.dot
 *.pi
+*.aux
+*.dvi
+*.log
+*.toc
+*.rel
 .merlin
 !tools/pi2hcl/examples/*.pi
 !tools/pi2hcl/examples/sift/*.pi

@@ -21,6 +21,6 @@
   (targets grammar.tex)
   (deps parser.mly)
   (mode promote)
-  (action (run obelisk latex -i -prefix hocl -o grammar.tex -package grammar-defns parser.mly)))
+  (action (run obelisk latex -i -o grammar.tex -package grammar-defns parser.mly)))
 
 

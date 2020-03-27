@@ -28,7 +28,7 @@ let keyword_table = [
   "type", TYPE;
   "int", TY_INT;
   "bool", TY_BOOL;
-  "unit", TY_UNIT;
+  (* "unit", TY_UNIT; *)
   "actor", ACTOR;
   (* "bcast", BCAST; *)
   "graph", GRAPH;

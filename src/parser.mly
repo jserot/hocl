@@ -43,7 +43,7 @@
 %token TYPE         
 %token TY_INT         (* "int"*)
 %token TY_BOOL        (* "bool"*)
-%token TY_UNIT        (* "unit"*)
+(* %token TY_UNIT        (\* "unit"*\) *)
 %token GRAPH          
 %token ACTOR         
 %token PARAM        
@@ -159,33 +159,29 @@ let gnode_decl_of = function GNodeDecl d -> d | _ -> Misc.fatal_error "Parser.gn
 
 %%
 
-%public optional(X):
-   (* Nothing *) { false }
+optional(X):
+   (* nothing *) { false }
   | X { true }
 
-%public my_list(X):
-  (* nothing *)
-    { [] }
-| x = X; xs = my_list(X)
-    { x :: xs }
+my_option(X):
+   | (* nothing *) { [] }
+   | x=X { x }
 
-%public my_nonempty_list(X):
-  x = X
-    { [ x ] }
-| x = X; xs = my_nonempty_list(X)
-    { x :: xs }
+my_list(X):
+   | (* nothing *) { [] }
+   | x=X; xs=my_list(X) { x::xs }
 
-%public my_separated_nonempty_list(separator, X):
-  x = X
-    { [ x ] }
-| x = X; separator; xs = my_separated_nonempty_list(separator, X)
-    { x :: xs }
+my_nonempty_list(X):
+   | x=X { [x] }
+   | x=X; xs=my_nonempty_list(X) { x::xs }
 
-%public my_separated_list(separator, X):
-  (* nothing *)
-    { [] }
-| x = my_separated_nonempty_list(separator, X)
-    { x }
+my_separated_nonempty_list(X,S):
+   | x=X { [ x ] }
+   | x=X; S; xs=my_separated_nonempty_list(X,S) { x::xs }
+
+my_separated_list(X,S):
+   | (* nothing *) { [] }
+   | x=my_separated_nonempty_list(X,S) { x }
 
 (* PROGRAM *)
 
@@ -223,8 +219,12 @@ node_decl:
      { mk_node_decl intf impl }
                          
 node_intf:
-   kind=node_kind id=IDENT params=opt_node_params IN inps=io_decls OUT outps=io_decls 
-    { mk_node_intf $loc { n_id=id; n_kind=kind; n_params=params; n_ins=inps; n_outs=outps } }
+   NODE id=IDENT params=my_option(node_params) IN inps=io_decls OUT outps=io_decls 
+    { mk_node_intf $loc { n_id=id; n_kind=NRegular; n_params=params; n_ins=inps; n_outs=outps } }
+
+(* node_intf:
+ *    kind=node_kind id=IDENT params=my_option(node_params) IN inps=io_decls OUT outps=io_decls
+ *     { mk_node_intf $loc { n_id=id; n_kind=kind; n_params=params; n_ins=inps; n_outs=outps } } *)
 
 node_impl:
   | (* Nothing *) { mk_node_impl $loc NM_None }
@@ -233,26 +233,28 @@ node_impl:
   | FUN d=fun_graph_desc END { mk_node_impl $loc (NM_Fun d) }
                     
 actor_desc:
-  | t=IDENT LPAREN attrs=my_separated_list(COMMA,impl_attr) RPAREN { (t,attrs) }
+  | t=IDENT LPAREN attrs=my_separated_list(impl_attr,COMMA) RPAREN { (t,attrs) }
 
 impl_attr:
   | name=IDENT EQUAL v=STRING { name, v }
   | name=IDENT { name, "" }
 
-node_kind:
-  | NODE { NRegular }
-  (* | BCAST { ABcast } *)
+(* node_kind:
+ *   | NODE { NRegular }
+ *   (\* | BCAST { ABcast } *\) *)
 
-opt_node_params:
-  | (* Nothing *) { [] }
-  | PARAM LPAREN ps=my_separated_list(COMMA, node_param_decl) RPAREN { ps }
+node_params:
+  | PARAM LPAREN ps=my_separated_list(node_param_decl,COMMA) RPAREN { ps }
+(* opt_node_params:
+ *   | (\* Nothing *\) { [] }
+ *   | PARAM LPAREN ps=my_separated_list(node_param_decl,COMMA) RPAREN { ps } *)
 
 node_param_decl:
    id=IDENT COLON t=simple_type_expr
      { mk_param_decl $loc (id, t, None) }  (* No value for node params *)
 
 io_decls:
-  | LPAREN ios=my_separated_list(COMMA, io_decl) RPAREN { ios }
+  | LPAREN ios=my_separated_list(io_decl,COMMA) RPAREN { ios }
 
 io_decl:
   id=IDENT COLON t=simple_type_expr anns=opt_io_annots
@@ -261,7 +263,7 @@ io_decl:
 opt_io_annots:
   | (* Nothing *) { [] }
   | LBRACKET e=core_expr RBRACKET { [IA_Rate e] }
-  | LBRACE anns=my_separated_list(COMMA, io_annot) RBRACE { anns }
+  | LBRACE anns=my_separated_list(io_annot,COMMA) RBRACE { anns }
 
 io_annot:
   | RATE EQUAL e=core_expr { IA_Rate e }
@@ -307,14 +309,14 @@ simple_core_expr:
 simple_type_expr:
       | id=IDENT 
           { mk_type_expr $loc (Typeconstr(id, [])) }
-      | TY_UNIT 
-          { mk_type_expr $loc (Typeconstr("unit", [])) }
       | TY_INT 
           { mk_type_expr $loc (Typeconstr("int", [])) }
       | TY_BOOL 
           { mk_type_expr $loc (Typeconstr("bool", [])) }
-      | t=simple_type_expr id=IDENT
-          { mk_type_expr $loc (Typeconstr(id, [t])) }
+      (* | TY_UNIT 
+       *     { mk_type_expr $loc (Typeconstr("unit", [])) }
+       * | t=simple_type_expr id=IDENT
+       *     { mk_type_expr $loc (Typeconstr(id, [t])) } *)
       (* | IDENT opt_size_exprs
        *     { mk_type_expr $loc (Typeconstr($1, [], $2)) } *)
       (* | simple_type_expr TY_ARRAY LBRACKET size_expr RBRACKET
@@ -329,12 +331,14 @@ simple_type_expr:
 (* GRAPH DECLARATION *)
 
 graph_decl:
-  | GRAPH id=IDENT params=opt_graph_params IN inps=io_decls OUT outps=io_decls d=graph_defn
+  | GRAPH id=IDENT params=my_option(graph_params) IN inps=io_decls OUT outps=io_decls d=graph_defn
     { mk_graph_decl $loc {g_id=id; g_params=params; g_ins=inps; g_outs=outps; g_defn=d } }
 
-opt_graph_params:
-  | (* Nothing *) { [] }
-  | PARAM LPAREN vs=my_separated_list(COMMA, graph_param_value) RPAREN { vs }
+graph_params:
+  | PARAM LPAREN vs=my_separated_list(graph_param_value,COMMA) RPAREN { vs }
+(* opt_graph_params:
+ *   | (\* Nothing *\) { [] }
+ *   | PARAM LPAREN vs=my_separated_list(graph_param_value,COMMA) RPAREN { vs } *)
 
 graph_param_value:
    id=IDENT COLON t=simple_type_expr EQUAL v=const_param_value
@@ -364,19 +368,21 @@ struct_defn:
   | d=gnode_defn { GNodeDecl d }
 
 gwire_defn:
-  | WIRE ids=my_separated_list(COMMA, IDENT) COLON t=simple_type_expr
+  | WIRE ids=my_separated_list(IDENT,COMMA) COLON t=simple_type_expr
      { List.map (fun id -> mk_wire_decl $loc (id,t)) ids }
 
 gnode_defn:
-  | NODE id=IDENT COLON name=IDENT params=opt_gnode_params inps=gnode_ios outps=gnode_ios
+  | NODE id=IDENT COLON name=IDENT params=my_option(gnode_params) inps=gnode_ios outps=gnode_ios
      { mk_gnode_decl $loc (id, { gn_name=name; gn_params=params; gn_ins=inps; gn_outs=outps }) }
 
-opt_gnode_params:
-  | (* Nothing *) { [] }
-  | LESS vs=my_separated_list(COMMA, core_expr) GREATER { vs }
+gnode_params:
+  | LESS vs=my_separated_list(core_expr,COMMA) GREATER { vs }
+(* opt_gnode_params:
+ *   | (\* Nothing *\) { [] }
+ *   | LESS vs=my_separated_list(core_expr,COMMA) GREATER { vs } *)
 
 gnode_ios:
-  | LPAREN ios=my_separated_list(COMMA, gnode_io) RPAREN { ios }
+  | LPAREN ios=my_separated_list(gnode_io,COMMA) RPAREN { ios }
 
 gnode_io:
   | id=IDENT { id }
@@ -387,7 +393,7 @@ fun_graph_desc:
   | ds = my_list(net_defn) { ds }  
             
 net_defn:
-  | VAL r=optional(REC) bs=my_separated_nonempty_list(AND, net_binding)
+  | VAL r=optional(REC) bs=my_separated_nonempty_list(net_binding,AND)
       { mk_net_defn $loc (r, bs) }
 
 net_binding:
@@ -411,13 +417,13 @@ net_expr:
           { mk_net_expr $loc (NCons(e1,e2)) }
       | e=simple_net_expr LBRACKET i=simple_net_expr RBRACKET
           { mk_net_expr $loc (NBundleElem (e,i)) }
-      (* | LBRACKET es=my_separated_nonempty_list(COMMA,net_expr) RBRACKET
+      (* | LBRACKET es=my_separated_nonempty_list(net_expr,COMMA) RBRACKET
        *     { mk_net_expr $loc (NBundle es) } *)
-      | LET r=optional(REC) bs=my_separated_nonempty_list(AND,net_binding) IN e=net_expr  %prec prec_let
+      | LET r=optional(REC) bs=my_separated_nonempty_list(net_binding,AND) IN e=net_expr  %prec prec_let
           { mk_net_expr $loc (NLet(r, bs, e)) }
       | FUN p=net_pattern ARROW e=net_expr
           { mk_net_expr $loc (NFun(p,e)) }
-      | MATCH e=net_expr WITH cs=my_separated_nonempty_list(BAR,net_case) 
+      | MATCH e=net_expr WITH cs=my_separated_nonempty_list(net_case,BAR) 
           { mk_net_expr $loc (NMatch(e,cs)) }
       | IF e1=net_expr THEN e2=net_expr ELSE e3=net_expr
           { mk_net_expr $loc (NIf(e1,e2,e3)) }
@@ -443,7 +449,7 @@ net_expr:
 simple_net_expr:
       | id=IDENT
           { mk_net_expr $loc (NVar id) }
-      | id=IDENT LESS params=my_separated_nonempty_list(COMMA,core_expr) GREATER
+      | id=IDENT LESS params=my_separated_nonempty_list(core_expr,COMMA) GREATER
           { mk_papply $loc (mk_net_expr $loc (NVar id)) params }
       | LPAREN RPAREN
           { mk_net_expr $loc (NUnit) }
