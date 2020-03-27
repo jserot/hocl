@@ -177,14 +177,21 @@ let rec dump_actor_intf prefix oc name intf attrs =
   let dump_local_var (id,ty) =
     fprintf oc "    %s %s;\n" (string_of_type ty) (localize_id id) in
   let dump_local_var' (id,(ty,anns)) =
-    let open Syntax in
-    match get_rate_expr anns with
-    | Some {ce_desc=EInt n} -> 
-       fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) n (* Static allocation *)
-    | Some _ ->
-       fprintf oc "    %s *%s;\n" (string_of_type ty) (localize_id id) (* Dynamic allocation *)
+    match get_rate_annot anns with
+    | Some e ->
+       begin match int_of_string_opt e with
+       | Some r -> fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) r (* Static allocation *)
+       | None -> fprintf oc "    %s *%s;\n" (string_of_type ty) (localize_id id) (* Dynamic allocation *)
+       end
     | None -> (* No rate specified *)
        fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) cfg.sc_default_io_rate in
+    (* match get_rate_expr anns with
+     * | Some {ce_desc=EInt n} -> 
+     *    fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) n (\* Static allocation *\)
+     * | Some _ ->
+     *    fprintf oc "    %s *%s;\n" (string_of_type ty) (localize_id id) (\* Dynamic allocation *\)
+     * | None -> (\* No rate specified *\)
+     *    fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) cfg.sc_default_io_rate in *)
   List.iter dump_local_var intf.t_params;
   List.iter dump_local_var' intf.t_real_ins;
   List.iter dump_local_var' intf.t_real_outs;
@@ -214,7 +221,8 @@ let rec dump_actor_impl prefix oc name intf attrs =
     match re with
     | None -> None
     | Some e -> Some (Syntax.subst_core_expr locals e) in
-  let string_of_io_rate' re = string_of_io_rate (localize_rate_expr local_params re) in
+  (* let string_of_io_rate' re = string_of_io_rate (localize_rate_expr local_params re) in *)
+  let string_of_io_rate' re = string_of_io_rate re in
   fprintf oc "#include \"%s%s.h\"\n" name cfg.sc_actor_suffix;
   if incl_file <> "" then fprintf oc "#include \"%s\"\n" incl_file;
   fprintf oc "\n" ;
@@ -242,14 +250,18 @@ let rec dump_actor_impl prefix oc name intf attrs =
     params;
   List.iter  (* Dynamically allocate buffers for non-constant sized IOs *)
     (fun (id,(ty,anns)) ->
-      match get_rate_expr anns with
-     | Some e as e' when not (Syntax.is_constant_core_expr e) ->
+      match get_rate_annot anns with
+     | Some e as e' when not (is_constant_rate_expr e) ->
         fprintf oc "      %s = new %s[%s];\n" (localize_id id) (string_of_type ty) (string_of_io_rate' e')
       | _ -> ())
+     (*  match get_rate_expr anns with
+      * | Some e as e' when not (Syntax.is_constant_core_expr e) ->
+      *    fprintf oc "      %s = new %s[%s];\n" (localize_id id) (string_of_type ty) (string_of_io_rate' e')
+      *  | _ -> ()) *)
     (if is_delay then intf.t_real_ins else intf.t_real_ins @ intf.t_real_outs); 
   List.iter
     (fun (id,(ty,anns)) ->
-      let rate = get_rate_expr anns in
+      let rate = get_rate_annot anns in
       fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s[__k] = %s.read();\n"
         (string_of_io_rate' rate) (localize_id id) id;
       if cfg.sc_trace then begin
@@ -271,7 +283,7 @@ let rec dump_actor_impl prefix oc name intf attrs =
        (Misc.string_of_list string_of_io ", " ((if param_exec then [] else params) @ dinps @ doutps));
      List.iter
        (fun (id,(ty,anns)) ->
-         let rate = get_rate_expr anns in
+         let rate = get_rate_annot anns in
          fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
            (string_of_io_rate' rate) id (localize_id id);
          if cfg.sc_trace then begin
@@ -284,9 +296,8 @@ let rec dump_actor_impl prefix oc name intf attrs =
     end;
   List.iter  (* Dynamically de-allocate buffers for non-constant sized IOs *)
     (fun (id,(ty,anns)) ->
-      let open Syntax in
-      match get_rate_expr anns with 
-     | Some e  when not (is_constant_core_expr e) ->
+      match get_rate_annot anns with 
+     | Some e  when not (is_constant_rate_expr e) ->
         fprintf oc "      delete [] %s;\n" (localize_id id)
      | _ -> ())
     (if is_delay then intf.t_real_ins else intf.t_real_ins @ intf.t_real_outs); 

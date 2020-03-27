@@ -24,16 +24,16 @@
 \newboolean{devel}
 \setboolean{devel}{false}
 
-\lstloadlanguages{C++,VHDL}
-\lstset{frameround=tttt} 
-\lstset{captionpos=t}
-\lstset{breaklines=true}
 %\lstset{aboveskip=2\medskipamount}
 %\lstset{belowskip=1.5\medskipamount}
 %\lstset{abovecaptionskip=\medskipamount}
-\lstdefinelanguage{hocl}{keywords={fun,actor,in,out,param,parameter,let,type,and},morecomment=[l]{--}}
-\lstset{language=Hocl}
-\lstset{frame=single}
+\lstdefinelanguage{hocl}{keywords={node,graph,val,actor,fun,struct,let,in,out,param,end,wire},morecomment=[l]{--}}
+\lstset{language=hocl}
+%\lstset{frame=single}
+\lstset{frameround=tttt} 
+\lstset{captionpos=t}
+\lstset{breaklines=true}
+%\lstset{basicstyle=\small}
 
 %\renewcommand\lstlistingname{Example}
 
@@ -73,7 +73,7 @@
 
 \author{J. S\'erot}%\footnote{Universit\'e Clermont Auvergne, Clermont-Ferrand, France; %\texttt{jocelyn.serot@uca.fr}}}
 
-%\titlepic{\includegraphics[width=0.5\textwidth]{figs/hocl-logo}}
+\titlepic{\includegraphics[width=0.25\textwidth]{figs/hocl-logo}}
 \date{}
 
 \begin{document}

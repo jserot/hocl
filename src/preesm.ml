@@ -124,15 +124,16 @@ let dump_actor_port oc dir is_param (id, (wid,ty,annots)) =
       List.fold_left
         (fun (acc,acc') ann ->
           match ann with
-          | Syntax.IA_Rate e -> Some e, acc'
-          | Syntax.IA_Other s -> acc, s::acc')
+          | "rate",rate -> Some rate, acc'
+          | name,value -> acc, (name,value)::acc')
         (None,[])
         annots in
     fprintf oc "      <port kind=\"%s\" name=\"%s\" expr=\"%s\" annotation=\"%s\"/>\n"
       dir
       id
-      (match rate with Some e -> Syntax.string_of_rate_expr e | None -> cfg.default_port_rate)
-      (Misc.string_of_list Misc.id " " other_anns)
+      (match rate with Some e -> e | None -> cfg.default_port_rate)
+      "" (* TO FIX *)
+      (* (Misc.string_of_list Misc.id " " other_anns) *)
 
 let dump_actor oc ir g (i,b)  =
   let param_ins, data_ins = List.partition (is_param_input g.sg_wires) b.b_ins in 

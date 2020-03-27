@@ -80,23 +80,32 @@ let is_actual_actor_io (id,(ty,_)) = not (is_unit_type ty)
 
 let string_of_io_rate rate = match rate with
   | None -> "1"
-  | Some e -> Syntax.string_of_rate_expr e
+  (* | Some e -> Syntax.string_of_rate_expr e *)
+  | Some e -> e
 
 let get_rate_annot anns = 
-  List.find_opt (function Syntax.IA_Rate _ -> true | _ -> false) anns
+  List.assoc_opt "rate" anns
+  (* List.find_opt (function Syntax.IA_Rate _ -> true | _ -> false) anns *)
 
-let get_rate_expr anns =
-  match get_rate_annot anns with
-  | Some (IA_Rate e) -> Some e
-  | _ -> None
+(* let get_rate_expr anns =
+ *   match get_rate_annot anns with
+ *   | Some (IA_Rate e) -> Some e
+ *   | _ -> None *)
 
+let is_constant_rate_expr s =
+  match int_of_string_opt s with
+  | Some _ -> true
+  | None -> false
+          
 type delay_spec = {
     ds_typ: typ;
     ds_iv: string;
     ds_i: string;
-    ds_irate: Syntax.core_expr option;
+    ds_irate: string option;
+    (* ds_irate: Syntax.core_expr option; *)
     ds_o: string;
-    ds_orate: Syntax.core_expr option
+    ds_orate: string option
+    (* ds_orate: Syntax.core_expr option *)
   }
       
 let get_delay_spec name intf =
@@ -106,13 +115,14 @@ let get_delay_spec name intf =
        | Some (id,ty) -> id, ty in
      let get_io_spec ios =
        match ios with
-       | [id,(ty,annots)] -> id, get_rate_expr annots
+       | [id,(ty,annots)] -> id, get_rate_annot annots
        | _ -> Error.illegal_interface "delay" name " (should have exactly one input and one output)" in
      let i_name, i_rate = get_io_spec intf.t_ins in
      let o_name, o_rate = get_io_spec intf.t_outs in
      let rate_expr_eq e1 e2 = match e1, e2 with
        | None, None -> true
-       | Some e1, Some e2 -> Syntax.core_expr_equal e1 e2
+       (* | Some e1, Some e2 -> Syntax.core_expr_equal e1 e2 *)
+       | Some e1, Some e2 -> e1=e2 (* Crude approx *)
        | _, _ -> false in
      if not (rate_expr_eq i_rate o_rate) then Error.illegal_interface "delay" name " (input and output rates do not match)";
      { ds_typ=ty; ds_iv=iv_name; ds_i=i_name; ds_irate=i_rate; ds_o=o_name; ds_orate=o_rate }

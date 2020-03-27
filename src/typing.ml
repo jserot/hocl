@@ -421,14 +421,14 @@ and type_io tenv = function
     | ios ->
        List.map
          (fun { io_desc = (id,te,anns) } ->
-           let _ = List.iter (type_io_annotation tenv) anns in
+           (* let _ = List.iter (type_io_annotation tenv) anns in *)
            let ty = type_of_type_expression tenv te in
            id, (type_wire ty, anns))
          ios
 
-and type_io_annotation tenv ann = match ann with
-  | IA_Rate e -> try_unify "rate expression" (type_core_expression tenv e) type_int e.ce_loc
-  | IA_Other _ -> ()
+(* and type_io_annotation tenv ann = match ann with
+ *   | IA_Rate e -> try_unify "rate expression" (type_core_expression tenv e) type_int e.ce_loc
+ *   | IA_Other _ -> () *)
 
 let type_node_impl genv ty_intf { nm_desc=m; nm_loc=loc } = (* TO FIX !!!!!!!!!! *)
   match m with

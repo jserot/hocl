@@ -64,8 +64,8 @@
 %token ELSE
 %token TRUE
 %token FALSE
-%token RATE           (* "rate"*)
-%token OTHER          (* "other"*)
+(* %token RATE           (\* "rate"*\) *)
+(* %token OTHER          (\* "other"*\) *)
 (* %token INITIALLY      (\* "initially"*\) *)
 
 (* Precedences and associativities. Lower precedences first.*)
@@ -262,12 +262,11 @@ io_decl:
      
 opt_io_annots:
   | (* Nothing *) { [] }
-  | LBRACKET e=core_expr RBRACKET { [IA_Rate e] }
+  | LBRACKET e=core_expr RBRACKET { ["rate",string_of_core_expr e] }
   | LBRACE anns=my_separated_list(io_annot,COMMA) RBRACE { anns }
 
 io_annot:
-  | RATE EQUAL e=core_expr { IA_Rate e }
-  | OTHER EQUAL s=STRING { IA_Other s }
+  | name=IDENT EQUAL value=STRING { name,value }
                   
 (* CORE EXPRESSIONS *)
 

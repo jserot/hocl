@@ -52,8 +52,8 @@ let keyword_table = [
   "if", IF;
   "then", THEN;
   "else", ELSE;
-  "rate", RATE;
-  "other", OTHER;
+  (* "rate", RATE;
+   * "other", OTHER; *)
   (* "initially", INITIALLY; *)
 ]
 

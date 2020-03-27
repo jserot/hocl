@@ -71,9 +71,11 @@ and io_decl =
 
 and io_desc = string * type_expression * io_annot list
 
-and io_annot =
-  IA_Rate of rate_expr
-| IA_Other of string
+and io_annot = string * string (* name, value *)
+                          
+(* and io_annot =
+ *   IA_Rate of rate_expr
+ * | IA_Other of string *)
              
 and node_impl = {
     nm_desc: nm_desc;
@@ -316,9 +318,10 @@ let subst_core_expr vs e =
 
 let string_of_rate_expr = string_of_core_expr
 
-let string_of_io_annot = function
-  | IA_Rate e -> "rate=" ^ string_of_rate_expr e
-  | IA_Other s -> "other=" ^ s
+let string_of_io_annot (name,value) = name ^ "=" ^ value
+(* let string_of_io_annot = function
+ *   | IA_Rate e -> "rate=" ^ string_of_rate_expr e
+ *   | IA_Other s -> "other=" ^ s *)
 let string_of_io_annots = function
     [] -> ""
   | anns -> "{" ^ Misc.string_of_list string_of_io_annot "," anns ^ "}"

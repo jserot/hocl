@@ -61,9 +61,9 @@ let cfg = {
 
 let output_box ch (i,b) =
   let slot_id pfx k = pfx ^ string_of_int k in
-  let string_of_bio_annots anns = match cfg.show_io_rates, anns with
-    | true, [Syntax.IA_Rate e] -> "[" ^ Syntax.string_of_rate_expr e ^ "]"
-    | _, _ -> "" in (* TO FIX ? *)
+  let string_of_bio_annots anns = match cfg.show_io_rates, Backend.get_rate_annot anns with
+    | true, Some rate -> "[" ^ rate ^ "]"
+    | _, _ -> "" in 
   let string_of_bio_slot pfx k (id,(_,ty,anns)) = "<" ^ slot_id pfx k ^ ">" ^ id ^ string_of_bio_annots anns in
   let bid =
     if cfg.show_indexes

@@ -23,7 +23,42 @@ $E$ separated by $s$. Value-attributed terminals are denoted like \textit{this}.
 
 \input{grammar}
 
+\textbf{Notes}
+\begin{itemize}
 
+\item a \verb|node_decl| with an empty \verb|node_impl|, such as
+  \begin{lstlisting}
+    node foo in (...) out (...);
+  \end{lstlisting}
+is equivalent to
+  \begin{lstlisting}
+    node foo in (...) out (...)
+    actor
+    end;
+  \end{lstlisting}
+Both define opaque actors (viewed as black boxes).
+
+\item the description attached to non-opaque actors is a list of backend-specific descriptors. Each
+  descriptor gives the name of the target backend and a list of $(attribute,value$) pair. Ex~:
+  \begin{lstlisting}
+    node foo in (i: int) (o: int)
+    actor
+      preesm(loop_fn="foo_c", incl_file="foo.h")
+    end;
+  \end{lstlisting}
+
+\item annotations can be attached to node inputs and outputs by appending them between braces; each
+  annotation is a $(name,value)$ pair. For example (for an SDF actor)~:
+    \begin{lstlisting}
+      actor foo in (i: int {rate="k"}) out (o: bool {rate="k*2"}) ...
+    \end{lstlisting}
+  Rate annotation can be abbreviated using the \verb|[...]| syntax. For example, the previous
+  example can be written as~:
+    \begin{lstlisting}
+      actor foo in (i: int[k]) out (o: bool[k*2]) ...
+    \end{lstlisting}
+
+\end{itemize}
 %%% Local Variables:
 %%% mode: latex
 %%% TeX-master: "hocl-lrm"
