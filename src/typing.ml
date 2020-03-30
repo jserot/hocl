@@ -133,6 +133,8 @@ let rec type_core_expression genv expr =
 
 (* Typing type decls *)
 
+(* TE |- TyDecl => TE' *)
+  
 let type_type_decl tenv { td_desc=t } = match t with
   | Opaque_type_decl name -> name, 0
   (* TODO: add at least type synonymes, like [type tau = int] *)
@@ -181,6 +183,8 @@ let rec type_pattern tenv p =
   ty, bs
 
 (* Typing net expressions *)
+  
+(* TE, VE |- NExp => tau *)
   
 let rec type_net_expression genv expr =
   let ty = match expr.ne_desc with
@@ -260,6 +264,9 @@ let rec type_net_expression genv expr =
 
 and type_param_expression tenv ce = Types.type_param @@ type_core_expression tenv ce
                             
+(* [TE] |-p Pattern, tau => VE *)
+(* TE is here added because it is needed by the [generalize] function *)
+                                  
 and extract_type_bindings tenv loc pat ty = match (pat.np_desc, Types.real_type ty) with
   | NPat_var id, ty ->
       [id, generalize tenv.te_values ty]
@@ -283,6 +290,8 @@ and extract_type_bindings tenv loc pat ty = match (pat.np_desc, Types.real_type 
       []
   | _, _ -> Misc.fatal_error "extract_type_bindings"
 
+(* TE, VE |- ValDecl => VE' *)
+          
 and type_definition is_rec genv { nb_desc=(pat,exp); nb_loc=loc } =
   let ty_pat, bindings = type_pattern empty_tenv pat in (* TO FIX: should we [genv] here instead of [empty] ? *)
   let genv' =
@@ -334,10 +343,12 @@ let type_application2 loc ty_fn ty_param ty_arg =
   
 let type_net_defn genv { nd_desc=d } = match d with
   | is_rec, [binding] -> type_definition is_rec genv binding
-  | _, _ -> failwith "Typing.type_net_defn(multi-net)"
+  | _, _ -> Misc.not_implemented "Typing.typing multi val definitions (val p1=e1 and p2=e2 and ...)"
 
 (* Typing (sub-)graph decls *)
 
+(* TE,VE |- GraphStructDefn => VE' *)
+          
 let rec type_struct_graph_desc loc genv intf g =
   let ty_wires = List.map (type_wire_decl genv) g.gs_wires in
   let genv' = genv
@@ -348,7 +359,11 @@ let rec type_struct_graph_desc loc genv intf g =
   let ty_nodes = List.map (type_node genv') g.gs_nodes in
   TD_Struct (ty_wires, ty_nodes)
 
+(* TE |- Wire => VE *)
+  
 and type_wire_decl tenv { gw_desc = (id,te) } = id, type_wire @@ type_of_type_expression tenv te
+
+(* TE,VE |- Node => VE *)
 
 and type_node genv { gn_desc = (id,g); gn_loc = loc } =
   (* Typing a node decl such [node n: f (p1:t1,...) (i1:t'1,...) (o1:t''1,...)] gives type
@@ -368,6 +383,8 @@ and type_sig ty_params ty_ins ty_outs =
     | [] -> type_arrow (type_product ty_ins) (type_product ty_outs)
     | _ -> type_arrow2 (type_product ty_params) (type_product ty_ins) (type_product ty_outs)
 
+(* TE,VE |- GraphFunDefn => VE' *)
+
 let rec type_fun_graph_desc genv intf defns =
   let genv' = genv
               |> augment_values (List.map (fun (id,ty) -> id, trivial_scheme ty) intf.t_params)
@@ -378,7 +395,8 @@ let rec type_fun_graph_desc genv intf defns =
         let env' = type_net_defn (genv' |> augment_values env) d in
         env @ env',
         locs @ List.map (fun (id,_) -> id, d.nd_loc) env')
-          (* For each defined symbol - there may be several for a single defn - we keep track of the location of the enclosing defn *)
+          (* For each defined symbol - there may be several for a single defn - we keep track of
+             the location of the enclosing defn *)
       ([],[])
       defns in
   (* TODO : check that the type infered for each symbol occuring in [intf.t_outs] matches that infered for
@@ -415,6 +433,8 @@ let rec type_node_intf tenv { ni_desc=n } =
     t_sig =
       trivial_scheme (type_sig (List.map snd ty_params) (List.map type_of ty_ins) (List.map type_of ty_outs)) }
 
+(* TE |- Io => \tau, VE' *)
+  
 and type_io tenv = function
       [] ->
        ["_", (type_unit, [])]
@@ -443,6 +463,8 @@ let type_node_impl genv ty_intf { nm_desc=m; nm_loc=loc } = (* TO FIX !!!!!!!!!!
      (* TODO : match ty_intf and ty_impl ! *)
      ()
 
+(* TE, VE |- NodeDecl => VE' *)
+     
 let rec type_node_decl (typed_nodes,tenv) n =
   let id = n.n_intf.ni_desc.n_id in
   let typed_intf = type_node_intf tenv n.n_intf in
@@ -485,21 +507,20 @@ let type_graph_decl (acc,genv) { g_desc=g } =
   let genv' = genv |> augment_values [g.g_id,ty_intf.t_sig] in
   List.rev acc', genv'
   
+(* TE, VE |- ValDecl => VE' *)
+  
 let type_value_decl (acc,tenv) d =
   let typed_values = type_net_defn tenv d in
   typed_values @ acc,
   augment_values typed_values tenv
     
+(* TE,VE |- Program => VE_v, VE_n, VE_G *)
+  
 let rec type_program tenv p = 
-  (* Typing programs consists in
-     1. Typing type and value decls and adding the resulting types to the typing environment
-     2. Typing each node decl and, when done, adding all the resulting signatures (as a type scheme) to the TE
-     3. Typing each graph declaration, adding each resulting signature to the TE (so that a given graph declaration
-        can refer to previously defined actor or graph declaration) *)
   let typed_types = p.types |> List.map (type_type_decl tenv) in
   let tenv_t = tenv |> augment_types typed_types in
-  let typed_values, tenv_g = List.fold_left type_value_decl ([],tenv_t) p.values in
-  let typed_nodes, tenv_n = List.fold_left type_node_decl ([],tenv_g) p.nodes in
+  let typed_values, tenv_v = List.fold_left type_value_decl ([],tenv_t) p.values in
+  let typed_nodes, tenv_n = List.fold_left type_node_decl ([],tenv_v) p.nodes in
   let typed_graphs, _ = List.fold_left type_graph_decl ([],tenv_n) p.graphs in
   { tp_values = typed_values;
     tp_nodes = typed_nodes;
