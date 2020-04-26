@@ -391,3 +391,7 @@ and dump_typed_node (name, n) =
   List.iter (fun (id,ty) -> Printf.printf "  val %s: %s\n" id (Pr_type.string_of_type_scheme ty)) n.tn_defns;
   flush stdout
 
+let dump_typing_environment title (tenv,venv) = 
+  Printf.printf "%s ---------------\n" title;
+  List.iter dump_typed_value venv;
+  Printf.printf "----------------------------------\n"

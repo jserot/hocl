@@ -43,9 +43,9 @@ graph top
  in ()
  out () 
 fun
-  val (yi,u,v) = ReadYUV<width,height>()
+  val (yi,u,v) = ReadYUV (width,height) ()
   val yo =
-    let rec (output,result) = ImDiff<width,height>(yi, ImDelay<width,height,ival> output) in
+    let rec (output,result) = ImDiff (width,height) (yi, ImDelay<width,height,ival> output) in
     result
-  val _ = DisplayYUV<index,width,height>(yo,u,v)
+  val _ = DisplayYUV (index,width,height) (yo,u,v)
 end;

@@ -95,8 +95,8 @@ try
   Sys.catch_break true;
   Arg.parse Options.options_spec anonymous usage;
   print_banner ();
-  (* if Options.cfg.dump_tenv then
-   *   dump_global_typing_environment "Builtin typing environment" Builtins.typing_env; *)
+  if Options.cfg.dump_tenv then
+    Typing.dump_typing_environment "Builtin typing environment" Builtins.typing_env;
   Logfile.start ();
   let sfs = match Options.cfg.stdlib with
     | "none" -> !source_files

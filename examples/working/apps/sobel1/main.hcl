@@ -32,7 +32,7 @@ graph main
   in ()
   out () 
 fun
-  val (yi,u,v) = ReadYUV<width,height> ()
-  val yo = yi |> Sobel<width,height> 
-  val _ = DisplayYUV<index,width,height> (yo,u,v)
+  val (yi,u,v) = ReadYUV (width,height) ()
+  val yo = yi |> Sobel (width,height) 
+  val _ = DisplayYUV (index,width,height) (yo,u,v)
 end;

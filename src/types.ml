@@ -119,7 +119,8 @@ let new_stamp =
   let cnt = ref 0 in
   function () -> incr cnt; !cnt
 
-let new_type_var () = TyVar {stamp = new_stamp(); value = Unknown}
+let mk_type_var () = { stamp = new_stamp(); value = Unknown }
+let new_type_var () = TyVar (mk_type_var ())
 
 let generalize env ty =
   (* Note : we use here a naive version in which generic variables are detected by
