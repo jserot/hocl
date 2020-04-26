@@ -177,7 +177,7 @@ io_decl:
 
 io_annots:
   | (* Nothing *) { [] }
-  | LBRACKET e=simple_expr RBRACKET { ["rate",string_of_expr e] }
+  | LBRACKET e=basic_expr RBRACKET { ["rate",string_of_expr e] }
   | LBRACE anns=separated_list(COMMA,io_annot) RBRACE { anns }
 
 io_annot:
@@ -312,16 +312,18 @@ box_decl:
      { mk_box_decl $sloc (id, { bx_node=node; bx_params=params; bx_ins=inps; bx_outs=outps }) }
 
 box_params:
-  | LBRACKET vs=separated_list(COMMA,box_param_expr) RBRACKET { vs }
+  | LBRACKET vs=separated_list(COMMA,basic_expr) RBRACKET { vs }
 
-box_param_expr:
-        e=simple_expr
+basic_expr:
+      | id=IDENT
+          { mk_expr $sloc (EVar id) }
+      | e=const_expr
           { e }
-      | e1=box_param_expr op=INFIX1 e2=box_param_expr
+      | e1=basic_expr op=INFIX1 e2=basic_expr
           { mk_binop $sloc op e1 e2 }
-      | e1=box_param_expr op=INFIX2 e2=box_param_expr
+      | e1=basic_expr op=INFIX2 e2=basic_expr
           { mk_binop $sloc op e1 e2 }
-      | e1=box_param_expr op=INFIX3 e2=box_param_expr
+      | e1=basic_expr op=INFIX3 e2=basic_expr
           { mk_binop $sloc op e1 e2 }
 
 box_ios:

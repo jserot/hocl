@@ -25,5 +25,5 @@ graph top
 fun
   -- val (yi,u,v) = ReadYUV<width,height>()
   -- val () = DisplayYUV<index,width,height>(yi,u,v)
-  val _ = ReadYUV<width,height> |-> DisplayYUV<index,width,height>
+  val _ = ReadYUV (width,height) |-> DisplayYUV (index,width,height)
 end;

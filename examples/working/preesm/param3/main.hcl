@@ -17,5 +17,5 @@ end;
 
 graph top param (k: int=1) in () out ()
 fun
-  val _ = inp |-> mult<k+1> |> outp
+  val _ = inp |-> mult (k+1) |> outp
 end;
