@@ -13,10 +13,7 @@
 open Printf
 open Misc
 open Location
-open Builtins
 open Typing
-open Interm
-open Static
 
 exception Toplevel
  
@@ -39,9 +36,9 @@ let parse fname =
   Parser.program Lexer.main !Location.input_lexbuf
 
 let compile p = 
-  let tp = type_program builtin_typing_env p in
+  let tp = type_program Builtins.typing_env p in
   if Options.cfg.dump_typed then dump_typed_program tp;
-  build_static tp builtin_static_env p
+  Static.build_static Builtins.static_env p
 
 let mk_fname pfx sfx = Options.cfg.target_dir ^ "/" ^ pfx ^ sfx
 
@@ -52,25 +49,29 @@ let output pfx ir =
   | Dot ->
      Dot.dump path pfx ir
    | Systemc ->
-      Systemc.dump path pfx ir
-     (* if has_splitters ir then 
-      *   Systemc.dump_split_actors ir; *)
+     (*  Systemc.dump path pfx ir
+      * (\* if has_splitters ir then 
+      *  *   Systemc.dump_split_actors ir; *\) *)
+()
   | Preesm ->
-     Preesm.dump path pfx ir
+     (* Preesm.dump path pfx ir *)
+()
   | Xdf ->
-     Xdf.dump path pfx ir
+     (* Xdf.dump path pfx ir *)
+()
   | Dif ->
-     Dif.dump path pfx ir
+     (* Dif.dump path pfx ir *)
+()
 
 let insert_bcasts ir = 
-  if cfg.insert_bcasts then
-    let after_boxes = match Options.cfg.output_fmt with
-      | Dot -> [LocalParamB; InParamB; SourceB; ActorB (*; DelayB*)]
-      | Systemc -> [LocalParamB; InParamB; SourceB; ActorB (*; DelayB*)]
-      | Preesm -> [SourceB; ActorB (*; DelayB*)]
-      | _ -> [] in
-    Static.insert_bcasters after_boxes ir
-  else
+  (* if cfg.insert_bcasts then
+   *   let after_boxes = match Options.cfg.output_fmt with
+   *     | Dot -> [LocalParamB; InParamB; SourceB; ActorB (\*; DelayB*\)]
+   *     | Systemc -> [LocalParamB; InParamB; SourceB; ActorB (\*; DelayB*\)]
+   *     | Preesm -> [SourceB; ActorB (\*; DelayB*\)]
+   *     | _ -> [] in
+   *   Static.insert_bcasters after_boxes ir
+   * else *)
     ir
 
 let process_file p f =
@@ -94,9 +95,8 @@ try
   Sys.catch_break true;
   Arg.parse Options.options_spec anonymous usage;
   print_banner ();
-  if Options.cfg.dump_tenv then
-    dump_global_typing_environment "Initial typing environment" Builtins.builtin_typing_env;
-  if Options.cfg.dump_senv then dump_static_environment Builtins.builtin_static_env;
+  (* if Options.cfg.dump_tenv then
+   *   dump_global_typing_environment "Builtin typing environment" Builtins.typing_env; *)
   Logfile.start ();
   let sfs = match Options.cfg.stdlib with
     | "none" -> !source_files

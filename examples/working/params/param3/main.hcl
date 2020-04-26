@@ -7,6 +7,6 @@ end;
 
 graph top param (k: int = 1) in (i: int) out (o: int)
 fun
-  val o = mult<k+1> i
+  val o = mult (k+1) i
 end;
 

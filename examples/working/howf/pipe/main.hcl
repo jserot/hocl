@@ -6,5 +6,5 @@ node f3 in (i: t) out (o: t);
 
 graph top in (i: t) out (o: t)
 fun
-  val o = i |> pipe [f1,f2,f3]
+  val o = i |> pipe [f1;f2;f3]
 end;

@@ -1,15 +1,3 @@
-(**********************************************************************)
-(*                                                                    *)
-(*              This file is part of the HOCL package                 *)
-(*                                                                    *)
-(*  Copyright (c) 2019-present, Jocelyn SEROT (jocelyn.serot@uca.fr). *)
-(*                     All rights reserved.                           *)
-(*                                                                    *)
-(*  This source code is licensed under the license found in the       *)
-(*  LICENSE file in the root directory of this source tree.           *)
-(*                                                                    *)
-(**********************************************************************)
-
 (* The lexer definition *)
 
 {
@@ -25,36 +13,29 @@ exception Lexical_error of lexical_error * int * int
 (* The table of keywords *)
 
 let keyword_table = [
-  "type", TYPE;
-  "int", TY_INT;
-  "bool", TY_BOOL;
-  (* "unit", TY_UNIT; *)
-  "actor", ACTOR;
-  (* "bcast", BCAST; *)
-  "graph", GRAPH;
-  "param", PARAM;
-  "struct", STRUCT;
-  "end", END;
   "node", NODE;
-  "wire", WIRE;
+  "in", IN;
+  "out", OUT;
   "fun", FUN;
+  "end", END;
   "val", VAL;
   "let", LET;
   "and", AND;
-  "in", IN;
-  "out", OUT;
   "rec", REC;
-  (* "list", LIST; *)
-  "match", MATCH;
-  "with", WITH;
   "true", TRUE;
   "false", FALSE;
   "if", IF;
   "then", THEN;
   "else", ELSE;
-  (* "rate", RATE;
-   * "other", OTHER; *)
-  (* "initially", INITIALLY; *)
+  "param", PARAM;
+  "type", TYPE;
+  "graph", GRAPH;
+  "match", MATCH;
+  "with", WITH;
+  "struct", STRUCT;
+  "wire", WIRE;
+  "box", BOX;
+  "actor", ACTOR;
 ]
 
 (* To buffer string literals *)
@@ -111,35 +92,27 @@ rule main = parse
             IDENT s }
   | ['0'-'9']+
       { INT (int_of_string(Lexing.lexeme lexbuf)) }
-  | "_" { UNDERSCORE }
   | "|" { BAR }
-  | "[" { LBRACKET }
-  | "]" { RBRACKET }
+  | "_" { UNDERSCORE }
   | "(" { LPAREN }
   | ")" { RPAREN }
+  | "[" { LBRACKET }
+  | "]" { RBRACKET }
   | "{" { LBRACE }
   | "}" { RBRACE }
-  | "*" { STAR }
   | "," { COMMA }
   | "->" { ARROW }
   | ";" { SEMI }
-  | ":" { COLON }
   | "=" { EQUAL }
-  | "!=" { NOTEQUAL }
+  | ":" { COLON }
   | "::" { COLONCOLON }
   | "@@"    { INFIX0 "@@" }
   | "|>"    { INFIX0 "|>" }
   | "|->"    { INFIX0 "|->" }
-  | ">" { GREATER }
-  | "<" { LESS }
-  | "=" { EQUAL }
-  (* | [ '=' '<' '>' ]
-   *           { INFIX1(Lexing.lexeme lexbuf) } *)
-  (* | "!="    { INFIX1 "!=" } *)
-  | [ '+' '-' ] 
-            { INFIX2(Lexing.lexeme lexbuf) }
-  | [ '*' '/' '%' ]
-            { INFIX3(Lexing.lexeme lexbuf) }
+  | [ '=' '<' '>' ] { INFIX1(Lexing.lexeme lexbuf) }
+  | "!=" { INFIX1(Lexing.lexeme lexbuf) }
+  | [ '+' '-' ] { INFIX2(Lexing.lexeme lexbuf) }
+  | [ '*' '/' '%' ] { INFIX3(Lexing.lexeme lexbuf) }
   | "\""
       { reset_string_buffer();
         let string_start = lexbuf.Lexing.lex_start_pos + lexbuf.Lexing.lex_abs_pos in

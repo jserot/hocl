@@ -22,379 +22,253 @@ type type_expression =
     mutable te_typ: Types.typ }
 
 and type_expression_desc =
-  | Typetuple of type_expression list
-  | Typeconstr of string * type_expression list
+  | Typeconstr of string
 
-(* Programs *)
-                
-type program =
-  { types: type_decl list;    (* User-defined types *)
-    values: value_decl list;  (* Values *)
-    nodes: node_decl list;    (* Node models *)
-    graphs: graph_decl list } (* Top-level graphs *)
+type program = {
+    types: type_decl list;
+    values: val_decl list;
+    nodes: node_decl list;
+  }
 
 and type_decl =
-  { td_desc: tdecl_desc;
+  { td_desc: type_decl_desc;
     td_loc: location }
-and tdecl_desc =
-  | Opaque_type_decl of string                                   (* name *)
 
-and value_decl = net_defn
+and type_decl_desc = string * type_desc
+
+and type_desc =               
+  | TD_Abstract
+
+and node_decl =
+  { nd_desc: node_decl_desc;
+    nd_loc: location }
+
+and node_decl_desc = string * node_desc
               
-and node_decl = 
+and node_desc = 
   { n_intf: node_intf;
     n_impl: node_impl }
 
-and node_intf = 
-  { ni_desc: ni_desc;
-    ni_loc: location }
-
-and ni_desc = {
+and node_intf = {
     n_id: string;
-    n_kind: node_kind;
+    n_isgraph: bool;
     n_params: param_decl list;
     n_ins: io_decl list;
     n_outs: io_decl list
   }
 
-and node_kind = NRegular | NBcast
-                          
 and param_decl =
   { pm_desc: param_desc;
-    pm_loc: location }
+    pm_loc: location;
+    mutable pm_typ: Types.typ }
 
-and param_desc = string * type_expression * core_expr option (* values only for top level graphs *)
-
+and param_desc = string * type_expression * expr option * io_annot list (* name, type, value for graph decls, annotations *)
+               
 and io_decl =
   { io_desc: io_desc;
-    io_loc: location }
+    io_loc: location;
+    mutable io_typ: Types.typ }
 
 and io_desc = string * type_expression * io_annot list
 
 and io_annot = string * string (* name, value *)
-                          
-(* and io_annot =
- *   IA_Rate of rate_expr
- * | IA_Other of string *)
-             
-and node_impl = {
-    nm_desc: nm_desc;
-    nm_loc: location; }
 
-and nm_desc = 
-  | NM_None
+and node_impl = 
   | NM_Actor of actor_desc
-  | NM_Struct of graph_struct_desc
   | NM_Fun of graph_fun_desc
+  | NM_Struct of graph_struct_desc
 
 and actor_desc = actor_impl list
 
 and actor_impl = string * (string * string) list  (* Target, list of named attributes *)              
-            
-and graph_decl = 
-  { g_desc: graph_desc;
-    g_loc: location }
 
-and graph_desc = {
-    g_id: string;
-    g_params: param_decl list;
-    g_ins: io_decl list;
-    g_outs: io_decl list;
-    g_defn: graph_defn
-  }
+and graph_fun_desc = val_decl list
 
-and graph_defn =
-  { gd_desc: graph_defn_desc;
-    gd_loc: location }
+and val_decl =
+  { vd_desc: val_desc;
+    vd_loc: location }
 
-and graph_defn_desc = 
-  | GD_Struct of graph_struct_desc
-  | GD_Fun of graph_fun_desc
+and val_desc = bool * binding list (* isrec, defns *)
 
-and graph_struct_desc =
-  { gs_wires: gwire_decl list;
-    gs_nodes: gnode_decl list }
+and binding =
+  { b_desc: binding_desc;
+    b_loc: location }
 
-and gwire_decl =
-  { gw_desc: graph_wire_desc;
-    gw_loc: location }
+and binding_desc = pattern * expr 
 
-and graph_wire_desc = string * type_expression
+and pattern =
+  { p_desc: pattern_desc;
+    p_loc: location;
+    mutable p_typ: Types.typ }
 
-and gnode_decl =
-  { gn_desc: graph_node_desc;
-    gn_loc: location }
+and pattern_desc =
+  | Pat_var of string 
+  | Pat_tuple of pattern list
+  | Pat_ignore
+  | Pat_unit
+  | Pat_nil
+  | Pat_cons of pattern * pattern
+  | Pat_list of pattern list
 
-and graph_node_desc = string * graph_node
+and expr = 
+  { e_desc: expr_desc;
+    e_loc: location;
+    mutable e_typ: Types.typ }
 
-and graph_node = 
-  { gn_name: string; (* Name of the instanciated model *)
-    gn_params: core_expr list;
-    gn_ins: string list;
-    gn_outs: string list }
-
-and graph_fun_desc = net_defn list
-
-and net_defn =
-  { nd_desc: net_defn_desc;
-    nd_loc: location }
-
-and net_defn_desc = bool * net_binding list
-
-and net_binding =
-  { nb_desc: net_binding_desc;
-    nb_loc: location }
-
-and net_binding_desc = net_pattern * net_expr 
-
-and net_pattern =
-  { np_desc: net_pattern_desc;
-    np_loc: location;
-    mutable np_typ: Types.typ }
-
-and net_pattern_desc =
-  | NPat_var of string 
-  | NPat_tuple of net_pattern list
-  | NPat_nil
-  | NPat_cons of net_pattern * net_pattern
-  | NPat_bundle of net_pattern list
-  | NPat_unit
-  | NPat_ignore
-
-and net_expr =
-  { ne_desc: net_expr_desc;
-    ne_loc: location;
-    mutable ne_typ: Types.typ }
-
-and net_expr_desc =
-   | NVar of string
-   | NApp of net_expr * net_expr
-   | NPApp of net_expr * core_expr list (* Parameter application. Ex: [foo<1,2>] *)
-   | NTuple of net_expr list
-   | NLet of bool * net_binding list * net_expr (* rec/non rec*)
-   | NFun of net_pattern * net_expr (* single match here ! *)
-   | NNil
-   | NCons of net_expr * net_expr
-   | NBundle of net_expr list
-   | NBundleElem of net_expr * net_expr
-   | NIf of net_expr * net_expr * net_expr
-   | NMatch of net_expr * net_binding list
-   | NBool of bool
-   | NInt of int
-   | NUnit
-
-and core_expr = 
-  { ce_desc: core_expr_desc;
-    ce_loc: location;
-    mutable ce_typ: Types.typ }
-
-and core_expr_desc =
+and expr_desc =
    | EVar of string
+   | EApp of expr * expr
+   | ETuple of expr list
+   | EFun of pattern * expr (* single match here ! *)
+   | ELet of bool * binding list * expr 
+   | EUnit
    | EInt of int
    | EBool of bool
-   | EBinop of string * core_expr * core_expr
-(* TO BE EXTENDED ? Should we include user-defined or primitive fn application ? *)
+   | EBinop of string * expr * expr
+   | EIf of expr * expr * expr
+   | ENil
+   | ECons of expr * expr
+   | EList of expr list
+   | EListElem of expr * expr
+   | EMatch of expr * binding list
 
-and param_expr = core_expr
-and rate_expr = core_expr
+and graph_struct_desc =
+  { gs_wires: wire_decl list;
+    gs_boxes: box_decl list }
 
-let core_expr_equal expr1 expr2 =  (* Structural comparison *)
-  let rec cmp e1 e2 = match e1.ce_desc, e2.ce_desc with
-    | EVar v1, EVar v2 -> v1=v2
-    | EInt i1, EInt i2 -> i1=i2
-    | EBool b1, EBool b2 -> b1=b2
-    | EBinop (op1,e11,e12), EBinop (op2,e21,e22) -> op1=op2 && cmp e11 e21 && cmp e12 e22
-    | _, _ -> false in
-  cmp expr1 expr2
+and wire_decl =
+  { wr_desc: wire_desc;
+    wr_loc: location }
 
-(* Aux fns *)
+and wire_desc = string * type_expression
 
-let is_fun_definition = function
-  { nb_desc={np_desc=NPat_var _}, {ne_desc=NFun (_,_)} } -> true
-| _ -> false
+and box_decl =
+  { bx_desc: box_decl_desc;
+    bx_loc: location }
 
-let no_annot = ""
+and box_decl_desc = string * box_desc
+
+and box_desc = 
+  { bx_node: string; (* Name of the instanciated node *)
+    bx_params: expr list;
+    bx_ins: string list;
+    bx_outs: string list }
 
 (* Program manipulation *)
 
-let empty_program = { types=[]; values=[]; nodes=[]; graphs=[] }
+let empty_program = { types=[]; values=[]; nodes=[] }
 
 let add_program p1 p2 = { (* TODO : Flag redefinitions ? *)
     types= p1.types @ p2.types;
     values= p1.values @ p2.values;
     nodes= p1.nodes @ p2.nodes;
-    graphs= p1.graphs @ p2.graphs;
   }
 
 (* Printing *)
 
-let is_unop op = List.mem op [ "not" ]      (* TO ADJUST WITH PARSER/LEXER *)
+let string_of_type_expr = function
+  | { te_desc=Typeconstr c } -> c
 
-let is_binop op = List.mem op [             (* TO ADJUST WITH PARSER/LEXER *)
-  "+"; "-"; "*"; "/"; "%";
-  "<"; ">"; "="; "!="; "<>"
-  ]
-
-let is_rbinop op = List.mem op [             (* TO ADJUST WITH PARSER/LEXER *)
-  "+"; "-"; "*"; "/"; "%"
-  ]
-   
-let rec string_of_ty_expr te = string_of_ty_exp te.te_desc
-
-and string_of_ty_exp = function
-  | Typeconstr (c, []) -> c
-  | Typeconstr (c, [t]) -> string_of_ty_expr t ^ " " ^ c
-  | Typeconstr (c, ts) -> "(" ^ Misc.string_of_list string_of_ty_expr "," ts ^ ") " ^ c
-  | Typetuple ts -> "(" ^ Misc.string_of_list string_of_ty_expr "*" ts ^ ")"
-
-let rec string_of_net_expr ne = string_of_net_exp ne.ne_desc
-
-and string_of_net_exp = function
-   | NVar v -> v
-   | NPApp (e,ps) ->
-      string_of_net_expr e  ^ "<" ^ Misc.string_of_list string_of_core_expr "," ps ^ ">"
-   | NApp (e1,e2) -> string_of_net_expr e1 ^ " " ^ string_of_net_expr e2
-   | NTuple es -> "(" ^ Misc.string_of_list string_of_net_expr "," es ^ ")"
-   | NLet (isrec,nbs,e) ->
-         "let " ^ if isrec then "rec " else " " ^  Misc.string_of_list string_of_net_binding "and" nbs
-       ^ " in " ^ string_of_net_expr e
-   | NFun (p,e) -> "<fun>"
-   | NNil -> "[]"
-   | NCons (e1,e2) -> string_of_net_expr e1 ^ "::" ^ string_of_net_expr e2
-   | NBundle es -> "[" ^ Misc.string_of_list string_of_net_expr "," es ^ "]"
-   | NBundleElem (e1,e2) -> string_of_net_expr e1 ^ "[" ^ string_of_net_expr e2 ^ "]"
-   | NIf (e1,e2,e3) -> "if " ^ string_of_net_expr e1 ^ " then " ^ string_of_net_expr e2 ^ " else " ^ string_of_net_expr e3
-   | NMatch (e1,bs) -> "match " ^ string_of_net_expr e1 ^ " with " ^ Misc.string_of_list string_of_net_binding " | " bs
-   | NBool b -> string_of_bool b
-   | NInt n -> string_of_int n
-   | NUnit -> "()"
-
-and string_of_net_binding nb = string_of_net_bind nb.nb_desc
-
-and string_of_net_bind (np,ne) = string_of_net_pattern np ^ " = " ^ string_of_net_expr ne
-
-and string_of_net_pattern np = string_of_net_pat np.np_desc
-
-and string_of_net_pat = function
-    NPat_var v -> v
-  | NPat_tuple ps -> "(" ^ Misc.string_of_list string_of_net_pattern "," ps ^ ")"
-  | NPat_nil -> "[]"
-  | NPat_cons (p1,p2) -> string_of_net_pattern p1 ^ "::" ^ string_of_net_pattern p2
-  | NPat_bundle ps -> "[" ^ Misc.string_of_list string_of_net_pattern "," ps ^ "]"
-  | NPat_unit -> "()"
-  | NPat_ignore -> "_"
-
-and string_of_core_expr e = string_of_core_exp e.ce_desc
-
-and string_of_core_exp = function
+let rec string_of_expr_desc = function
    | EVar v -> v
+   | EApp (e1,e2) -> string_of_expr e1 ^ " " ^ string_of_expr e2
+   | ETuple es -> "(" ^ Misc.string_of_list string_of_expr "," es ^ ")"
+   | EFun (p,e) -> "<fun>"
+   | ELet (isrec, bs,e) ->
+      "let " ^ (if isrec then "rec " else "") ^ string_of_bindings bs ^ "in " ^ string_of_expr e
+   | EUnit -> "()"
    | EInt n -> string_of_int n
-   | EBool n -> string_of_bool n
-   | EBinop (op,e1,e2) -> string_of_core_expr' e1 ^ op ^ string_of_core_expr' e2
+   | EBool b -> string_of_bool b
+   | EBinop (op,e1,e2) -> string_of_expr e1 ^ op ^ string_of_expr e2 (* TODO: add parens when necessary *)
+   | EIf (e1,e2,e3) -> "if " ^ string_of_expr e1 ^ " then " ^ string_of_expr e2 ^ " else " ^ string_of_expr e3
+   | ENil -> "[]"
+   | ECons (e1,e2) -> string_of_expr e1 ^ "::" ^ string_of_expr e2
+   | EList es -> "[" ^ Misc.string_of_list string_of_expr "," es ^ "]"
+   | EListElem (e1,e2) -> string_of_expr e1 ^ "[" ^ string_of_expr e2 ^ "]"
+   | EMatch (e1,bs) -> "match " ^ string_of_expr e1 ^ " with " ^ Misc.string_of_list string_of_binding " | " bs
 
-and string_of_core_expr' e =
-  if is_simple_core_expr e
-  then string_of_core_expr e
-  else "(" ^ string_of_core_expr e ^ ")"
+and string_of_expr e = string_of_expr_desc e.e_desc
 
-and is_simple_core_expr e = match e.ce_desc with
-  | EVar _ -> true
-  | EInt _ -> true
-  | EBool _ -> true
-  | EBinop _ -> false
-              
-let is_constant_core_expr e =
-  match e.ce_desc with
-  | EInt _ -> true
-  | EBool _ -> true
-  | _ -> false
-       
-let subst_core_expr vs e = 
-  let rec subst e = match e.ce_desc with
-   | EVar v when List.mem_assoc v vs -> { e with ce_desc = EVar (List.assoc v vs) }
-   | EBinop (op,e1,e2) -> { e with ce_desc = EBinop (op, subst e1, subst e2) }
-   | _ -> e in
-  subst e
+and string_of_bindings bs = Misc.string_of_list string_of_binding " and " bs
+                          
+and string_of_binding_desc (p,e) = string_of_pattern p ^ " = " ^ string_of_expr e
 
-let string_of_rate_expr = string_of_core_expr
+and string_of_binding b = string_of_binding_desc b.b_desc
 
-let string_of_io_annot (name,value) = name ^ "=" ^ value
-(* let string_of_io_annot = function
- *   | IA_Rate e -> "rate=" ^ string_of_rate_expr e
- *   | IA_Other s -> "other=" ^ s *)
-let string_of_io_annots = function
-    [] -> ""
-  | anns -> "{" ^ Misc.string_of_list string_of_io_annot "," anns ^ "}"
+and string_of_pattern p = string_of_pattern_desc p.p_desc
 
-let string_of_type_decl d = match d.td_desc with
-  | Opaque_type_decl id -> id
+and string_of_pattern_desc = function
+    Pat_var v -> v
+  | Pat_tuple ps -> "(" ^ Misc.string_of_list string_of_pattern "," ps ^ ")"
+  | Pat_ignore -> "_"
+  | Pat_unit -> "()"
+  | Pat_nil -> "[]"
+  | Pat_cons (p1,p2) -> string_of_pattern p1 ^ "::" ^ string_of_pattern p2
+  | Pat_list ps -> "[" ^ Misc.string_of_list string_of_pattern "," ps ^ "]"
 
-let string_of_opt_param_value v = match v with
-  | None -> ""
-  | Some v' -> "=" ^ string_of_core_expr v'
-let string_of_io_decl {io_desc=id,ty,anns} = id ^ ": " ^ string_of_ty_expr ty ^ string_of_io_annots anns
-let string_of_param_decl {pm_desc=id,ty,v} = id ^ ": " ^ string_of_ty_expr ty ^ string_of_opt_param_value v
-                               
-let string_of_node_kind = function NRegular -> "node" | NBcast -> "bcast"
-                                                                  
-let string_of_node_intf d =
-  let i = d.ni_desc in
-  string_of_node_kind i.n_kind ^ " " ^ i.n_id
-    ^ " params (" ^ Misc.string_of_list string_of_param_decl ", " i.n_params ^ ")"
-    ^ " in (" ^ Misc.string_of_list string_of_io_decl ", " i.n_ins ^ ")"
-    ^ " out (" ^ Misc.string_of_list string_of_io_decl ", " i.n_outs ^ ")"
+let string_of_val_desc (isrec,bs)  =
+  Printf.sprintf "  val %s%s" (if isrec then "rec " else "") (string_of_bindings bs)
 
-let string_of_node_impl d =
-  match d.nm_desc with
-  | NM_None -> "None"
-  | NM_Actor _ -> "Actor(...)"
-  | NM_Struct _ -> "Struct(...)"
-  | NM_Fun _ -> "Fun(...)"
+let string_of_val_decl d = string_of_val_desc d.vd_desc
 
-let rec string_of_graph_decl d =
-  let g = d.g_desc in
-  "graph " ^ g.g_id
-    ^ " params (" ^ Misc.string_of_list string_of_param_decl ", " g.g_params ^ ")"
-    ^ " in (" ^ Misc.string_of_list string_of_io_decl ", " g.g_ins ^ ")"
-    ^ " out (" ^ Misc.string_of_list string_of_io_decl ", " g.g_outs ^ ")"
-    ^ " = " ^ string_of_graph_defn g.g_defn
+let string_of_fun_graph_defn d =
+    Misc.string_of_list string_of_val_decl "\n" d
 
-and string_of_graph_defn d = match d.gd_desc with
-  | GD_Struct s -> "struct\n" ^ string_of_graph_struct s ^ "\nend"
-  | GD_Fun s -> "fun\n" ^ string_of_graph_fun s ^ "\nend"
-
-and string_of_graph_struct s =
+let rec string_of_struct_graph_defn s =
     Misc.string_of_list string_of_wire_decl "\n" s.gs_wires
   ^ "\n"
-  ^ Misc.string_of_list string_of_gnode_decl "\n" s.gs_nodes
+  ^ Misc.string_of_list string_of_box_decl "\n" s.gs_boxes
 
-and string_of_wire_decl { gw_desc = (id,t) } = "  wire " ^ id ^ " : " ^ string_of_ty_expr t
+and string_of_wire_decl { wr_desc = (id,t) } = "  wire " ^ id ^ " : " ^ string_of_type_expr t
 
-and string_of_gnode_decl { gn_desc = (id, n) } = 
-  "  node " ^ id ^ " : " ^ n.gn_name
-  ^ "(" ^ Misc.string_of_list string_of_core_expr "," n.gn_params ^ ")" 
-  ^ "(" ^ Misc.string_of_list Misc.id "," n.gn_ins ^ ")"
-  ^ "(" ^ Misc.string_of_list Misc.id "," n.gn_outs ^ ")"
+and string_of_box_decl { bx_desc = (id,b) } = 
+  "  box " ^ id ^ " : " ^ b.bx_node
+  ^ "(" ^ Misc.string_of_list string_of_expr "," b.bx_params ^ ")" 
+  ^ "(" ^ Misc.string_of_list Fun.id "," b.bx_ins ^ ")"
+  ^ "(" ^ Misc.string_of_list Fun.id "," b.bx_outs ^ ")"
 
-and string_of_graph_fun ds =
-  Misc.string_of_list string_of_net_defn "\n" ds
-  
-and string_of_net_defn d = match d.nd_desc with
-    r, bs -> string_of_rec r ^ Misc.string_of_list string_of_net_binding " and " bs
+let string_of_node_impl i =
+  match i with
+  | NM_Actor _ -> "actor"
+  | NM_Fun g -> "fun\n" ^ string_of_fun_graph_defn g
+  | NM_Struct g -> "struct\n" ^ string_of_struct_graph_defn g
 
-and string_of_rec = function true -> " rec " | false -> ""
 
-let dump_type d = Printf.printf "type %s\n" (string_of_type_decl d)
-let dump_value d = Printf.printf "val %s\n" (string_of_net_defn d)
-let dump_node d = Printf.printf "%s = %s\n" (string_of_node_intf d.n_intf) (string_of_node_impl d.n_impl)
-let dump_graph d = Printf.printf "%s\n" (string_of_graph_decl d)
+let string_of_expr e = string_of_expr_desc e.e_desc
+
+let string_of_node_io_desc (id,t,ann) = id ^ ":" ^ string_of_type_expr t
+
+let string_of_node_io io = string_of_node_io_desc io.io_desc
+
+let string_of_node_param_desc (id,t,e,anns) =
+  let string_of_opt_exp = function None -> "" | Some e -> "=" ^ string_of_expr e in
+  id ^ ":" ^ string_of_type_expr t ^ string_of_opt_exp e
+
+let string_of_node_param param = string_of_node_param_desc param.pm_desc
+
+let string_of_type_decl (id,d) = match d with
+  | TD_Abstract -> id 
+                         
+let string_of_node_intf i =
+  "node " ^ i.n_id
+    ^ " param (" ^ Misc.string_of_list string_of_node_param ", " i.n_params ^ ")"
+    ^ " in (" ^ Misc.string_of_list string_of_node_io ", " i.n_ins ^ ")"
+    ^ " out (" ^ Misc.string_of_list string_of_node_io ", " i.n_outs ^ ")"
+
+(* let string_of_node_intf intf = string_of_node_intf_desc intf.ni_desc *)
+
+let dump_node {nd_desc=(id,n)} = Printf.printf "%s = %s\n" (string_of_node_intf n.n_intf) (string_of_node_impl n.n_impl)
+let dump_type d = Printf.printf "type %s\n" (string_of_type_decl d.td_desc)
+let dump_value d = Printf.printf "%s\n" (string_of_val_decl d)
 
 let rec dump_program p =
-  Printf.printf "Types ---------------\n";
+  Printf.printf "Program ---------------\n";
+  Printf.printf "- Types ---------------\n";
   List.iter dump_type p.types;
-  Printf.printf "Global values -------\n";
+  Printf.printf "- Global values -------\n";
   List.iter dump_value p.values;
-  Printf.printf "Nodes ---------------\n";
-  List.iter dump_node p.nodes;
-  Printf.printf "Graphs --------------\n";
-  List.iter dump_graph p.graphs
+  let graphs, nodes = List.partition (fun {nd_desc=(_,n)} -> n.n_intf.n_isgraph) p.nodes in
+  Printf.printf "- Nodes ---------------\n";
+  List.iter dump_node nodes;
+  Printf.printf "- Graphs ---------------\n";
+  List.iter dump_node graphs

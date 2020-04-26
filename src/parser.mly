@@ -1,89 +1,59 @@
-(**********************************************************************)
-(*                                                                    *)
-(*              This file is part of the HOCL package                 *)
-(*                                                                    *)
-(*  Copyright (c) 2019-present, Jocelyn SEROT (jocelyn.serot@uca.fr). *)
-(*                     All rights reserved.                           *)
-(*                                                                    *)
-(*  This source code is licensed under the license found in the       *)
-(*  LICENSE file in the root directory of this source tree.           *)
-(*                                                                    *)
-(**********************************************************************)
-
 (* The [Menhir] parser definition *)
 
 %token <string> IDENT
-(* %token <string> PREFIX *)
-%token <string> INFIX0
-(* %token <string> INFIX1 *)
-%token <string> INFIX2
-%token <string> INFIX3
-%token <int> INT
-%token <string> STRING
 %token EOF
 %token EQUAL          (* "="*)
-%token NOTEQUAL       (* "!="*)
-%token GREATER        (* ">" *)
-%token LESS           (* "<" *)
 %token LPAREN         (* "("*)
 %token RPAREN         (* ")"*)
-%token LBRACE         (* "{"*)
-%token RBRACE         (* "}"*)
-%token STAR           (* "*"*)
 %token COMMA          (* ","*)
 %token ARROW          (* "->"*)
-%token COLONCOLON     (* "::"*)
 %token SEMI           (* ";"*)
-%token COLON          (* ":"*)
-%token LBRACKET       (* "["*)
-%token RBRACKET       (* "]"*)
-%token BAR            (* "|"*)
 %token UNDERSCORE     (* "_"*)
+%token COLON          (* ":"*)
 %token END           
-%token TYPE         
-%token TY_INT         (* "int"*)
-%token TY_BOOL        (* "bool"*)
-(* %token TY_UNIT        (\* "unit"*\) *)
-%token GRAPH          
-%token ACTOR         
-%token PARAM        
 %token IN          
 %token OUT        
 %token FUN       
-%token STRUCT   
 %token NODE    
-%token WIRE   
-%token MATCH 
-%token WITH 
 %token VAL 
-%token LET
-%token AND
+%token LET 
+%token AND 
 %token REC
+%token <int> INT
 %token IF
 %token THEN
 %token ELSE
 %token TRUE
 %token FALSE
-(* %token RATE           (\* "rate"*\) *)
-(* %token OTHER          (\* "other"*\) *)
-(* %token INITIALLY      (\* "initially"*\) *)
+%token <string> INFIX0
+%token <string> INFIX1
+%token <string> INFIX2
+%token <string> INFIX3
+%token PARAM
+%token TYPE
+%token GRAPH
+%token LBRACKET
+%token RBRACKET
+%token COLONCOLON
+%token MATCH
+%token WITH
+%token BAR
+%token STRUCT   
+%token BOX    
+%token WIRE   
+%token <string> STRING
+%token ACTOR
+%token LBRACE
+%token RBRACE
 
 (* Precedences and associativities. Lower precedences first.*)
 
-(* %nonassoc IN *)
-%right prec_let
-(* %right prec_define *)
-%right ARROW
-(* %left  BAR *)
 %left  COMMA
-%left  INFIX0                           (* rev app operators (|>, >>) *)
-%left  (*INFIX1*) GREATER LESS EQUAL NOTEQUAL    (* comparisons*)
-%left  INFIX2                           (* additives, subtractives*)
+%left  INFIX0 (* rev app operators (|>, >>) *)
+%left  INFIX1 (* comparisons*)
+%left  INFIX2 (* additives, subtractives*)
+%left  INFIX3 (* multiplicatives *)
 %right COLONCOLON
-%left  STAR INFIX3                      (* multiplicatives*)
-(* %right prec_app *)
-(* %right PREFIX                           (\* prefix operators, e.g. !*\) *)
-(* %nonassoc prec_uminus  *)
 
 (* Entry points*)
 
@@ -91,415 +61,270 @@
 %type <Syntax.program> program
 
 %{
-open Location
 open Syntax
+open Location
+
+type top_decl =
+  | TypeDecl of Syntax.type_decl
+  | ValueDecl of Syntax.val_decl
+  | NodeDecl of Syntax.node_decl
+
+let get_type_decl acc d = match d with TypeDecl d -> d::acc | _ -> acc               
+let get_value_decl acc d = match d with ValueDecl d -> d::acc | _ -> acc               
+let get_node_decl acc d = match d with NodeDecl d -> d::acc | _ -> acc               
+
+type struct_decl =
+  | WireDecl of Syntax.wire_decl list
+  | BoxDecl of Syntax.box_decl
+
+let get_wire_decls acc ds = match ds with WireDecl ds -> acc @ ds | _ -> acc               
+let get_box_decl acc d = match d with BoxDecl d -> d::acc | _ -> acc               
 
 let mk_location (p1,p2) =
   let open Lexing in
   Loc (!input_name, p1.pos_bol+p1.pos_cnum, p2.pos_bol+p2.pos_cnum)
 
-let mk_type_expr l desc = { te_desc = desc; te_loc = mk_location l; te_typ = Types.no_type}
+let mk_type_expr l desc = { te_desc = desc; te_loc = mk_location l; te_typ = Types.no_type }
 let mk_type_decl l desc = { td_desc = desc; td_loc = mk_location l }
-let mk_param_decl l desc = { pm_desc = desc; pm_loc = mk_location l }
-let mk_io_decl l desc = { io_desc = desc; io_loc = mk_location l }
-let mk_node_intf l desc = { ni_desc = desc; ni_loc = mk_location l }
-let mk_node_impl l desc = { nm_desc = desc; nm_loc = mk_location l }
-let mk_node_decl intf impl = { n_intf = intf; n_impl = impl }
-let mk_graph_decl l desc = { g_desc = desc; g_loc = mk_location l }
-let mk_graph_defn l desc = { gd_desc = desc; gd_loc = mk_location l }
-let mk_wire_decl l desc = { gw_desc = desc; gw_loc = mk_location l }
-let mk_gnode_decl l desc = { gn_desc = desc; gn_loc = mk_location l }
-let mk_net_defn l desc = { nd_desc = desc; nd_loc = mk_location l }
-let mk_net_expr l desc = { ne_desc = desc; ne_loc = mk_location l; ne_typ = Types.no_type }
-let mk_net_pat l desc = { np_desc = desc; np_loc = mk_location l; np_typ = Types.no_type }
-let mk_net_binding l desc = { nb_desc = desc; nb_loc = mk_location l}
-let mk_core_expr l desc = { ce_desc = desc; ce_loc = mk_location l; ce_typ = Types.no_type }
+let mk_param_decl l desc = { pm_desc = desc; pm_loc = mk_location l; pm_typ = Types.no_type }
+let mk_io_decl l desc = { io_desc = desc; io_loc = mk_location l; io_typ = Types.no_type }
+let mk_val_decl l desc = { vd_desc = desc; vd_loc = mk_location l }
+let mk_node_decl l desc = { nd_desc = desc; nd_loc = mk_location l }
+let mk_expr l desc = { e_desc = desc; e_loc = mk_location l; e_typ = Types.no_type }
+let mk_pat l desc = { p_desc = desc; p_loc = mk_location l; p_typ = Types.no_type }
+let mk_binding l desc = { b_desc = desc; b_loc = mk_location l}
+let mk_wire_decl l desc = { wr_desc = desc; wr_loc = mk_location l }
+let mk_box_decl l desc = { bx_desc = desc; bx_loc = mk_location l }
+
 let rec mk_apply l f es = match es with
   | [] -> f
-  | e2::e2s -> mk_apply l (mk_net_expr l (NApp(f, e2))) e2s (* TO FIX: location *)
-let rec mk_papply l f es = mk_net_expr l (NPApp(f, es))
+  | e2::e2s -> mk_apply l (mk_expr l (EApp (f, e2))) e2s (* TO FIX: location ! *)
 let rec mk_fun l pats e = match pats with
-  | [] -> Misc.fatal_error "mk_fun" (* should not happen *)
-  | [p] -> mk_net_expr l (NFun (p,e))
-  | p::ps -> mk_net_expr l (NFun (p, mk_fun l ps e)) (* TO FIX: location *)
-let mk_binop l (op,l') e1 e2 = mk_net_expr l (NApp (mk_net_expr l' (NVar op), mk_net_expr l (NTuple [e1;e2])))
-(* let mk_unop l (op,l') e = mk_net_expr l (NApp (mk_net_expr l' (NVar op),e)) *)
-(* let mk_uminus l l' e = match e.ne_desc with
- *   | NInt n -> { e with ne_desc = NInt (-n) }
- *   | _ -> mk_unop l ("~-",l') e *)
-let mk_infix l (op,l') e1 e2 = mk_apply l (mk_net_expr l' (NVar op)) [e1; e2]
-let mk_cbinop l (op,l') e1 e2 = mk_core_expr l (EBinop (op,  e1, e2))
+  | [] -> Misc.fatal_error "Parser.mk_fun" (* should not happen *)
+  | [p] -> mk_expr l (EFun (p,e))
+  | p::ps -> mk_expr l (EFun (p, mk_fun l ps e)) (* TO FIX: location *)
+let mk_binop l op e1 e2 = mk_expr l (EBinop (op,e1,e2))
+let mk_infix l (op,l') e1 e2 = mk_apply l (mk_expr l' (EVar op)) [e1; e2]
 
-type top_decl =
-  | TyDecl of Syntax.type_decl
-  | ValueDecl of Syntax.value_decl
-  | NodeDecl of Syntax.node_decl
-  | GraphDecl of Syntax.graph_decl
-
-let is_type_decl = function TyDecl _ -> true | _ -> false             
-let is_value_decl = function ValueDecl _ -> true | _ -> false             
-let is_node_decl = function NodeDecl _ -> true | _ -> false             
-let is_graph_decl = function GraphDecl _ -> true | _ -> false             
-
-let type_decl_of = function TyDecl d -> d | _ -> Misc.fatal_error "Parser.type_decl_of"             
-let value_decl_of = function ValueDecl d -> d | _ -> Misc.fatal_error "Parser.value_decl_of"             
-let node_decl_of = function NodeDecl d -> d | _ -> Misc.fatal_error "Parser.node_decl_of"             
-let graph_decl_of = function GraphDecl d -> d | _ -> Misc.fatal_error "Parser.graph_decl_of"             
-
-type struct_decl =
-  | GWireDecl of Syntax.gwire_decl list
-  | GNodeDecl of Syntax.gnode_decl
-
-let is_gwire_decl = function GWireDecl _ -> true | _ -> false             
-let is_gnode_decl = function GNodeDecl _ -> true | _ -> false             
-
-let gwire_decl_of = function GWireDecl ds -> ds | _ -> Misc.fatal_error "Parser.wgire_decl_of"             
-let gnode_decl_of = function GNodeDecl d -> d | _ -> Misc.fatal_error "Parser.gnode_decl_of"             
 %}
 
 %%
 
-optional(X):
-   (* nothing *) { false }
-  | X { true }
-
-my_option(X):
-   | (* nothing *) { [] }
-   | x=X { x }
-
-my_list(X):
-   | (* nothing *) { [] }
-   | x=X; xs=my_list(X) { x::xs }
-
-my_nonempty_list(X):
-   | x=X { [x] }
-   | x=X; xs=my_nonempty_list(X) { x::xs }
-
-my_separated_nonempty_list(X,S):
-   | x=X { [ x ] }
-   | x=X; S; xs=my_separated_nonempty_list(X,S) { x::xs }
-
-my_separated_list(X,S):
-   | (* nothing *) { [] }
-   | x=my_separated_nonempty_list(X,S) { x }
-
 (* PROGRAM *)
 
 program:
-  | decls = my_list(decl) EOF
-      { { Syntax.types = decls |> List.filter is_type_decl |> List.map type_decl_of;
-          Syntax.values = decls |> List.filter is_value_decl |> List.map value_decl_of;
-          Syntax.nodes = decls |> List.filter is_node_decl |> List.map node_decl_of;
-          Syntax.graphs = decls |> List.filter is_graph_decl |> List.map graph_decl_of } }
+  | decls = list(top_decl) EOF
+              { { types = decls |> List.fold_left get_type_decl [] |> List.rev;
+                  values = decls |> List.fold_left get_value_decl [] |> List.rev; 
+                  nodes = decls |> List.fold_left get_node_decl [] |> List.rev; } }
 
-(* DECLARATIONS *)
+(* TOP DECLARATIONS *)
 
-decl:
-    d = type_decl SEMI { TyDecl d }
-  | d = value_decl SEMI { ValueDecl d }
+top_decl:
+    d = type_decl SEMI { TypeDecl d }
+  | d = val_decl SEMI { ValueDecl d }
   | d = node_decl SEMI { NodeDecl d }
-  | d = graph_decl SEMI { GraphDecl d }
-          
-(* TYPE DECLARATION *)
+
+(* TYPE DECLARATIONS *)
 
 type_decl:
   | TYPE id=IDENT 
-      { mk_type_decl $loc (Syntax.Opaque_type_decl id) }
+      { mk_type_decl $sloc (id, TD_Abstract) }
 
-(* GLOBAL FUNCTION DECLARATION (in prelude file typically) *)
-
-value_decl:
-  | VAL r=optional(REC) b=net_binding
-      { mk_net_defn $loc (r, [b]) }
-
-(* NODE DECLARATION *)
+(* NODE and GRAPH DECLARATIONS *)
 
 node_decl:
-   intf=node_intf impl=node_impl
-     { mk_node_decl intf impl }
-                         
-node_intf:
-   NODE id=IDENT params=my_option(node_params) IN inps=io_decls OUT outps=io_decls 
-    { mk_node_intf $loc { n_id=id; n_kind=NRegular; n_params=params; n_ins=inps; n_outs=outps } }
-
-(* node_intf:
- *    kind=node_kind id=IDENT params=my_option(node_params) IN inps=io_decls OUT outps=io_decls
- *     { mk_node_intf $loc { n_id=id; n_kind=kind; n_params=params; n_ins=inps; n_outs=outps } } *)
+   NODE id=IDENT params=loption(node_param_decls) IN inps=io_decls OUT outps=io_decls impl=option(node_impl)
+     { mk_node_decl
+       $sloc
+       (id, { n_intf={n_id=id; n_isgraph=false; n_params=params; n_ins=inps; n_outs=outps };
+            n_impl=match impl with None -> NM_Actor [] | Some im -> im }) }
+  | GRAPH id=IDENT params=loption(graph_param_decls) IN inps=io_decls OUT outps=io_decls impl=node_impl
+     { mk_node_decl
+       $sloc
+       (id,{ n_intf={n_id=id; n_isgraph=true; n_params=params; n_ins=inps; n_outs=outps };
+            n_impl=impl })}
 
 node_impl:
-  | (* Nothing *) { mk_node_impl $loc NM_None }
-  | ACTOR d=my_list(actor_desc) END { mk_node_impl $loc (NM_Actor d) }
-  | STRUCT d=struct_graph_desc END { mk_node_impl $loc (NM_Struct d) }
-  | FUN d=fun_graph_desc END { mk_node_impl $loc (NM_Fun d) }
-                    
+  | FUN f=list(val_decl) END { NM_Fun f }
+  | STRUCT s=struct_graph_desc END { NM_Struct s }
+  | ACTOR d=list(actor_desc) END { NM_Actor d }
+
 actor_desc:
-  | t=IDENT LPAREN attrs=my_separated_list(impl_attr,COMMA) RPAREN { (t,attrs) }
+  | t=IDENT LPAREN attrs=separated_list(COMMA,impl_attr) RPAREN { (t,attrs) }
 
 impl_attr:
   | name=IDENT EQUAL v=STRING { name, v }
   | name=IDENT { name, "" }
 
-(* node_kind:
- *   | NODE { NRegular }
- *   (\* | BCAST { ABcast } *\) *)
-
-node_params:
-  | PARAM LPAREN ps=my_separated_list(node_param_decl,COMMA) RPAREN { ps }
-(* opt_node_params:
- *   | (\* Nothing *\) { [] }
- *   | PARAM LPAREN ps=my_separated_list(node_param_decl,COMMA) RPAREN { ps } *)
+node_param_decls:
+  | PARAM LPAREN ps=separated_list(COMMA,node_param_decl) RPAREN { ps }
 
 node_param_decl:
-   id=IDENT COLON t=simple_type_expr
-     { mk_param_decl $loc (id, t, None) }  (* No value for node params *)
+  | id=IDENT COLON t=type_expr { mk_param_decl $sloc (id,t,None,[]) } (* TO ADD ? Parameter annotations *)
+
+graph_param_decls:
+  | PARAM LPAREN ps=separated_list(COMMA,graph_param_decl) RPAREN { ps }
+
+graph_param_decl:
+  | id=IDENT COLON t=type_expr EQUAL e=simple_expr { mk_param_decl $sloc (id,t,Some e,[]) }
 
 io_decls:
-  | LPAREN ios=my_separated_list(io_decl,COMMA) RPAREN { ios }
+  | LPAREN ios=separated_list(COMMA,io_decl) RPAREN { ios }
 
 io_decl:
-  id=IDENT COLON t=simple_type_expr anns=opt_io_annots
-    { mk_io_decl $loc (id, t, anns) }
-     
-opt_io_annots:
+  | id=IDENT COLON t=type_expr anns=io_annots { mk_io_decl $sloc (id,t,anns) }
+
+io_annots:
   | (* Nothing *) { [] }
-  | LBRACKET e=core_expr RBRACKET { ["rate",string_of_core_expr e] }
-  | LBRACE anns=my_separated_list(io_annot,COMMA) RBRACE { anns }
+  | LBRACKET e=simple_expr RBRACKET { ["rate",string_of_expr e] }
+  | LBRACE anns=separated_list(COMMA,io_annot) RBRACE { anns }
 
 io_annot:
   | name=IDENT EQUAL value=STRING { name,value }
-                  
-(* CORE EXPRESSIONS *)
 
-core_expr:
-        e=simple_core_expr
-          { e }
-      | e1=core_expr op=INFIX3 e2=core_expr
-          { mk_cbinop $loc (op,$loc(op)) e1 e2 }
-      | e1=core_expr op=INFIX2 e2=core_expr
-          { mk_cbinop $loc (op,$loc(op)) e1 e2 }
-      | e1=core_expr op=STAR e2=core_expr
-          { mk_cbinop $loc ("*",$loc(op)) e1 e2 }
-      (* | e1=core_expr op=GREATER e2=core_expr
-       *     { mk_cbinop $loc (">",$loc(op)) e1 e2 }
-       * | e1=core_expr op=LESS e2=core_expr
-       *     { mk_cbinop $loc ("<",$loc(op)) e1 e2 } *)
+type_expr:
+      | id=IDENT { mk_type_expr $sloc (Typeconstr id) }
+                       
+(* VAL DECLARATIONS *)
 
-simple_core_expr:
-      | id=IDENT
-          { mk_core_expr $loc (EVar id) }
-      | n=INT
-          { mk_core_expr $loc (EInt n) }
-      | TRUE
-          { mk_core_expr $loc (EBool true) }
-      | FALSE
-          { mk_core_expr $loc (EBool false) }
-      | LPAREN e=core_expr RPAREN
-          { e }
-    
-(* TYPE EXPRESSIONS *)
+val_decl:
+  | VAL r=boption(REC) bs=separated_nonempty_list(AND,binding)
+      { mk_val_decl $sloc (r, bs) }
 
-(* type_expr:
- *   | ts = my_separated_nonempty_list(STAR, simple_type_expr)
- *            { match ts.te_des with
- *              | [] -> Misc.fatal_error "Parser.type_expr" (\* should not happen *\)
- *              | [t] -> mk_type_expr t
- *              | _ -> mk_type_expr (Typetuple (List.map mk_type_expr ts)) } *)
+binding:
+  | p=pattern EQUAL e=expr  (*%prec prec_define*)
+      { mk_binding $sloc (p,e) }
+  | id=binding_name ps=nonempty_list(simple_pattern) EQUAL e=expr
+      { mk_binding $sloc (mk_pat $sloc (Pat_var id), mk_fun $sloc ps e) }
 
-simple_type_expr:
-      | id=IDENT 
-          { mk_type_expr $loc (Typeconstr(id, [])) }
-      | TY_INT 
-          { mk_type_expr $loc (Typeconstr("int", [])) }
-      | TY_BOOL 
-          { mk_type_expr $loc (Typeconstr("bool", [])) }
-      (* | TY_UNIT 
-       *     { mk_type_expr $loc (Typeconstr("unit", [])) }
-       * | t=simple_type_expr id=IDENT
-       *     { mk_type_expr $loc (Typeconstr(id, [t])) } *)
-      (* | IDENT opt_size_exprs
-       *     { mk_type_expr $loc (Typeconstr($1, [], $2)) } *)
-      (* | simple_type_expr TY_ARRAY LBRACKET size_expr RBRACKET
-       *     { mk_type_expr $loc (Typeconstr("array", [$1], [$4])) } *)
-      (* | simple_type_expr IDENT opt_size_exprs
-       *     { mk_type_expr $loc (Typeconstr($2, [$1], $3)) } *)
-      (* | LPAREN type_expr COMMA type_expr_comma_list RPAREN IDENT opt_size_exprs
-       *     { mk_type_expr $loc (Typeconstr($6, $2::$4, $7)) } *)
-      (* | LPAREN t=type_expr RPAREN
-       *     { t } *)
-
-(* GRAPH DECLARATION *)
-
-graph_decl:
-  | GRAPH id=IDENT params=my_option(graph_params) IN inps=io_decls OUT outps=io_decls d=graph_defn
-    { mk_graph_decl $loc {g_id=id; g_params=params; g_ins=inps; g_outs=outps; g_defn=d } }
-
-graph_params:
-  | PARAM LPAREN vs=my_separated_list(graph_param_value,COMMA) RPAREN { vs }
-(* opt_graph_params:
- *   | (\* Nothing *\) { [] }
- *   | PARAM LPAREN vs=my_separated_list(graph_param_value,COMMA) RPAREN { vs } *)
-
-graph_param_value:
-   id=IDENT COLON t=simple_type_expr EQUAL v=const_param_value
-     { mk_param_decl $loc (id, t, Some v) }
-
-const_param_value:
-  | n=INT
-        { mk_core_expr $loc (EInt n) }
-  | TRUE
-        { mk_core_expr $loc (EBool true) }
-  | FALSE
-        { mk_core_expr $loc (EBool false) }
-
-graph_defn:
-  | STRUCT d=struct_graph_desc END { mk_graph_defn $loc (GD_Struct d) }
-  | FUN d=fun_graph_desc END { mk_graph_defn $loc (GD_Fun d) }
-
-(* STRUCTURAL GRAPH DESCRIPTION *)
-
-struct_graph_desc:
-  | ds = my_list(struct_defn)
-           { { gs_wires = ds |> List.filter is_gwire_decl |> Misc.flat_map gwire_decl_of;
-               gs_nodes = ds |> List.filter is_gnode_decl |> List.map gnode_decl_of } }
-
-struct_defn:
-  | ds=gwire_defn { GWireDecl ds }
-  | d=gnode_defn { GNodeDecl d }
-
-gwire_defn:
-  | WIRE ids=my_separated_list(IDENT,COMMA) COLON t=simple_type_expr
-     { List.map (fun id -> mk_wire_decl $loc (id,t)) ids }
-
-gnode_defn:
-  | NODE id=IDENT COLON name=IDENT params=my_option(gnode_params) inps=gnode_ios outps=gnode_ios
-     { mk_gnode_decl $loc (id, { gn_name=name; gn_params=params; gn_ins=inps; gn_outs=outps }) }
-
-gnode_params:
-  | LESS vs=my_separated_list(core_expr,COMMA) GREATER { vs }
-(* opt_gnode_params:
- *   | (\* Nothing *\) { [] }
- *   | LESS vs=my_separated_list(core_expr,COMMA) GREATER { vs } *)
-
-gnode_ios:
-  | LPAREN ios=my_separated_list(gnode_io,COMMA) RPAREN { ios }
-
-gnode_io:
-  | id=IDENT { id }
-
-(* FUNCTIONAL GRAPH DESCRIPTION *)
-
-fun_graph_desc:
-  | ds = my_list(net_defn) { ds }  
-            
-net_defn:
-  | VAL r=optional(REC) bs=my_separated_nonempty_list(net_binding,AND)
-      { mk_net_defn $loc (r, bs) }
-
-net_binding:
-  | p=net_pattern EQUAL e=net_expr  (*%prec prec_define*)
-      { mk_net_binding $loc (p, e) }
-  | id=net_binding_name ps=my_nonempty_list(simple_net_pattern) EQUAL e=net_expr  (*%prec prec_define*)
-          { mk_net_binding $loc (mk_net_pat $loc(id) (NPat_var id), mk_fun $loc ps e) }
-
-net_binding_name:
+binding_name:
       id=IDENT { id }
     | LPAREN op=INFIX0 RPAREN { op }
 
-net_expr:
-        e=simple_net_expr
+expr:
+        e=simple_expr
           { e }
-      | f=simple_net_expr args=my_nonempty_list(simple_net_expr)   (*%prec prec_app*)
-          { mk_apply $loc f args }
-      | es=net_expr_comma_list
-          { mk_net_expr $loc (NTuple(List.rev es)) }
-      | e1=net_expr COLONCOLON e2=net_expr 
-          { mk_net_expr $loc (NCons(e1,e2)) }
-      | e=simple_net_expr LBRACKET i=simple_net_expr RBRACKET
-          { mk_net_expr $loc (NBundleElem (e,i)) }
-      (* | LBRACKET es=my_separated_nonempty_list(net_expr,COMMA) RBRACKET
-       *     { mk_net_expr $loc (NBundle es) } *)
-      | LET r=optional(REC) bs=my_separated_nonempty_list(net_binding,AND) IN e=net_expr  %prec prec_let
-          { mk_net_expr $loc (NLet(r, bs, e)) }
-      | FUN p=net_pattern ARROW e=net_expr
-          { mk_net_expr $loc (NFun(p,e)) }
-      | MATCH e=net_expr WITH cs=my_separated_nonempty_list(net_case,BAR) 
-          { mk_net_expr $loc (NMatch(e,cs)) }
-      | IF e1=net_expr THEN e2=net_expr ELSE e3=net_expr
-          { mk_net_expr $loc (NIf(e1,e2,e3)) }
-      | e1=net_expr op=INFIX3 e2=net_expr
-          { mk_binop $loc (op,$loc(op)) e1 e2 }
-      | e1=net_expr op=INFIX2 e2=net_expr
-          { mk_binop $loc (op,$loc(op)) e1 e2 }
-      | e1=net_expr op=INFIX0 e2=net_expr
-          { mk_infix $loc (op,$loc(op)) e1 e2 }
-      | e1=net_expr op=GREATER e2=net_expr
-          { mk_binop $loc (">",$loc(op)) e1 e2 }
-      | e1=net_expr op=LESS e2=net_expr
-          { mk_binop $loc (">",$loc(op)) e1 e2 }
-      | e1=net_expr op=STAR e2=net_expr
-          { mk_binop $loc ("*",$loc(op)) e1 e2 }
-      | e1=net_expr op=EQUAL e2=net_expr
-          { mk_binop $loc ("=",$loc(op)) e1 e2 }
-      | e1=net_expr op=NOTEQUAL e2=net_expr
-          { mk_binop $loc ("!=",$loc(op)) e1 e2 }
-      (* | u=MINUS e=net_expr %prec prec_uminus
-       *     { mk_uminus $loc $loc(u) e } *)
+      | f=simple_expr args=nonempty_list(simple_expr)   (*%prec prec_app*)
+          { mk_apply $sloc f args }
+      | es=expr_comma_list
+          { mk_expr $sloc (ETuple (List.rev es)) }
+      | FUN p=pattern ARROW e=expr
+          { mk_expr $sloc (EFun (p,e)) }
+      | LET r=boption(REC) bs=separated_nonempty_list(AND,binding) IN e=expr
+          { mk_expr $sloc (ELet (r,bs,e)) }
+      | IF e1=expr THEN e2=expr ELSE e3=expr
+          { mk_expr $sloc (EIf (e1,e2,e3)) }
+      | e1=expr op=INFIX0 e2=expr
+          { mk_infix $sloc (op,$loc(op)) e1 e2 }
+      | e1=expr op=INFIX1 e2=expr
+          { mk_binop $sloc op e1 e2 }
+      | e1=expr op=INFIX2 e2=expr
+          { mk_binop $sloc op e1 e2 }
+      | e1=expr op=INFIX3 e2=expr
+          { mk_binop $sloc op e1 e2 }
+      | e1=expr op=EQUAL e2=expr
+          { mk_binop $sloc "=" e1 e2 }
+      | e1=expr COLONCOLON e2=expr 
+          { mk_expr $sloc (ECons(e1,e2)) }
+      | e=simple_expr LBRACKET i=simple_expr RBRACKET
+          { mk_expr $sloc (EListElem (e,i)) }
+      | MATCH e=expr WITH cs=separated_nonempty_list(BAR,match_case) 
+          { mk_expr $sloc (EMatch (e,cs)) }
 
-simple_net_expr:
+match_case: 
+      p=pattern ARROW e=expr
+          { mk_binding $sloc (p,e) }
+
+simple_expr:
       | id=IDENT
-          { mk_net_expr $loc (NVar id) }
-      | id=IDENT LESS params=my_separated_nonempty_list(core_expr,COMMA) GREATER
-          { mk_papply $loc (mk_net_expr $loc (NVar id)) params }
-      | LPAREN RPAREN
-          { mk_net_expr $loc (NUnit) }
-      | LBRACKET es=net_expr_comma_list RBRACKET
-          { mk_net_expr $loc (NBundle (List.rev es)) }
-      | LBRACKET RBRACKET
-          { mk_net_expr $loc (NNil) }
-      | n=INT
-          { mk_net_expr $loc (NInt n) }
-      | TRUE
-          { mk_net_expr $loc (NBool true) }
-      | FALSE
-          { mk_net_expr $loc (NBool false) }
-      | LPAREN e=net_expr RPAREN
+          { mk_expr $sloc (EVar id) }
+      | LPAREN e=expr RPAREN
           { e }
+      | LPAREN RPAREN
+          { mk_expr $sloc EUnit }
+      | e=const_expr
+          { e }
+      | LBRACKET es=separated_nonempty_list(SEMI,expr) RBRACKET
+          { mk_expr $sloc (EList es) }
+      | LBRACKET RBRACKET
+          { mk_expr $sloc ENil }
 
-net_expr_comma_list:
-        net_expr_comma_list COMMA net_expr
+const_expr:      
+      | n=INT
+          { mk_expr $sloc (EInt n) }
+      | TRUE
+          { mk_expr $sloc (EBool true) }
+      | FALSE
+          { mk_expr $sloc (EBool false) }
+
+expr_comma_list:
+        expr_comma_list COMMA expr
           { $3 :: $1 }
-      | net_expr COMMA net_expr
+      | expr COMMA expr
           { [$3; $1] }
 
-net_case: 
-      p=net_pattern ARROW e=net_expr
-          { mk_net_binding $loc (p,e) }
-
-net_pattern:
-        p=simple_net_pattern
+pattern:
+        p=simple_pattern
           { p }
-      | ps=net_pattern_comma_list
-          { mk_net_pat $loc (NPat_tuple(List.rev ps)) }
-      | p1=net_pattern COLONCOLON p2=net_pattern
-          { mk_net_pat $loc (NPat_cons(p1,p2)) }
-      | LBRACKET ps=net_pattern_comma_list RBRACKET
-          { mk_net_pat $loc (NPat_bundle(List.rev ps)) }
+      | ps=pattern_comma_list
+          { mk_pat $sloc (Pat_tuple (List.rev ps)) }
+      | p1=pattern COLONCOLON p2=pattern
+          { mk_pat $sloc (Pat_cons(p1,p2)) }
+      | LBRACKET ps=separated_nonempty_list(SEMI,simple_pattern) RBRACKET
+          { mk_pat $sloc (Pat_list ps) }
 
-simple_net_pattern:
+simple_pattern:
       | id=IDENT
-          { mk_net_pat $loc (NPat_var (id)) }
+          { mk_pat $sloc (Pat_var id) }
       | UNDERSCORE
-          { mk_net_pat $loc (NPat_ignore) }
-      | LPAREN net_pattern RPAREN
+          { mk_pat $sloc Pat_ignore }
+      | LPAREN pattern RPAREN
           { $2 }
-      | LBRACKET RBRACKET
-          { mk_net_pat $loc (NPat_nil) }
       | LPAREN RPAREN
-          { mk_net_pat $loc (NPat_unit) }
+          { mk_pat $sloc Pat_unit }
+      | LBRACKET RBRACKET
+          { mk_pat $sloc Pat_nil }
 
-net_pattern_comma_list:
-        ps=net_pattern_comma_list COMMA p=net_pattern
+pattern_comma_list:
+        ps=pattern_comma_list COMMA p=pattern
           { p :: ps }
-      | p1=net_pattern COMMA p2=net_pattern
+      | p1=pattern COMMA p2=pattern
           { [p2; p1] }
+
+(* STRUCTURAL GRAPH DESCRIPTIONS *)
+
+struct_graph_desc:
+  | decls = list(struct_decl)
+              { { gs_wires = decls |> List.fold_left get_wire_decls [];
+                  gs_boxes = decls |> List.fold_left get_box_decl [] |> List.rev; } }
+
+struct_decl:
+  | wire_decl { WireDecl $1 }
+  | box_decl { BoxDecl $1 }
+
+wire_decl:
+  | WIRE ids=separated_list(COMMA,IDENT) COLON t=type_expr
+     { List.map (fun id -> mk_wire_decl $sloc (id,t)) ids }
+
+box_decl:
+  | BOX id=IDENT COLON node=IDENT params=loption(box_params) inps=box_ios outps=box_ios
+     { mk_box_decl $sloc (id, { bx_node=node; bx_params=params; bx_ins=inps; bx_outs=outps }) }
+
+box_params:
+  | LBRACKET vs=separated_list(COMMA,box_param_expr) RBRACKET { vs }
+
+box_param_expr:
+        e=simple_expr
+          { e }
+      | e1=box_param_expr op=INFIX1 e2=box_param_expr
+          { mk_binop $sloc op e1 e2 }
+      | e1=box_param_expr op=INFIX2 e2=box_param_expr
+          { mk_binop $sloc op e1 e2 }
+      | e1=box_param_expr op=INFIX3 e2=box_param_expr
+          { mk_binop $sloc op e1 e2 }
+
+box_ios:
+  | LPAREN ios=separated_list(COMMA,IDENT) RPAREN { ios }
+      
 %%

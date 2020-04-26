@@ -9,10 +9,10 @@ node h in (i1: t, i2: t) out ();
 graph top_s in () out ()
 struct
   wire w1, w2, w3, w4: t
-  node n1: f()(w1,w2)
-  node n2: g(w1)(w3)
-  node n3: g(w2)(w4)
-  node n4: h(w3,w4)()
+  box n1: f()(w1,w2)
+  box n2: g(w1)(w3)
+  box n3: g(w2)(w4)
+  box n4: h(w3,w4)()
 end;
 
 graph top_f in () out ()

@@ -7,5 +7,5 @@ end;
 
 graph top in (i: int) out (o: int)
 fun
-  val o = mult<2,1> i
+  val o = mult (2,1) i
 end;

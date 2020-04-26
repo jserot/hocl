@@ -1,0 +1,14 @@
+#!/bin/bash
+
+nt=0
+ns=0
+for i in working/$1/[a-z]*
+do
+  if [ -d $i ]; then 
+  	(( nt = nt + 1 ))
+  	./do_test $1 $i
+  	(( ns = ns + $? ))
+  fi
+done
+
+echo "***" $ns"/"$nt "test(s) OK"

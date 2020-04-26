@@ -11,106 +11,117 @@
 (**********************************************************************)
 
 (* Semantic values *)
-
-open Types
-open Pr_type
-
 type sem_val =
-  | SVInt of int
-  | SVBool of bool
-  | SVUnit
+  | SVLoc of sv_loc
+  | SVNode of sv_node
   | SVTuple of sem_val list
   | SVClos of sv_clos
+  | SVUnit
+  | SVInt of int
+  | SVBool of bool
   | SVPrim of (sem_val -> sem_val)
+  | SVNil
   | SVCons of sem_val * sem_val
   | SVList of sem_val list
-  | SVNil
-  | SVNode of sv_node * sem_val list (* node, with param values *)
-  | SVLoc of idx * sel * typ * sv_tag (* node index, output selector, type, tag *)
-  | SVWire of idx * sv_wire
-
-and sv_tag =
-  | SV_Source
-  | SV_Sink
-  | SV_Param
-  | SV_None
+  | SVWire of wid
 
 and sv_clos = {
-  cl_pat: Syntax.net_pattern;
-  cl_exp: Syntax.net_expr;
+  cl_pat: Syntax.pattern;
+  cl_exp: Syntax.expr;
   mutable cl_env: (string * sem_val) list
   }
 
-and idx = int
-and sel = int
+and sem_env = (string * sem_val) list  (** E *)
+            
+(* Graph locations *)
+            
+and sv_loc = bid * sel * Types.typ (* box index, slot number, typ *) (** ell *)
 
-and sv_loc = idx * sel
+(* Nodes *)
 
-and sv_node = {   (* Node model (actor or (sub)graph) *)
+and sv_node = {
   sn_id: string;
-  sn_kind: sv_node_kind;
-  sn_params: (string * typ) list;
-  sn_ins: (string * typ * Syntax.io_annot list) list;
-  sn_outs: (string * typ * Syntax.io_annot list) list;
-  sn_typ: typ_scheme; (* TO SEE : rather [typ] ? Does it make sense to have polymorphic nodes ? *)
+  sn_kind: node_kind;
+  sn_params: (string * sem_val * Types.typ * Syntax.io_annot list) list;
+  sn_req: bool; (* [true] if node requests parameters and these have not been supplied *)
+  sn_ins: (string * Types.typ * Syntax.io_annot list) list;
+  sn_outs: (string * Types.typ * Syntax.io_annot list) list;
   }
 
-and sv_node_kind =
-  | SV_Actor
-  (* | SV_Bcast *)
-  | SV_Graph
-                           
-and sv_wire = (sv_loc * sv_loc) * typ (** wire_kind*)   (* src, dest, type *)
+and node_kind = ActorN | GraphN
+            
+(* Boxes *)
 
-(* and wire_kind =
- *   | DataW   (\* Data dependency *\)
- *   | ParamW  (\* Parameter dependency *\)
- *   (\* | DelayW  (\\* Special case for handling delays in the Preesm backend *\\) *\) *)
+and sv_box = {
+  b_id: bid;
+  b_tag: box_tag;
+  b_model: string;                  (* Name of the instanciated node *)
+  b_ins: (string * wid * Types.typ * Syntax.io_annot list) array;      
+  b_outs: (string * wid list * Types.typ * Syntax.io_annot list) array;
+  b_val: sem_val;                   (* For graph [inParam] boxes ([SVUnit] otherwise) *)
+  }
 
-let sv_no_loc = -1, -1
+and box_tag = 
+    ActorB
+  | SourceB
+  | SinkB
+  | GraphB
+  | RecB
+  | InParamB
+  | LocalParamB
+                                             
+and bid = int
+and wid = int
+and sel = int
 
-(* let new_wire ty kind = (sv_no_loc,sv_no_loc), ty, kind *)
-let new_wire ty = (sv_no_loc,sv_no_loc), ty
-                     
-let is_static_const = function
-    SVInt _ | SVBool _ -> true
-  | _ -> false
-
-let list_of_cons v =
-  let rec h = function
-    | SVCons (v1,v2) -> v1 :: h v2
-    | SVNil -> []
-    | _ -> Misc.fatal_error "Ssval.list_of_cons" in
-  SVList (h v)
-
-let cons_of_list v =
-  let rec h = function
-  | [] -> SVNil
-  | v::vs -> SVCons (v, h vs) in
-  match v with
-  | SVList l -> h l
-  | _ -> Misc.fatal_error "Ssval.cons_of_list"
+and box_env = (bid * sv_box) list  (** B *)
+            
+and sv_wire = sv_loc * sv_loc (* src, dst *)
+  
+and wire_env = (wid * sv_wire) list (** W *)
 
 (* Printing *)
 
-let rec output_sem_value oc v = output_string oc (string_of_semval v)
+let string_of_node_kind = function | ActorN -> "actor" | GraphN -> "graph"
 
-and  string_of_semval v = match v with
+let string_of_node_io (id,ty,anns) = id
+
+let string_of_svloc (l,s) =  "(" ^ string_of_int l ^ "," ^ string_of_int s ^ ")"
+
+let string_of_node n =
+  "Node("
+  ^ string_of_node_kind n.sn_kind ^ ","
+  ^ "[" ^ Misc.string_of_list string_of_node_io "," n.sn_ins ^ "]," 
+  ^ "[" ^ Misc.string_of_list string_of_node_io "," n.sn_outs ^ "])"
+
+let rec  string_of_semval v = match v with
   | SVInt v -> string_of_int v
   | SVBool v -> string_of_bool v
   | SVUnit -> "()"
   | SVNil -> "[]"
   | SVCons (v1,v2) -> string_of_semval v1 ^ "::" ^ string_of_semval v2
-  | SVLoc (l,s,ty,_) -> "Loc(" ^ string_of_int l ^ "," ^ string_of_int s 
+  | SVLoc (l,s,ty) -> "Loc(" ^ string_of_int l ^ "," ^ string_of_int s 
   | SVPrim p -> "Prim(...)"
   | SVNode _ -> "Node(...)"
   | SVClos _ -> "Clos(...)"
   | SVTuple vs -> "(" ^ Misc.string_of_list string_of_semval "," vs ^ ")"
   | SVList vs -> "[" ^ Misc.string_of_list string_of_semval "," vs ^ "]"
-  | SVWire (id, ((l,l'),ty)) ->
-     "Wire(" ^ string_of_svloc l ^ "," ^ string_of_svloc l' ^ "," ^ string_of_type ty ^ ")"
+  | SVWire wid -> "Wire " ^ string_of_int wid
 
-and string_of_svloc (l,s) =  "(" ^ string_of_int l ^ "," ^ string_of_int s ^ ")"
-(* and string_of_wire_kind = function DataW -> "data" | ParamW -> "param" (\* | DelayW -> "delay" *\) *)
+let string_of_io_type ~typed ty = if typed then ":" ^ Pr_type.string_of_type ty else ""
+                                
+let string_of_bin ~typed (id,wid,ty,anns) = id ^ (string_of_io_type ~typed ty) ^ "(<-W" ^ string_of_int wid ^ ")"
+let string_of_bout ~typed (id,wids,ty,anns) = 
+    id  ^ (string_of_io_type ~typed ty) ^ "(->["
+  ^ (Misc.string_of_list (function wid -> "W" ^ string_of_int wid) "," wids) ^ "])"
 
-and output_sem_val_list oc sep l = Misc.output_list output_value oc sep l
+let string_of_box ~typed b =
+  Printf.sprintf "%s ins=[%s] outs=[%s]"
+        b.b_model
+        (Misc.string_of_array (string_of_bin ~typed) ","  b.b_ins)
+        (Misc.string_of_array (string_of_bout ~typed) ","  b.b_outs)
+
+let string_of_wire ~typed ((s,ss,ty),(d,ds,_)) =
+  Printf.sprintf "(B%d,%d) -> (B%d,%d) %s" s ss d ds (string_of_io_type ~typed ty)
+
+    

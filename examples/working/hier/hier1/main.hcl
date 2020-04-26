@@ -15,8 +15,8 @@ end;
 node sub_s in (i: int) out (o: int)
 struct
   wire w: int
-  node n1: foo(i)(w)
-  node n2: bar(w)(o)
+  box n1: foo(i)(w)
+  box n2: bar(w)(o)
 end;
 
 node sub_f in (i: int) out (o: int)

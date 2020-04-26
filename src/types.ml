@@ -54,13 +54,13 @@ let is_nat_type = is_constr_type (fun n -> n="nat")
 let is_int_type = is_constr_type (fun n -> n="int")
 let is_bool_type = is_constr_type (fun n -> n="bool")
 let is_wire_type = is_constr_type (fun n -> n="wire")
-let is_param_type = is_constr_type (fun n -> n="param")
+let is_param_type = Fun.negate is_wire_type
 
 let type_arrow t1 t2 = TyArrow (t1,t2)
 let type_arrow2 t1 t2 t3 = TyArrow (t1,TyArrow (t2,t3))
 let type_constr c ts = TyConstr(c, ts)
 let type_pair t1 t2 = TyProduct [t1;t2]
-let type_bundle t n = TyConstr("bundle", [t])
+let type_list t = TyConstr("list", [t])
 let type_param t = if is_param_type t then t else TyConstr("param", [t])
 let type_wire t = if is_wire_type t then t else TyConstr("wire", [t])
 let type_int = type_constr "int" []
@@ -104,11 +104,11 @@ let rec unify ty1 ty2 =
       unify ty2 ty2'
   | TyProduct ts1, TyProduct ts2 when List.length ts1 = List.length ts2 ->
       List.iter2 unify ts1 ts2
-  | TyConstr("bundle", [ty1'] (*, [sz1]*)), TyProduct ts2
-  | TyProduct ts2, TyConstr("bundle", [ty1'] (*, [sz1]*)) ->
+  (* | TyConstr("list", [ty1'] (\*, [sz1]*\)), TyProduct ts2
+   * | TyProduct ts2, TyConstr("list", [ty1'] (\*, [sz1]*\)) -> *)
       (* Special case for unifying bundles and tuples *)
       (* unify_size (val1,val2) sz1 (SzConst (List.length ts2)); *)
-      List.iter (unify ty1') ts2
+      (* List.iter (unify ty1') ts2 *)
   | TyConstr(constr1, arguments1), TyConstr(constr2, arguments2)
     when constr1=constr2 && List.length arguments1 = List.length arguments2 ->
       List.iter2 unify arguments1 arguments2

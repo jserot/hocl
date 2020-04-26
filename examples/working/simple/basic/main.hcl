@@ -4,8 +4,8 @@ node foo in (i: int) out (o: int);
 graph top_s in (i: int) out (o: int)
 struct
   wire w: int
-  node n1: foo(i)(w)
-  node n2: foo(w)(o)
+  box n1: foo(i)(w)
+  box n2: foo(w)(o)
 end;
 
 graph top_f in (i: int) out (o: int)

@@ -6,7 +6,6 @@ type cplx;
 
 node fft2 in (x0: cplx, x1: cplx) out (y0: cplx, y1: cplx);
 
-
 graph top
   in (x0: cplx, x1: cplx, x2: cplx, x3: cplx, x4: cplx, x5: cplx, x6: cplx, x7: cplx)
   out (y0: cplx, y1: cplx, y2: cplx, y3: cplx, y4: cplx, y5: cplx, y6: cplx, y7: cplx)

@@ -12,7 +12,6 @@
 
 open Types
 open Misc
-open Typing
 open Semval
 
 let type_arithm = trivial_scheme
@@ -55,19 +54,14 @@ let builtin_primitives = [
 
 (* Initial typing environment *)
 
-let builtin_typing_env = {
-    te_types = [  (* type constructors (name, arity) *)
-      "int", 0;
-      "bool", 0;
-      "unit", 0;
-      "bundle", 1
-    ];
-    te_values =
-      List.map (fun (id,(ty,_)) -> id, ty) builtin_primitives
-  }
+let typing_env =
+  [ "int", type_int;
+    "bool", type_bool;
+    "unit", type_unit ],
+   List.map (fun (id,(ty,_)) -> id, ty) builtin_primitives
 
 (* Initial static environment *)
 
-let builtin_static_env =
+let static_env =
   List.map (function (n,(t,v)) -> n,v) builtin_primitives
   (* Values such as [map], [pipe], ... will be defined explicitely in the prelude file *)
