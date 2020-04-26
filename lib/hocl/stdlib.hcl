@@ -112,10 +112,3 @@ val rec foldr f z xs =
     [] -> z
   | x::xs' -> f (x, foldr f z xs')
 ;
-
--- Predefined actors. Do not change their name, it is recognized by the various backends
--- Their implementation will be backend-dependent
-
--- node switch in (b: bool, i: int) out (o1: int, o2: int);
-
--- node merge in (b: bool, i1: int, i2: int) out (o: int);
