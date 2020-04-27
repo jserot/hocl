@@ -52,7 +52,7 @@ let do_dump_senv () = cfg.dump_senv <- true
 let do_dump_typed () = cfg.dump_typed <- true
 let do_dump_ir () = cfg.dump_ir <- true
 let do_dump_boxes () = cfg.dump_boxes <- true
-(* let do_insert_bcasts () = Static.cfg.Static.insert_bcasts <- true *)
+let do_insert_bcasts () = Interm.cfg.Interm.insert_bcasts <- true
 (* let do_insert_fifos () = Static.cfg.Static.insert_fifos <- true *)
 let do_dot () = cfg.output_fmt <- Dot
 (* let do_systemc () = begin cfg.output_fmt <- Systemc; Static.cfg.Static.insert_bcasts <- true end
@@ -92,7 +92,7 @@ let options_spec = [
 "-dump_senv", Arg.Unit (do_dump_senv), "dump builtin static environment (for debug only)";
 "-dump_ir", Arg.Unit (do_dump_ir), "dump intermediate representation (for debug only)";
 "-dump_boxes", Arg.Unit (do_dump_boxes), "dump static representation of boxes";
-(* "-insert_bcasts", Arg.Unit (do_insert_bcasts), "insert broadcast boxes"; *)
+"-insert_bcasts", Arg.Unit (do_insert_bcasts), "insert broadcast boxes";
 "-version", Arg.Unit (print_version), "print version of the compiler";
 "--v", Arg.Unit (print_version), "print version of the compiler";
 (* "-insert_fifos", Arg.Unit (do_insert_fifos), "insert fifos between actors"; *)

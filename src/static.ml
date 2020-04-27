@@ -46,3 +46,4 @@ let build_static env p =
   let env_n, nodes = eval_node_decls (env++env_g) p.nodes in
   let graphs, nodes' = List.partition (fun (_,n) -> n.sn_intf.n_isgraph) nodes in
   { ir_nodes = nodes'; ir_graphs = graphs }
+

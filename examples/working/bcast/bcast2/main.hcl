@@ -11,5 +11,5 @@ end;
 
 graph top param (p: int=1) in (i: int) out (o: int)
 fun
-  val o  = i |> foo<p> |> foo<p>
+  val o  = i |> foo p |> foo p
 end;

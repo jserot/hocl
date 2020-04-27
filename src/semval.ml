@@ -69,6 +69,7 @@ and box_tag =
   | RecB
   | InParamB
   | LocalParamB
+  | BcastB
                                              
 and bid = int
 and wid = int

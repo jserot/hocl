@@ -45,6 +45,8 @@ let array_replace f i a =
   a'.(i) <- f a.(i);
   a'
 
+let array_foldli f z a = Array.to_list a |> fold_lefti f z
+                 
 let list_merge l1 l2 =
   (* [list_merge l1 l2] merges two lists [l1] and [l2], merging any element occuring in both lists *)
     l1

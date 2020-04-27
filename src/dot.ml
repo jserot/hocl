@@ -57,12 +57,13 @@ let output_box ch (i,b) =
       else
         fprintf ch "n%d [shape=box,style=%s,label=\"%s\"];\n" i style bid in
   let shape_of_box tag = match tag with
+    | BcastB -> cfg.bcast_box_shape
     | SourceB | SinkB -> cfg.srcsnk_box_shape
     | _ -> "box" in
   match b.b_tag with
   | ActorB -> output_regular_box cfg.actor_box_style 
   | GraphB -> output_regular_box cfg.graph_box_style
-  | SourceB | SinkB -> 
+  | SourceB | SinkB | BcastB -> 
      fprintf ch "n%d [shape=%s,label=\"%s\"];\n"
        i
        (shape_of_box b.b_tag)

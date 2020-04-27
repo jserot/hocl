@@ -64,14 +64,15 @@ let output pfx ir =
 ()
 
 let insert_bcasts ir = 
-  (* if cfg.insert_bcasts then
-   *   let after_boxes = match Options.cfg.output_fmt with
-   *     | Dot -> [LocalParamB; InParamB; SourceB; ActorB (\*; DelayB*\)]
-   *     | Systemc -> [LocalParamB; InParamB; SourceB; ActorB (\*; DelayB*\)]
-   *     | Preesm -> [SourceB; ActorB (\*; DelayB*\)]
-   *     | _ -> [] in
-   *   Static.insert_bcasters after_boxes ir
-   * else *)
+  if Interm.cfg.insert_bcasts then
+    let open Semval in
+    let after_boxes = match Options.cfg.output_fmt with
+      | Dot -> [LocalParamB; InParamB; SourceB; ActorB (*; DelayB*)]
+      | Systemc -> [LocalParamB; InParamB; SourceB; ActorB (*; DelayB*)]
+      | Preesm -> [SourceB; ActorB (*; DelayB*)]
+      | _ -> [] in
+    Interm.insert_bcasts after_boxes ir
+  else
     ir
 
 let process_file p f =
