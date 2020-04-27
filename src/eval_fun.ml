@@ -394,10 +394,9 @@ and eval_node_application boxes n param_locs arg_locs =
 
 let eval_val_decl (env,boxes,wires) {vd_desc=(isrec,defns); vd_loc=loc} =
   let env', boxes', wires' = eval_definitions true loc isrec (env,boxes) defns in
-  let boxes'', wires'' = shorten_rec_paths boxes' wires' in
   env ++ env',
-  boxes +++ boxes'',
-  wires ++ wires''
+  boxes +++ boxes',
+  wires ++ wires'
 
 (* E, B |- ValDecls => B', W *)
   
@@ -407,6 +406,7 @@ let eval_val_decls (env,boxes) defns =
       eval_val_decl
       (env, boxes, [])
       defns in
-  env', boxes', wires
+  let boxes'', wires' = shorten_rec_paths boxes' wires in
+  env', boxes'', wires'
 
 
