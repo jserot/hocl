@@ -71,7 +71,12 @@ and io_decl =
 
 and io_desc = string * type_expression * io_annot list
 
-and io_annot = string * string (* name, value *)
+and io_annot = string * annot_val (* name, value *)
+
+and annot_val =
+  AN_Expr of expr
+| AN_String of string
+             
 
 and node_impl = 
   | NM_Actor of actor_desc
@@ -153,6 +158,26 @@ and box_desc =
     bx_params: expr list;
     bx_ins: string list;
     bx_outs: string list }
+
+(* Transformations *)
+  
+let subst_expr vs e = 
+  let rec subst e = match e.e_desc with
+   | EVar v when List.mem_assoc v vs -> { e with e_desc = EVar (List.assoc v vs) }
+   | EBinop (op,e1,e2) -> { e with e_desc = EBinop (op, subst e1, subst e2) }
+   | _ -> e in
+  subst e
+
+(* Aux *)
+  
+let basic_expr_equal expr1 expr2 =  (* Structural comparison *)
+  let rec cmp e1 e2 = match e1.e_desc, e2.e_desc with
+    | EVar v1, EVar v2 -> v1=v2
+    | EInt i1, EInt i2 -> i1=i2
+    | EBool b1, EBool b2 -> b1=b2
+    | EBinop (op1,e11,e12), EBinop (op2,e21,e22) -> op1=op2 && cmp e11 e21 && cmp e12 e22
+    | _, _ -> false in
+  cmp expr1 expr2
 
 (* Program manipulation *)
 

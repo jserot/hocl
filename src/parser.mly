@@ -177,11 +177,11 @@ io_decl:
 
 io_annots:
   | (* Nothing *) { [] }
-  | LBRACKET e=basic_expr RBRACKET { ["rate",string_of_expr e] }
+  | LBRACKET e=basic_expr RBRACKET { ["rate", AN_Expr e] }
   | LBRACE anns=separated_list(COMMA,io_annot) RBRACE { anns }
 
 io_annot:
-  | name=IDENT EQUAL value=STRING { name,value }
+  | name=IDENT EQUAL value=STRING { name, AN_String value }
 
 type_expr:
       | id=IDENT { mk_type_expr $sloc (Typeconstr id) }

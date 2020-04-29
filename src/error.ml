@@ -70,3 +70,11 @@ let missing_actor_impl target id =
 let incomplete_actor_impl target id =
   eprintf "Error: incomplete %s implementation given for actor %s (should at least give incl_file and loop_fn)\n" target id;
   raise Error
+
+let missing_ival_param id =
+  eprintf "Error: no parameter named \"ival\" for actor %s; assuming last one\n" id;
+  raise Error
+
+let illegal_interface what name msg =
+  eprintf "Error: invalid interface for %s %s%s.\n" what name msg;
+  raise Error

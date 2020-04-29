@@ -25,8 +25,16 @@ type ir = {
   }
                
 and sn_desc = {
-  sn_intf: Syntax.node_intf;
+  sn_intf: sn_intf;
   sn_impl: sn_impl; 
+  }
+
+and sn_intf = {
+    sn_id: string;
+    sn_isgraph: bool;
+    sn_params: (string * Types.typ * Syntax.expr option * io_annot list) list;
+    sn_ins: (string * Types.typ * io_annot list) list;
+    sn_outs: (string * Types.typ * io_annot list) list;
   }
 
 and sn_impl =
@@ -110,7 +118,7 @@ let bcast_output bid b sel (boxes,wires) bout =
          b_model = cfg.bcast_name; 
          b_ins = [|"i",wid',ty,[]|];
          b_outs = wids |> List.mapi (fun i wid -> "o_" ^ string_of_int (i+1),[wid],ty,[]) |> Array.of_list;
-         b_val = SVUnit } in
+         b_val = no_bval } in
      let b'' = { b with b_outs = update_output b.b_outs sel wid' } in
      let wires' = Misc.fold_lefti (update_wires bid') wires wids in
      let boxes' = Misc.replace_assoc boxes bid b'' in
@@ -159,13 +167,19 @@ let dump_node_impl ~typed m = match m with
   | NI_Actor _ -> ()
   | NI_Graph g -> dump_graph ~typed g
 
+let string_of_node_io (id,ty,ann) = id ^ ":" ^ Pr_type.string_of_type ty
+
+let string_of_node_param (id,ty,e,anns) =
+  let string_of_opt_exp = function None -> "" | Some e -> "=" ^ string_of_expr e in
+  id ^ ":" ^ Pr_type.string_of_type ty ^ string_of_opt_exp e
+
 let dump_node ~typed (id,n) = 
   let i = n.sn_intf in 
   Printf.printf "%s: params=[%s] ins=[%s] outs=[%s] = %s\n"
     id
-    (Misc.string_of_list Syntax.string_of_node_param ","  n.sn_intf.n_params)
-    (Misc.string_of_list Syntax.string_of_node_io ","  n.sn_intf.n_ins)
-    (Misc.string_of_list Syntax.string_of_node_io ","  n.sn_intf.n_outs)
+    (Misc.string_of_list string_of_node_param ","  n.sn_intf.sn_params)
+    (Misc.string_of_list string_of_node_io ","  n.sn_intf.sn_ins)
+    (Misc.string_of_list string_of_node_io ","  n.sn_intf.sn_outs)
     (string_of_node_impl n.sn_impl);
   dump_node_impl ~typed n.sn_impl
 

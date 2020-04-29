@@ -38,8 +38,8 @@ let cfg = {
 
 let output_box ch (i,b) =
   let slot_id pfx k = pfx ^ string_of_int k in
-  let string_of_bio_annots anns = match cfg.show_io_rates, Backend.get_rate_annot anns with
-    | true, Some rate -> "[" ^ rate ^ "]"
+  let string_of_bio_annots anns = match cfg.show_io_rates, Backend.get_rate_expr anns with
+    | true, Some rate -> "[" ^ Syntax.string_of_expr rate ^ "]"
     | _, _ -> "" in 
   let string_of_bio_slot pfx k (id,_,_,anns) = "<" ^ slot_id pfx k ^ ">" ^ id ^ string_of_bio_annots anns in
   let bid =
@@ -71,7 +71,7 @@ let output_box ch (i,b) =
   | RecB -> output_regular_box cfg.rec_box_style 
   | InParamB -> 
      let lbl =
-       begin match b.b_val with
+       begin match b.b_val.bv_val with
        | SVUnit -> bid
        | v -> bid ^ "=" ^ Semval.string_of_semval v
        end in

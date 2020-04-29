@@ -49,10 +49,8 @@ let output pfx ir =
   | Dot ->
      Dot.dump path pfx ir
    | Systemc ->
-     (*  Systemc.dump path pfx ir
-      * (\* if has_splitters ir then 
-      *  *   Systemc.dump_split_actors ir; *\) *)
-()
+      Systemc.dump path pfx ir
+     (* if has_splitters ir then Systemc.dump_split_actors ir; *)
   | Preesm ->
      (* Preesm.dump path pfx ir *)
 ()
@@ -84,7 +82,7 @@ let process_files fs =
   let p = List.fold_left process_file Syntax.empty_program fs in
   (* Syntax.dump_program p; *)
   let ir = p |> compile |> insert_bcasts in
-  if Options.cfg.dump_ir then Interm.dump_ir ir;
+  if Options.cfg.dump_ir then Interm.dump_ir ~typed:true ir;
   if Options.cfg.output_fmt <> NoOutput then begin
       check_dir Options.cfg.target_dir;
       let pfx = Misc.file_prefix @@ List.hd @@ List.rev fs in

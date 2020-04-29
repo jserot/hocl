@@ -42,7 +42,7 @@ let rec type_of_type_expression tenv te =
   let ty =
     match te.te_desc with
     | Typeconstr c -> lookup_type tenv te.te_loc c in
-  te.te_typ <- ty;
+  te.te_typ <- Types.real_type ty;
   ty
   
 
@@ -84,7 +84,7 @@ let rec type_pattern p =
           []
           ps in
       (type_list ty1, bs') in
-  p.p_typ <- ty;
+  p.p_typ <- Types.real_type ty;
   ty, bindings
 
 (* Typing expressions *)
@@ -164,7 +164,7 @@ let rec type_expression tenv venv expr =
         try_unify "expression" ty_expr ty_result loc in
       List.iter type_case cases;
       ty_result in
-  expr.e_typ <- ty;
+  expr.e_typ <- Types.real_type ty;
   ty
 
 (* and type_definitions isrec tenv venv defns =
@@ -241,7 +241,7 @@ let type_node_param tenv ({pm_desc=(id,te,e,_); pm_loc=loc} as p) =
   | None ->
      ()
   end;
-  p.pm_typ <- ty;
+  p.pm_typ <- Types.real_type ty;
   ty,
   [id,ty]
 
@@ -249,7 +249,7 @@ let type_node_param tenv ({pm_desc=(id,te,e,_); pm_loc=loc} as p) =
 
 let type_node_io tenv ({io_desc=(id,te,_)} as io) = 
   let ty = type_wire (type_of_type_expression tenv te) in
-  io.io_typ <- ty;
+  io.io_typ <- Types.real_type ty;
   ty,
   [id,ty]
   

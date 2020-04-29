@@ -22,7 +22,14 @@ let eval_node_impl (env, boxes) impl =
 let eval_node_decl (env,nodes) {nd_desc=(id,n)} =
   let env', boxes' = eval_node_intf n.n_intf in
   let impl = eval_node_impl (env'@env, boxes') n.n_impl in
-  let node = { sn_intf=n.n_intf; sn_impl=impl } in
+  let intf = {
+    sn_id = n.n_intf.n_id;
+    sn_isgraph = n.n_intf.n_isgraph;
+    sn_params = List.map (fun {pm_desc=id,_,e,anns; pm_typ=ty} -> id, ty, e, anns) n.n_intf.n_params;
+    sn_ins = List.map (fun {io_desc=id,_,anns; io_typ=ty} -> id, ty, anns) n.n_intf.n_ins;
+    sn_outs = List.map (fun {io_desc=id,_,anns; io_typ=ty} -> id, ty, anns) n.n_intf.n_outs
+    } in
+  let node = { sn_intf=intf; sn_impl=impl } in
   let n = {
       sn_id = id;
       sn_kind =  (match impl with | NI_Actor _ -> ActorN | NI_Graph _ -> GraphN);
@@ -44,6 +51,6 @@ let eval_node_decls env node_decls =
 let build_static env p =
   let env_g, boxes_g, wires_g = Eval_fun.eval_val_decls (env,[]) p.values in
   let env_n, nodes = eval_node_decls (env++env_g) p.nodes in
-  let graphs, nodes' = List.partition (fun (_,n) -> n.sn_intf.n_isgraph) nodes in
+  let graphs, nodes' = List.partition (fun (_,n) -> n.sn_intf.sn_isgraph) nodes in
   { ir_nodes = nodes'; ir_graphs = graphs }
 

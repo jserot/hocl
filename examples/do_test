@@ -7,7 +7,10 @@ DOTVIEWER=graphviz
 function try_make
 {
 case $1 in
-*) make dot;;
+    systemc)
+        if [ -d ./systemc ]; then make systemc && (cd systemc; make); else true; fi;;
+    *)
+        make dot;;
 esac
 case $? in
 0) echo "OK";;

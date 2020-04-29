@@ -58,7 +58,7 @@ and sv_box = {
   b_model: string;                  (* Name of the instanciated node *)
   b_ins: (string * wid * Types.typ * Syntax.io_annot list) array;      
   b_outs: (string * wid list * Types.typ * Syntax.io_annot list) array;
-  b_val: sem_val;                   (* For graph [inParam] boxes ([SVUnit] otherwise) *)
+  b_val: b_val;                     (* For graph [inParam] boxes ([SVUnit] otherwise) *)
   }
 
 and box_tag = 
@@ -70,6 +70,12 @@ and box_tag =
   | InParamB
   | LocalParamB
   | BcastB
+
+and b_val = { 
+    bv_lit: Syntax.expr;     (* Original expression *)
+    bv_sub: Syntax.expr;     (* Original expression after substitution of dependencies (ex: "k+1" -> "i1+1") *)
+    bv_val: sem_val          (* Statically computed value - SVUnit if N/A *)
+  }
                                              
 and bid = int
 and wid = int

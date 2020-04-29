@@ -3,8 +3,8 @@
 -- When [foo(x,z)=x+z,x], given an input sequence [x1,x2,...] on input [i],
 -- this graph produces the sequence [x1,x2+x1,x3+x2,...] on output [o]
 --
--- The [delay] actor is defined in the standard library and interpreted
--- specifically by the dedicated backends
+-- The polymorphic [delay] actor is pre-defined and interpreted specifically by the dedicated backends
+-- Its type signature is : 'a -> 'a wire -> 'a wire
 
 
 node foo in (i1: int, i2: int) out (o1: int, o2: int)

@@ -19,12 +19,6 @@ let type_arithm = trivial_scheme
 and type_compar = trivial_scheme
   (type_arrow (type_pair type_int type_int) type_bool)
 
-let type_delay =
-  let v = mk_type_var () in
-  let t = TyVar v in
-  { ts_params = [v];
-    ts_body = type_arrow2 t (type_wire t) (type_wire t) }
-
 let encode_int n =
     SVInt n
 let rec decode_int = function
@@ -44,18 +38,6 @@ let prim2 encode op decode1 decode2 =
        encode (op (decode1 v1) (decode2 v2))
    | _ -> fatal_error "Builtins.prim2")
 
-let val_delay =
-  let t = new_type_var () in
-  let ty = type_arrow2 t (type_wire t) (type_wire t) in
-  SVNode {
-    sn_id = "delay";
-    sn_kind = ActorN;
-    sn_params = ["iv", SVUnit, ty, []];
-    sn_req = true;
-    sn_ins = ["i", ty, []];
-    sn_outs = ["o", ty, []];
-    }
-               
 let builtin_primitives = [
     (* Id, type, static value *)
     "+",  (type_arithm, prim2 encode_int  ( + ) decode_int decode_int);
@@ -68,7 +50,47 @@ let builtin_primitives = [
     "<",  (type_compar, prim2 encode_bool ( < ) decode_int decode_int);
     ">",  (type_compar, prim2 encode_bool ( > ) decode_int decode_int);
     "not",  (trivial_scheme (type_arrow type_bool type_bool), prim1 encode_bool ( not ) decode_bool);
-    "delay", (type_delay, val_delay)
+    "delay",
+      (let v = mk_type_var () in
+       let t = TyVar v in
+       { ts_params = [v];
+         ts_body = type_arrow2 t (type_wire t) (type_wire t) },
+       let ty = new_type_var () in
+       SVNode {
+           sn_id = "delay";
+           sn_kind = ActorN;
+           sn_params = ["iv",SVUnit,ty, []];
+           sn_req = true;
+           sn_ins = ["i", type_wire ty, []];
+           sn_outs = ["o", type_wire ty, []]});
+    "switch",
+      (let v = mk_type_var () in
+       let t = type_wire (TyVar v) in
+       let t' = type_wire type_bool in
+       { ts_params = [v];
+         ts_body = type_arrow (type_pair t' t) (type_pair t t) },
+       let ty = new_type_var () in
+       SVNode {
+           sn_id = "switch";
+           sn_kind = ActorN;
+           sn_params = [];
+           sn_req = false;
+           sn_ins = ["i1", type_wire type_bool, []; "i2", type_wire ty, []];
+           sn_outs = ["o1", type_wire ty, []; "o2", type_wire ty, []]});
+    "merge",
+      (let v = mk_type_var () in
+       let t = type_wire (TyVar v) in
+       let t' = type_wire type_bool in
+       { ts_params = [v];
+         ts_body = type_arrow (type_product [t'; t; t]) t },
+       let ty = new_type_var () in
+       SVNode {
+           sn_id = "merge";
+           sn_kind = ActorN;
+           sn_params = [];
+           sn_req = false;
+           sn_ins = ["i1", type_wire type_bool, []; "i2", type_wire ty, []; "i3", type_wire ty, []];
+           sn_outs = ["o", type_wire ty, []]})
   ]
 
 (* Initial typing environment *)

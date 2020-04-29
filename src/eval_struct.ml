@@ -76,7 +76,7 @@ let eval_box_param loc env dst sel' (boxes,wires,bindings) (slot,expr,ty,anns) =
      let w = ((l,0,ty),(dst,sel',ty)) in
      let boxes', wires' = Misc.fold_lefti (mk_wire l) (boxes,wires) deps in
      let bins = List.mapi (fun i (k,(l,((d,ds,ty) as l'))) -> "i" ^ string_of_int i, k, ty, []) wires' in
-     let b = new_box l (string_of_expr expr) LocalParamB bins ["o",[k],expr.e_typ,[]] SVUnit in
+     let b = new_box l (string_of_expr expr) LocalParamB bins ["o",[k],expr.e_typ,[]] no_bval in
      (l,b)::boxes',
      (k,w)::wires',
      bindings@[slot,k,ty,anns]
@@ -159,7 +159,7 @@ let eval_box_decl env (boxes,wires) {bx_desc=(id,b'); bx_loc=loc} =
      let boxes_i, wires_i, bins = eval_box_inputs loc env boxes_p wires_p l offset b.sb_ins in
      let boxes_o, wires_o, bouts = eval_box_outputs loc env boxes_i wires_i l b.sb_outs in
      let tag = tag_of_kind n.sn_kind in
-     let b = new_box l n.sn_id tag (bparams@bins) bouts SVUnit in
+     let b = new_box l n.sn_id tag (bparams@bins) bouts no_bval in
      (l,b)::boxes_o,
      wires_o
   | _ ->
