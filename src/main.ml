@@ -53,13 +53,11 @@ let output pfx ir =
      (* if has_splitters ir then Systemc.dump_split_actors ir; *)
   | Preesm ->
      (* Preesm.dump path pfx ir *)
-()
+     ()
   | Xdf ->
-     (* Xdf.dump path pfx ir *)
-()
+     Xdf.dump path pfx ir
   | Dif ->
-     (* Dif.dump path pfx ir *)
-()
+     Dif.dump path pfx ir
 
 let insert_bcasts ir = 
   if Interm.cfg.insert_bcasts then

@@ -14,6 +14,7 @@
 
 open Printf
 open Interm
+open Semval
 open Backend
 
 type xdf_config = {
@@ -44,7 +45,7 @@ let rec type_of t  =
   | TyConstr("bool", []) -> Boolean
   | TyConstr("float", []) -> Real
   | TyConstr("int", []) -> Integer (cfg.default_int_size)
-  | _ -> Misc.not_implemented ("XDF translation of type " ^ Pr_type.string_of_type t)
+  | _ -> Error.not_implemented ("XDF translation of type " ^ Pr_type.string_of_type t)
 
 (* let dump_io_port oc dir name ty = 
  *   let open Types in
@@ -82,15 +83,15 @@ let string_of_val v =
   match v with  
     SVInt n -> string_of_int n
   | SVBool b -> string_of_bool b
-  | _ -> Misc.not_implemented ("XDF translation of value " ^ string_of_semval v) 
+  | _ -> Error.not_implemented ("XDF translation of value " ^ string_of_semval v) 
 
-let dump_inst_param oc g (name,(wid,ty,anns)) =
+let dump_inst_param oc g (name,wid,ty,anns) =
   let v = get_param_value "XDF" g wid in
   fprintf oc "  <Parameter name=\"%s\">\n" name; 
   fprintf oc "    <Expr kind=\"Literal\" literal-kind=\"%s\" value=\"%s\"/>\n" (string_of_type ty) (string_of_val v);
   fprintf oc "  </Parameter>\n"
 
-let box_name i b = b.b_name ^ "_" ^ string_of_int i
+let box_name i b = b.b_model ^ "_" ^ string_of_int i
 
 let full_actor_name n = match cfg.target_package with
     "" -> n
@@ -100,27 +101,28 @@ let dump_instance oc g (i,b) =
   match b.b_tag with
   | ActorB ->
       fprintf oc "<Instance id=\"%s\">\n" (box_name i b);
-      fprintf oc "  <Class name=\"%s\"/>\n" (full_actor_name b.b_name);
-      let params = List.filter (is_param_input g.sg_wires) b.b_ins in 
+      fprintf oc "  <Class name=\"%s\"/>\n" (full_actor_name b.b_model);
+      let params = b.b_ins |> Array.to_list |> List.filter is_param_input in 
       List.iter (dump_inst_param oc g) params;
       fprintf oc "</Instance>\n"
   | _ ->
       () 
 
-let dump_connexion oc g (wid,(((s,ss),(d,ds)),ty(*,is_param_dep*)))=
+let dump_connexion oc g (wid,(((s,ss,ty),(d,ds,ty')))) =
   let lookup bid = 
     try List.assoc bid g.sg_boxes
     with Not_found -> Misc.fatal_error "Xdf.dump_connexion" in
+  let slot_id (id,_,_,_) = id in
   let src_id, src_slot =
     let b = lookup s in
-    box_name s b, fst (List.nth b.b_outs ss) in
+    box_name s b, slot_id (b.b_outs.(ss)) in
     (*  match b.b_tag with
      *   RegularB -> box_id s b, fst (List.nth b.ib_outs ss)
      * | InpB Syntax.StreamIO -> "", b.ib_name
      * | _ -> Misc.fatal_error "Xdf.dump_connexion" in *)
   let dst_id, dst_slot =
     let b = lookup d in
-    box_name d b, fst (List.nth b.b_ins ds) in
+    box_name d b, slot_id (b.b_ins.(ds)) in
     (*  match b.ib_tag with
      *   RegularB -> box_id d b, fst (List.nth b.ib_ins ds)
      * | OutB Syntax.StreamIO -> "", b.ib_name 
@@ -137,23 +139,20 @@ let dump_connexion oc g (wid,(((s,ss),(d,ds)),ty(*,is_param_dep*)))=
    *   Not_found -> () *)
   fprintf oc "</Connection>\n"
 
-let dump_graph ~toplevel path prefix ir id intf g = 
-  let fname = path ^ id ^ ".xdf" in
-  let oc = open_out fname in
-  fprintf oc "<?xml version=\"%s\" encoding=\"%s\"?>\n" cfg.xml_version cfg.xml_encoding;
-  fprintf oc "<XDF name=\"%s\">\n" id;
-  (* List.iter (dump_port oc) ir.b_boxes; *)
-  List.iter (dump_instance oc g) g.sg_boxes;
-  List.iter (dump_connexion oc g) g.sg_wires;
-  fprintf oc "</XDF>\n";
-  Logfile.write fname;
-  close_out oc
-
-let dump_top_graph path prefix ir (id,g) =
-  dump_graph ~toplevel:true path prefix ir id g.tg_intf g.tg_impl
+let dump_node ~toplevel path prefix (id,n) = 
+  match n.sn_impl with
+  | NI_Actor _ -> ()
+  | NI_Graph g -> 
+     let fname = path ^ id ^ ".xdf" in
+     let oc = open_out fname in
+     fprintf oc "<?xml version=\"%s\" encoding=\"%s\"?>\n" cfg.xml_version cfg.xml_encoding;
+     fprintf oc "<XDF name=\"%s\">\n" id;
+     List.iter (dump_instance oc g) g.sg_boxes;
+     List.iter (dump_connexion oc g) g.sg_wires;
+     fprintf oc "</XDF>\n";
+     Logfile.write fname;
+     close_out oc
 
 let dump path prefix ir =
-  List.iter (dump_top_graph path prefix ir) ir.ir_graphs;
-  List.iter
-    (fun (id,(intf,g)) -> dump_graph ~toplevel:false path prefix ir id intf g)
-    (collect_sub_graphs ir)
+  List.iter (dump_node ~toplevel:true path prefix) ir.ir_graphs;
+  List.iter (dump_node ~toplevel:false path prefix) ir.ir_nodes

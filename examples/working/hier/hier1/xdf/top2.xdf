@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<XDF name="top2">
-<Connection dst="sub_f_14" dst-port="i" src="i_12" src-port="i">
-</Connection>
-<Connection dst="o_13" dst-port="o" src="sub_f_14" src-port="o">
-</Connection>
-</XDF>

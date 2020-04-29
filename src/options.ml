@@ -77,10 +77,10 @@ let set_sc_fifo_stats_file f = Systemc.cfg.Systemc.sc_fifo_stats_file <- f
 (* let do_preesm () = begin cfg.output_fmt <- Preesm; Static.cfg.Static.insert_bcasts <- true end *)
 (* let set_preesm_name n = Preesm.cfg.Preesm.top_name <- n *)
 (* XDF related options *)
-(* let do_xdf () = cfg.output_fmt <- Xdf *)
-(* let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p *)
+let do_xdf () = cfg.output_fmt <- Xdf
+let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p
 (* DIF related options *)
-(* let do_dif () = cfg.output_fmt <- Dif *)
+let do_dif () = cfg.output_fmt <- Dif
 (* VHDL related options *)
 (* let do_vhdl () = cfg.output_fmt <- Vhdl *)
 
@@ -118,8 +118,8 @@ let options_spec = [
 "-sc_fifo_stats_file", Arg.String (set_sc_fifo_stats_file), "set file for dumping fifo statistics (default: fifo_stats.dat)";
 (* "-preesm", Arg.Unit (do_preesm), "activate the Preesm backend";
  * (\* "-preesm_top_name", Arg.String (set_preesm_name), "set top level name for Preesm graph (default: base name of input file"; *\) *)
-(* "-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network";
- * "-xdf_package", Arg.String (set_xdf_package), "set package name for the generated XDF code"; *)
-(* "-dif", Arg.Unit (do_dif), "generate .dif representation of the program"; *)
+"-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network";
+"-xdf_package", Arg.String (set_xdf_package), "set package name for the generated XDF code";
+"-dif", Arg.Unit (do_dif), "generate .dif representation of the program";
 (* "-vhdl", Arg.Unit (do_vhdl), "activate the VHDL backend"; *)
 ];
