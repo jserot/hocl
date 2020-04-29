@@ -52,8 +52,7 @@ let output pfx ir =
       Systemc.dump path pfx ir
      (* if has_splitters ir then Systemc.dump_split_actors ir; *)
   | Preesm ->
-     (* Preesm.dump path pfx ir *)
-     ()
+     Preesm.dump path pfx ir
   | Xdf ->
      Xdf.dump path pfx ir
   | Dif ->

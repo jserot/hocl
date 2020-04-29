@@ -9,6 +9,12 @@ function try_make
 case $1 in
     systemc)
         if [ -d ./systemc ]; then make systemc && (cd systemc; make); else true; fi;;
+    xdf)
+        if [ -d ./xdf ]; then make xdf; else true; fi;;
+    dif)
+        if [ -d ./dif ]; then make dif; else true; fi;;
+    preesm)
+        if [ -d ./preesm ]; then make preesm; else true; fi;;
     *)
         make dot;;
 esac
