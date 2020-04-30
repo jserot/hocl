@@ -41,6 +41,7 @@ TOOLS/PI2HCL
 
 DOC
 - write dedicated sections for backends (Preesm, DIF, ...)
+- automatize generation of option description in [using.tex] from src dir
 
 DIST
 - build lib/etc/Makefile.app by instantiating a template with paths obtained from configure

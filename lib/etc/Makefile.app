@@ -1,4 +1,4 @@
-HOCL=/Users/jserot/Dev/ml/hocl
+HOCL=/Users/jserot/Dev/ml/hocl/dist
 HOCLC=$(HOCL)/bin/hoclc
 DOTVIEWER=graphviz
 VCDVIEWER=gtkwave

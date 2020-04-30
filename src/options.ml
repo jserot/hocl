@@ -102,7 +102,7 @@ let options_spec = [
 "-dot", Arg.Unit (do_dot), "generate .dot representation of the program";
 "-dot_rank_dir", Arg.String (set_dot_rank_dir), "set rank direction for DOT output graph (default: LR)";
 "-dot_unlabeled_edges", Arg.Unit (do_dot_unlabeled_edges), "do not annotate graph edges";
-"-dot_wire_annots", Arg.Unit (do_dot_wire_annots), "print wire annotations (phase/fifo_size) when available (implies [-dot_show_indexes])";
+(* "-dot_wire_annots", Arg.Unit (do_dot_wire_annots), "print wire annotations (phase/fifo_size) when available (implies [-dot_show_indexes])"; *)
 "-dot_no_io_rates", Arg.Unit (do_dot_no_io_rates), "do not annotate ports with resp. rates";
 "-dot_show_indexes", Arg.Unit (do_dot_show_indexes), "print box and wire indexes";
 "-dot_slotted_boxes", Arg.Unit (do_dot_slotted_boxes), "print boxes with i/o slots";
