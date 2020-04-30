@@ -1,7 +1,0 @@
-1. Generate main.pi file : make preesm
-2. Create PREESM project in ~/Desktop/SF2/preesm-dev (copy existing project)
-3. Copy main.pi to .../preesm-dev/proj/Algo
-4. Open PREESM from LinuxMint
-5. File > Import > Projetcs from Folder
-6. To check .pi file consistency : right click on the file in the project Explorer and in the contextual menu select "Preesm > Check PiMM Model"
-6. To generate diagram : idem but "Preesm > Generate diagraml"
