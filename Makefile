@@ -1,4 +1,3 @@
-include VERSION
 include config
 
 .PHONY: compiler tools clean doc install
@@ -54,9 +53,9 @@ install:
 # 	cp _build/default/src/main.bc $(INSTALL_BINDIR)/hoclc
 # 	cp _build/default/tools/pi2hcl/main.bc $(INSTALL_BINDIR)/pi2hcl
 # endif
-ifeq ($(BUILD_DOC),yes)
-	mkdir -p $(INSTALL_DOCDIR)
-	cp doc/grammar.html $(INSTALL_DOCDIR)
-	cp doc/tutorial.pdf $(INSTALL_DOCDIR)
-endif
+# ifeq ($(BUILD_DOC),yes)
+# 	mkdir -p $(INSTALL_DOCDIR)
+# 	cp doc/grammar.html $(INSTALL_DOCDIR)
+# 	cp doc/tutorial.pdf $(INSTALL_DOCDIR)
+# endif
 
