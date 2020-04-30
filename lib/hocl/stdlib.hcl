@@ -1,5 +1,5 @@
 -- HOCL standard library
--- v1.0 - Mar 6, 2020 - JS
+-- v1.1 - Apr 30, 2020 - JS
 
 -- [|>] is the reverse application operator : [x |> f] is [f x]
 -- It allows expressions such as [f1 (f2 (f3 x))], for ex, to be written as [x |> f1 |> f2 |> f3]

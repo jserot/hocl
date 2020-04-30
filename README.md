@@ -21,7 +21,6 @@ comes is equipped with five backends :
 - a [SystemC][systemc] backend for simulation
 - a [PREESM][preesm] backend for implementing the described dataflow applications on many/multi-core
   embedded platforms
-- a VHDL backend for targeting FPGA-based platforms
 - a [DIF][dif] backend for interfacing to various dataflow analysis tools
 - an XDF backend for interfacing to CAL-based design flows
 

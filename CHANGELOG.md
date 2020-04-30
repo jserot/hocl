@@ -1,8 +1,16 @@
 # Changes
 
-# 1.0a (Mar 7, 2020)
+# 1.1a (Apr 30, 2020)
 
-* Fully revised syntax, with [node] and [graph] declarations, and a new way of
+* Complete source code recrafting, now phased with the provided formal semantics
+* Added documentation (BNF syntax, formal semantics, compiler usage, tutorial)
+* Got rid of ad-hoc notation for parameter passing. Parameters are now passed
+  "normally" as curried arguments
+* Actors `delay`, `switch` and `merge` are now builtins and polymorphic
+
+# 1.0 (Mar 7, 2020)
+
+* Fully revised syntax, with `node` and `graph` declarations, and a new way of
   declaring and passing parameters 
 * The tutorial has been completely rewritten to reflect these changes
 * The so-called `prelude` file is now called the _standard library_ (`lib/hocl/stdlib.hcl`). This

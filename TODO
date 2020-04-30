@@ -1,8 +1,9 @@
 SYNTAX
 - `initially` clause for specifying delays (ex: `val rec (o,z) = f (i, z initially 0)`) 
+- allow parameters also on output (ex: `node foo in (k: int param, i: int) out (o: int, kp: int param)`)
+- special syntax for conditionals (?)
 
 COMPILER
-- check that types infered from a node impl match those given in the interface (typing.ml)
 - allow arbitrary infix operators to be defined in prelude or elsewhere (the set of such operators
   is currently restricted by the lexer)
 - relocalize backend-specific error handling fns in the corresp. source file (?)
@@ -39,9 +40,7 @@ TOOLS/PI2HCL
 - port annotations (vs. expr)
 
 DOC
-- write formal semantics (at least for the scalar language subset)
-- update tutorial with support for bcast and bcast nodes
-- add a section on recursive fns/graphs (with example `misc/recfilt`)
+- write dedicated sections for backends (Preesm, DIF, ...)
 
 DIST
 - build lib/etc/Makefile.app by instantiating a template with paths obtained from configure
