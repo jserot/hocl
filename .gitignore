@@ -1,6 +1,3 @@
-doc/*.pdf
-doc/grammar.html
-!doc/tutorial.pdf
 doc/tutorial/examples/*/dot/*.pdf
 lib/etc/config
 _build/

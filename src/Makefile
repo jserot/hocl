@@ -11,7 +11,9 @@ native:
 
 doc: 
 	dune build grammar.tex grammar-defns.sty
-	dune build absyn.tex absyn-defns.sty
+#	dune build absyn.tex absyn-defns.sty
+	dune build grammar.html
+	sed 's/\\\\a0//g' grammar.html > ../doc/syntax.html
 
 clean:
 	dune clean

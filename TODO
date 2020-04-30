@@ -45,4 +45,5 @@ DOC
 
 DIST
 - build lib/etc/Makefile.app by instantiating a template with paths obtained from configure
+- upgrade ocaml to 4.9 or 4.10
 
