@@ -1,10 +1,22 @@
+(**********************************************************************)
+(*                                                                    *)
+(*              This file is part of the HOCL package                 *)
+(*                                                                    *)
+(*  Copyright (c) 2019-present, Jocelyn SEROT (jocelyn.serot@uca.fr). *)
+(*                     All rights reserved.                           *)
+(*                                                                    *)
+(*  This source code is licensed under the license found in the       *)
+(*  LICENSE file in the root directory of this source tree.           *)
+(*                                                                    *)
+(**********************************************************************)
+
+(* Evaluation of functional graph descriptions *)
+
 open Syntax
 open Semval
 open Error
 open Eval
 
-(* Evaluation of functional graph descriptions *)
-   
 (* E, B |-p pat, v => E', B', W *)
 
 exception Matching_fail

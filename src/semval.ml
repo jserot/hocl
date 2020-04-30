@@ -10,7 +10,8 @@
 (*                                                                    *)
 (**********************************************************************)
 
-(* Semantic values *)
+(* Semantic values for evaluation of functional graph descriptions *)
+
 type sem_val =
   | SVLoc of sv_loc
   | SVNode of sv_node

@@ -39,31 +39,6 @@ let cfg = {
   default_src_dir = "../src"
 }
 
-(* exception Error of string *)
-        
-(* type preesm_type = 
- *   | Integer of bool * int option (\* signed, width *\)
- *   | Char of bool (\* signed *\)
- *   | Boolean
- *   | Float
- *   | Double
- * (\* to be extended *\)
- * 
- * let rec type_of t  = 
- *   let open Types in 
- *   match real_type t with
- *   | TyConstr("bool", []) -> Boolean
- *   | TyConstr("float"}, _, _) -> if cfg.use_floats then Float else Double
- *   | TyConstr({tc_name="int"}, [sg], [sz]) ->
- *       begin match real_type sg, size_repr sz with
- *       | TyConstr({tc_name="_unsigned"},_,_), SzConst s -> Integer (false, Some s)
- *       | TyConstr({tc_name="_signed"},_,_), SzConst s -> Integer (true, Some s)
- *       | TyConstr({tc_name="_signed"},_,_), _ -> Integer (true, None)
- *       | TyConstr({tc_name="_unsigned"},_,_), _ -> Integer (false, None)
- *       | _, _ -> Integer (false, None)
- *       end
- *   | ty -> Misc.not_implemented ("PREESM translation of type " ^ Pr_type.string_of_type t) *)
-
 let rec string_of_type t  = 
   match Types.real_type t with
   | TyConstr ("int", []) -> "int"

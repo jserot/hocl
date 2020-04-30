@@ -1,3 +1,17 @@
+(**********************************************************************)
+(*                                                                    *)
+(*              This file is part of the HOCL package                 *)
+(*                                                                    *)
+(*  Copyright (c) 2019-present, Jocelyn SEROT (jocelyn.serot@uca.fr). *)
+(*                     All rights reserved.                           *)
+(*                                                                    *)
+(*  This source code is licensed under the license found in the       *)
+(*  LICENSE file in the root directory of this source tree.           *)
+(*                                                                    *)
+(**********************************************************************)
+
+(* Typing *)
+
 open Syntax
 open Types
 open Error
@@ -167,14 +181,6 @@ let rec type_expression tenv venv expr =
   expr.e_typ <- Types.real_type ty;
   ty
 
-(* and type_definitions isrec tenv venv defns =
- *      let venvs = List.map (type_definition tenv venv) defns in
- *      List.concat venvs *)
-
-(* and type_definition tenv venv (pat,exp) =
- *   let ty_exp = type_expression tenv venv exp in
- *   extract_type_bindings venv pat ty_exp *)
-                            
 and type_definitions loc isrec tenv venv defns =
   let ty_pats, venvs =
     List.map (fun {b_desc=(pat,exp)} -> type_pattern pat) defns |> List.split in

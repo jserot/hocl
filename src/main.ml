@@ -117,12 +117,6 @@ with
         eprintf "%aUnterminated comment.\n" output_location l
     end;
     flush stderr; exit 2
-(* | Preesm.Error msg ->
- *     eprintf "Error in the Preesm backend: %s.\n" msg;
- *     flush stderr; exit 4
- * | Systemc.Error msg ->
- *     eprintf "Error in the SystemC backend: %s.\n" msg;
- *     flush stderr; exit 4 *)
 | End_of_file -> exit 0
 | Misc.Error -> exit 1
 | Sys.Break -> flush stderr; exit 5

@@ -1,8 +1,20 @@
+(**********************************************************************)
+(*                                                                    *)
+(*              This file is part of the HOCL package                 *)
+(*                                                                    *)
+(*  Copyright (c) 2019-present, Jocelyn SEROT (jocelyn.serot@uca.fr). *)
+(*                     All rights reserved.                           *)
+(*                                                                    *)
+(*  This source code is licensed under the license found in the       *)
+(*  LICENSE file in the root directory of this source tree.           *)
+(*                                                                    *)
+(**********************************************************************)
+
+(* Definitions shared by the functional and structural evaluators *)
+
 open Syntax
 open Semval
 open Error
-
-(* Definitions shared by the functional and structural evaluators *)
 
 (* Environment manipulation *)
    

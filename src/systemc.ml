@@ -18,8 +18,6 @@ open Semval
 open Interm
 open Backend
 
-(* exception Error of string *)
-                 
 type sc_config = {
   mutable sc_act_headers: string list;
   mutable sc_top_headers: string list;
