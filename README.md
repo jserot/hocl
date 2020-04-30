@@ -38,12 +38,21 @@ DOCUMENTATION
 
 A short [tutorial](https://github.com/jserot/hocl/blob/master/doc/tutorial.pdf) on the language.
 
+A minimal [user manual](https://github.com/jserot/hocl/blob/master/doc/using.pdf) describing how to
+invoke the compiler.
+
+A BNF description of the syntax, in [pdf](https://github.com/jserot/hocl/blob/master/doc/syntax.pdf)
+and [html](https://github.com/jserot/hocl/blob/master/doc/syntax.html)
+
+The [formal semantics](https://github.com/jserot/hocl/blob/master/doc/semantics.pdf) of the
+language.
+
 INSTALLATION
 ------------
 
 Pre-requisites :
 
-* [Ocaml](http://ocaml.org/docs/install.html) version >= 4.06.0 with the following package(s)
+* [Ocaml](http://ocaml.org/docs/install.html) version >= 4.08.0 with the following package(s)
     - [menhir](https://opam.ocaml.org/packages/menhir)
     - [dune](https://opam.ocaml.org/packages/dune)
     - [ezxmlm](https://opam.ocaml.org/packages/ezxmlm)
