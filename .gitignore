@@ -5,7 +5,7 @@ src/parser.output
 src/grammar.tex
 src/grammar-defns.sty
 *.html
-!doc/grammar.html
+!doc/syntax.html
 /config-stamp
 *.o
 *~
