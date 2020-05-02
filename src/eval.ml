@@ -148,6 +148,22 @@ let type_of_semval v =
   | _ -> raise Type_of_semval in
   type_of v
 
+let type_of_node n = 
+  let open Types in
+  let type_of = function [] -> type_unit | [t] -> t | ts -> TyProduct ts in 
+  let ty_params = List.map (fun (_,_,ty,_) -> ty) n.sn_params |> type_of in
+  let ty_ins = List.map (fun (_,ty,_) -> ty) n.sn_ins |> type_of in
+  let ty_outs = List.map (fun (_,ty,_) -> ty) n.sn_outs |> type_of in
+  match ty_params with
+  | TyConstr("unit",_) -> type_arrow ty_ins ty_outs
+  | _ -> type_arrow2 ty_params ty_ins ty_outs 
+
+let type_of_node_args n = 
+  let open Types in
+  let type_of = function [] -> type_unit | [t] -> t | ts -> TyProduct ts in 
+  let ty_ins = List.map (fun (_,ty,_) -> ty) n.sn_ins |> type_of in
+  ty_ins
+
 (* |- NodeParam => E', B *)
 
 let eval_static_const e = match e.e_desc with

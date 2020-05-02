@@ -87,41 +87,41 @@ let rec eval_match istop env boxes pat v =
 
 let rec eval_expr env boxes expr =
   match expr.e_desc with
-  | EVar v ->
-     lookup env expr.e_loc v, [], []
+  | EVar id ->
+     let v = match lookup env expr.e_loc id with
+       | SVNode n -> SVNode (copy_node n) (* Required for polymorphic nodes *)
+       | v' -> v' in
+     v, [], []
   | ETuple es ->
      let vs, bs, ws = List.map (eval_expr env boxes) es |> Misc.list_split3 in
      SVTuple vs, Misc.fold_left1 (+++) bs, Misc.fold_left1 (++) ws
   | EApp (fn, arg) ->
-      let val_fn, bs_f, ws_f = eval_expr env boxes fn in
-      begin match val_fn with
-      | SVNode n -> (* Node application *)
-         if n.sn_req then  (* Node [n] requires actual parameters *)
-           let val_params, bs_p, ws_p = eval_param_expr env boxes arg in
-           let n' = { n with sn_req=false;
-                             sn_params=List.map2 (fun (id,_,ty,anns) v -> (id,v,ty,anns)) n.sn_params val_params } in
-           SVNode n',
-           bs_f+++bs_p,
-           ws_f++ws_p
-         else (* Node [n] does not require parameters, or already got them *)
-           let val_arg, bs_a, ws_a = eval_expr env boxes arg in
-           let v, bs', ws' = eval_application env (boxes+++bs_a+++bs_f) (ws_a++ws_f) expr.e_loc val_fn val_arg in
-           begin match type_of_semval v, fn.e_typ with
-             | ty, Types.TyArrow (_,ty') -> 
-                Typing.try_unify "application" ty ty' expr.e_loc (* Late unification for polymorphic node application *)
-             | _, _ -> ()
-             | exception Type_of_semval -> ()
-           end;
-           v,
-           bs_a+++bs_f+++bs',
-           ws_a++ws_f++ws'
-      | _ ->
-         let val_arg, bs_a, ws_a = eval_expr env boxes arg in
-         let v, bs', ws' = eval_application env (boxes+++bs_a+++bs_f) (ws_a++ws_f) expr.e_loc val_fn val_arg in
-         v,
-         bs_a+++bs_f+++bs',
-         ws_a++ws_f++ws'
-        end
+     let val_fn, bs_f, ws_f = eval_expr env boxes fn in
+     begin match val_fn with
+     | SVNode n ->
+        if n.sn_req then (* Node [n] requires actual parameters *)
+          let val_params, bs_p, ws_p = eval_param_expr env boxes arg in
+          let n' = { n with sn_req=false;
+                            sn_params=List.map2 (fun (id,_,ty,anns) v -> (id,v,ty,anns)) n.sn_params val_params } in
+          SVNode n',
+          bs_f+++bs_p,
+          ws_f++ws_p
+        else  (* Node [n] does not require parameters, or already got them *)
+          let val_arg, bs_a, ws_a = eval_expr env boxes arg in
+          let v, bs', ws' = eval_application env (boxes+++bs_a+++bs_f) (ws_a++ws_f) expr.e_loc val_fn val_arg in
+          let ty = type_of_node_args n
+          and ty' = type_of_semval val_arg in
+          Typing.try_unify "application" ty ty' expr.e_loc; (* Late unification for polymorphic node application *)
+          v,
+          bs_a+++bs_f+++bs',
+          ws_a++ws_f++ws'
+     | _ -> 
+        let val_arg, bs_a, ws_a = eval_expr env boxes arg in
+        let v, bs', ws' = eval_application env (boxes+++bs_a+++bs_f) (ws_a++ws_f) expr.e_loc val_fn val_arg in
+        v,
+        bs_a+++bs_f+++bs',
+        ws_a++ws_f++ws'
+     end
   | EFun (pat,exp) ->
       SVClos {cl_pat=pat; cl_exp=exp; cl_env=env}, [], []
   | ELet (isrec, defns, body) ->
@@ -311,7 +311,6 @@ and eval_application env boxes wires loc val_fn val_arg =
         end in
       eval_expr (env++env') boxes exp
   | SVNode n ->
-     let n' = copy_node n in (* Required for polymorphic nodes *)
      let args = 
        let get_loc = function SVLoc l -> l | _ -> illegal_application loc in
        match val_arg with
@@ -325,7 +324,7 @@ and eval_application env boxes wires loc val_fn val_arg =
           | _, SVLoc l, _, _ -> l
           | _, _, _, _ -> Misc.fatal_error "eval_application")
         n.sn_params in
-     begin match eval_node_application boxes n' params args with
+     begin match eval_node_application boxes n params args with
      | [], boxes', wires' -> SVUnit, boxes', wires'
      | [v], boxes', wires' -> v, boxes', wires'
      | vs, boxes', wires' -> SVTuple vs, boxes', wires'

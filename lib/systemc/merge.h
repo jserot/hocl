@@ -6,9 +6,9 @@
 template <class T>
 SC_MODULE(Merge) { 
   sc_in<bool> clk;
-  sc_fifo_in<bool> b;
-  sc_fifo_in<T> i1;
+  sc_fifo_in<bool> i1;
   sc_fifo_in<T> i2;
+  sc_fifo_in<T> i3;
   sc_fifo_out<T> o;
 
   void main(void);
@@ -32,10 +32,10 @@ template <class T>
 void Merge<T>::main(void) {
     while(1) { 
       wait(clk.posedge_event());
-      if ( b->read() ) 
-        o->write(i1->read());
-      else
+      if ( i1->read() ) 
         o->write(i2->read());
+      else
+        o->write(i3->read());
       }
 }
 
