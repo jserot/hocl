@@ -1,12 +1,13 @@
 # Changes
 
-# 1.1a (Apr 30, 2020)
+# 1.1a (May 3, 2020)
 
 * Complete source code recrafting, now phased with the provided formal semantics
 * Added documentation (BNF syntax, formal semantics, compiler usage, tutorial)
 * Got rid of ad-hoc notation for parameter passing. Parameters are now passed
   "normally" as curried arguments
-* Actors `delay`, `switch` and `merge` are now builtins and polymorphic
+* Allow definitions of polymorphic actors (such as `delay`, `switch` and `merge`), to
+  be interpreted specifically by backend. 
 
 # 1.0 (Mar 7, 2020)
 
