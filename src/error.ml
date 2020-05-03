@@ -90,3 +90,8 @@ let missing_ival_param id =
 let illegal_interface what name msg =
   eprintf "Error: invalid interface for %s %s%s.\n" what name msg;
   raise Error
+
+let illegal_type_var loc =
+  eprintf "%aIllegal type expression. Type variables are not accepted here.\n"
+    output_location loc;
+  raise Error

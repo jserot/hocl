@@ -3,9 +3,10 @@
 -- When [foo(x,z)=x+z,x], given an input sequence [x1,x2,...] on input [i],
 -- this graph produces the sequence [x1,x2+x1,x3+x2,...] on output [o]
 --
--- The polymorphic [delay] actor is pre-defined and interpreted specifically by the dedicated backends
--- Its type signature is : 'a -> 'a wire -> 'a wire
+-- The polymorphic [delay] actor defined here is to be  interpreted specifically by the dedicated backends
+-- The SystemC library in the current distribution provides default ones.
 
+node delay param (iv: $t) in (i: $t) out (o: $t);
 
 node foo in (i1: int, i2: int) out (o1: int, o2: int)
 actor

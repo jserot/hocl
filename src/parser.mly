@@ -57,6 +57,7 @@
 %token ACTOR
 %token LBRACE
 %token RBRACE
+%token <string> TYVAR
 
 (* Precedences and associativities. Lower precedences first.*)
 
@@ -197,6 +198,7 @@ io_annot:
 
 type_expr:
       | id=IDENT { mk_type_expr $sloc (Typeconstr id) }
+      | tv=TYVAR { mk_type_expr $sloc (Typevar tv) }
                        
 (* VAL DECLARATIONS *)
 

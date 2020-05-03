@@ -23,6 +23,7 @@ type type_expression =
 
 and type_expression_desc =
   | Typeconstr of string
+  | Typevar of string
 
 type program = {
     types: type_decl list;
@@ -193,6 +194,7 @@ let add_program p1 p2 = { (* TODO : Flag redefinitions ? *)
 
 let string_of_type_expr = function
   | { te_desc=Typeconstr c } -> c
+  | { te_desc=Typevar v } -> v
 
 let rec string_of_expr_desc = function
    | EVar v -> v

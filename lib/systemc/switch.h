@@ -6,8 +6,8 @@
 template <class T>
 SC_MODULE(Switch) { 
   sc_in<bool> clk;
-  sc_fifo_in<bool> i1;
-  sc_fifo_in<T> i2;
+  sc_fifo_in<bool> sel;
+  sc_fifo_in<T> i;
   sc_fifo_out<T> o1;
   sc_fifo_out<T> o2;
 
@@ -32,10 +32,10 @@ template <class T>
 void Switch<T>::main(void) {
     while(1) { 
       wait(clk.posedge_event());
-      if ( i1->read() ) 
-        o1->write(i2->read());
+      if ( sel->read() ) 
+        o1->write(i->read());
       else
-        o2->write(i2->read());
+        o2->write(i->read());
       }
 }
 

@@ -2,7 +2,6 @@ SYNTAX
 - `initially` clause for specifying delays (ex: `val rec (o,z) = f (i, z initially 0)`) 
 - allow parameters also on output (ex: `node foo in (k: int param, i: int) out (o: int, kp: int param)`)
 - special syntax for conditionals (?)
-- allow defns of polymorphic actors in source files (ex: delay, fork, switch, ...)
 
 COMPILER
 - allow arbitrary infix operators to be defined in prelude or elsewhere (the set of such operators
@@ -13,6 +12,7 @@ STDLIB
 - add `mapi`, `iteri` HOFs
 
 DOT BACKEND
+- option to show types on wires
 - cluster-based drawing of hierarchy graphical in the .dot backend (?)
 
 SYSTEMC BACKEND

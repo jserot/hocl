@@ -1,10 +1,12 @@
 -- DDF formulation of "if ... then ..else" using user-defined [switch] and [merge] actors
+-- The interpretation of these actors is backend-dependent.
+-- The SystemC library in the current distribution provides default ones.
+--
 -- In this example, even input tokens are incremented and odd ones doubled
 
--- The polymorphic [switch] and [merge] actors are pre-defined and interpreted specifically by the dedicated backends
--- Their type signature is :
---   switch: bool wire * 'a wire -> 'a wire * 'a wire
---   merge: bool wire * 'a wire * 'a wire -> 'a wire
+node switch in (sel: bool, i: $t) out (o1: $t, o2: $t);
+
+node merge in (sel: bool, i1: $t, i2: $t) out (o: $t);
 
 node is_even in (i: int) out (o: bool)
 actor
