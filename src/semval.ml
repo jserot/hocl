@@ -25,6 +25,7 @@ type sem_val =
   | SVCons of sem_val * sem_val
   | SVList of sem_val list
   | SVWire of wid
+  | SVQuote of Syntax.expr
 
 and sv_clos = {
   cl_pat: Syntax.pattern;
@@ -43,10 +44,9 @@ and sv_loc = bid * sel * Types.typ (* box index, slot number, typ *) (** ell *)
 and sv_node = {
   sn_id: string;
   sn_kind: node_kind;
-  sn_params: (string * sem_val * Types.typ * Syntax.io_annot list) list;
   sn_req: bool; (* [true] if node requests parameters and these have not been supplied *)
-  sn_ins: (string * Types.typ * Syntax.io_annot list) list;
-  sn_outs: (string * Types.typ * Syntax.io_annot list) list;
+  sn_ins: (string * Types.typ * sem_val option * Syntax.io_annot list) list;
+  sn_outs: (string * Types.typ * sem_val option * Syntax.io_annot list) list;
   }
 
 and node_kind = ActorN | GraphN
@@ -92,7 +92,7 @@ and wire_env = (wid * sv_wire) list (** W *)
 
 let string_of_node_kind = function | ActorN -> "actor" | GraphN -> "graph"
 
-let string_of_node_io (id,ty,anns) = id
+let string_of_node_io (id,ty,e,anns) = id
 
 let string_of_svloc (l,s) =  "(" ^ string_of_int l ^ "," ^ string_of_int s ^ ")"
 
@@ -115,6 +115,7 @@ let rec  string_of_semval v = match v with
   | SVTuple vs -> "(" ^ Misc.string_of_list string_of_semval "," vs ^ ")"
   | SVList vs -> "[" ^ Misc.string_of_list string_of_semval "," vs ^ "]"
   | SVWire wid -> "Wire " ^ string_of_int wid
+  | SVQuote e -> "<" ^ Syntax.string_of_expr e ^ ">"
 
 let string_of_io_type ~typed ty = if typed then ":" ^ Pr_type.string_of_type ty else ""
                                 

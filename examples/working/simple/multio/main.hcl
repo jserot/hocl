@@ -2,13 +2,13 @@
 
 type t;
 
-node f in () out (o1: t, o2: t);
-node g in (i: t) out (o: t);
-node h in (i1: t, i2: t) out ();
+node f in () out (o1: t data, o2: t data);
+node g in (i: t data) out (o: t data);
+node h in (i1: t data, i2: t data) out ();
 
 graph top_s in () out ()
 struct
-  wire w1, w2, w3, w4: t
+  wire w1, w2, w3, w4: t data
   box n1: f()(w1,w2)
   box n2: g(w1)(w3)
   box n3: g(w2)(w4)

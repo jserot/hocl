@@ -17,6 +17,18 @@ open Semval
 open Interm
 open Eval
 
+(* Aux *)
+   
+let rec static_value e = match e.e_desc with
+  | EInt n -> SVInt n
+  | EBool b -> SVBool b
+  | EQuote e -> SVQuote e
+  | _ -> failwith "Static.static_value" (* TO FIX !*)
+       
+let eval_param_expr ty e = match e with
+  | Some e when Types.is_param_type ty -> Some (static_value e)
+  | _ -> None
+       
 (* E, B |- NodeImpl => G *)
 
 let eval_node_impl (env, boxes) impl =
@@ -37,18 +49,20 @@ let eval_node_decl (env,nodes) {nd_desc=(id,n)} =
   let intf = {
     sn_id = n.n_intf.n_id;
     sn_isgraph = n.n_intf.n_isgraph;
-    sn_params = List.map (fun {pm_desc=id,_,e,anns; pm_typ=ty} -> id, ty, e, anns) n.n_intf.n_params;
-    sn_ins = List.map (fun {io_desc=id,_,anns; io_typ=ty} -> id, ty, anns) n.n_intf.n_ins;
-    sn_outs = List.map (fun {io_desc=id,_,anns; io_typ=ty} -> id, ty, anns) n.n_intf.n_outs
+    sn_ins = List.map (fun {io_desc=id,_,e,anns; io_typ=ty} -> id, ty, e, anns) n.n_intf.n_ins;
+    sn_outs = List.map (fun {io_desc=id,_,e,anns; io_typ=ty} -> id, ty, e, anns) n.n_intf.n_outs
     } in
   let node = { sn_intf=intf; sn_impl=impl } in
   let n = {
       sn_id = id;
       sn_kind =  (match impl with | NI_Actor _ -> ActorN | NI_Graph _ -> GraphN);
-      sn_req = n.n_intf.n_params <> [];
-      sn_params = List.map (fun {pm_desc=(id,_,e,anns); pm_typ=ty} -> id, eval_param_value e, ty, anns) n.n_intf.n_params; 
-      sn_ins = List.map (fun {io_desc=id,_,anns; io_typ=ty} -> id, ty, anns) n.n_intf.n_ins;
-      sn_outs = List.map (fun {io_desc=id,_,anns; io_typ=ty} -> id, ty, anns) n.n_intf.n_outs
+      sn_req = false; (* TO FIX ! *)
+      sn_ins =
+        List.map (fun {io_desc=id,_,e,anns; io_typ=ty} -> id, ty, eval_param_expr ty e, anns)
+          n.n_intf.n_ins;
+      sn_outs =
+        List.map (fun {io_desc=id,_,e,anns; io_typ=ty} -> id, ty, eval_param_expr ty e, anns)
+          n.n_intf.n_outs
       } in
   (id, SVNode n) :: env,
   (id, node) :: nodes

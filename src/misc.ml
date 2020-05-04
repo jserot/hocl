@@ -52,6 +52,21 @@ let rec list_split3 = function
 
 let flat_map f l = List.flatten @@ List.map f l
 
+let fold_left_map f accu l =  (* Waiting for 4.11 *)
+  let rec aux accu l_accu = function
+    | [] -> accu, List.rev l_accu
+    | x :: l ->
+        let accu, x = f accu x in
+        aux accu (x :: l_accu) l in
+  aux accu [] l
+
+let map2i f l1 l2 =
+  List.fold_left2
+    (fun (i,acc) x1 x2 -> (i+1, f i x1 x2 :: acc))
+    (0,[]) l1 l2
+  |> snd
+  |> List.rev
+
 let array_replace f i a =
   let a' = Array.copy a in
   a'.(i) <- f a.(i);

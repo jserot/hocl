@@ -58,29 +58,29 @@ let do_insert_bcasts () = Interm.cfg.Interm.insert_bcasts <- true
 let do_dot () = cfg.output_fmt <- Dot
 let do_dot_unlabeled_edges () = Dot.cfg.Dot.labeled_edges <- false
 let do_dot_show_indexes () = Dot.cfg.Dot.show_indexes <- true
-let do_dot_wire_annots () = Dot.cfg.Dot.show_wire_annots <- true
+let do_dot_wire_types () = Dot.cfg.Dot.show_wire_types <- true
 let do_dot_no_io_rates () = Dot.cfg.Dot.show_io_rates <- false
 let do_dot_slotted_boxes () = Dot.cfg.Dot.slotted_boxes <- true
 let set_dot_rank_dir s = Dot.cfg.Dot.rank_dir <- s
-(* SYSTEMC related options *)
-let do_systemc () = begin cfg.output_fmt <- Systemc; Interm.cfg.Interm.insert_bcasts <- true end
-let set_sc_stop_time n = Systemc.cfg.Systemc.sc_stop_time <- n
-(* let set_sc_stop_idle_time n = Systemc.cfg.Systemc.sc_stop_idle_time <- n *)
-let set_sc_clock_period n = Systemc.cfg.Systemc.sc_clock_period_ns <- n
-let set_sc_fifo_capacity n = Systemc.cfg.Systemc.sc_data_fifo_capacity <- n
-let set_sc_trace () = Systemc.cfg.Systemc.sc_trace <- true
-let set_sc_trace_fifos () = Systemc.cfg.Systemc.sc_trace_fifos <- true
-let set_sc_dump_fifos () = Systemc.cfg.Systemc.sc_dump_fifos <- true
-let set_sc_dump_fifo_stats () = Systemc.cfg.Systemc.sc_dump_fifo_stats <- true
-let set_sc_fifo_stats_file f = Systemc.cfg.Systemc.sc_fifo_stats_file <- f
-(* PREESM related options *)
-let do_preesm () = begin cfg.output_fmt <- Preesm; Interm.cfg.Interm.insert_bcasts <- true end
-let set_preesm_name n = Preesm.cfg.Preesm.top_name <- n
-(* XDF related options *)
-let do_xdf () = cfg.output_fmt <- Xdf
-let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p
-(* DIF related options *)
-let do_dif () = cfg.output_fmt <- Dif
+(* (\* SYSTEMC related options *\)
+ * let do_systemc () = begin cfg.output_fmt <- Systemc; Interm.cfg.Interm.insert_bcasts <- true end
+ * let set_sc_stop_time n = Systemc.cfg.Systemc.sc_stop_time <- n
+ * (\* let set_sc_stop_idle_time n = Systemc.cfg.Systemc.sc_stop_idle_time <- n *\)
+ * let set_sc_clock_period n = Systemc.cfg.Systemc.sc_clock_period_ns <- n
+ * let set_sc_fifo_capacity n = Systemc.cfg.Systemc.sc_data_fifo_capacity <- n
+ * let set_sc_trace () = Systemc.cfg.Systemc.sc_trace <- true
+ * let set_sc_trace_fifos () = Systemc.cfg.Systemc.sc_trace_fifos <- true
+ * let set_sc_dump_fifos () = Systemc.cfg.Systemc.sc_dump_fifos <- true
+ * let set_sc_dump_fifo_stats () = Systemc.cfg.Systemc.sc_dump_fifo_stats <- true
+ * let set_sc_fifo_stats_file f = Systemc.cfg.Systemc.sc_fifo_stats_file <- f *)
+(* (\* PREESM related options *\)
+ * let do_preesm () = begin cfg.output_fmt <- Preesm; Interm.cfg.Interm.insert_bcasts <- true end
+ * let set_preesm_name n = Preesm.cfg.Preesm.top_name <- n *)
+(* (\* XDF related options *\)
+ * let do_xdf () = cfg.output_fmt <- Xdf
+ * let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p *)
+(* (\* DIF related options *\)
+ * let do_dif () = cfg.output_fmt <- Dif *)
 (* VHDL related options *)
 (* let do_vhdl () = cfg.output_fmt <- Vhdl *)
 
@@ -106,20 +106,20 @@ let options_spec = [
 "-dot_no_io_rates", Arg.Unit (do_dot_no_io_rates), "do not annotate ports with resp. rates";
 "-dot_show_indexes", Arg.Unit (do_dot_show_indexes), "print box and wire indexes";
 "-dot_slotted_boxes", Arg.Unit (do_dot_slotted_boxes), "print boxes with i/o slots";
-"-systemc", Arg.Unit (do_systemc), "activate the SystemC backend";
-"-sc_stop_time", Arg.Int (set_sc_stop_time), "stop after n ns";
-(* "-sc_stop_when_idle", Arg.Int (set_sc_stop_idle_time), "stop when outputs have been inactive for n ns"; *)
-"-sc_clock_period", Arg.Int (set_sc_clock_period), "set clock period (ns) (default: 10)";
-"-sc_default_fifo_capacity", Arg.Int (set_sc_fifo_capacity), "set default fifo capacity (systemc only) (default: 256)";
-"-sc_trace", Arg.Unit (set_sc_trace), "set trace mode";
-"-sc_dump_fifos", Arg.Unit (set_sc_dump_fifos), "dump fifo contents";
-"-sc_trace_fifos", Arg.Unit (set_sc_trace_fifos), "trace fifo usage in .vcd file";
-"-sc_dump_fifo_stats", Arg.Unit (set_sc_dump_fifo_stats), "dump fifo usage statistics after run";
-"-sc_fifo_stats_file", Arg.String (set_sc_fifo_stats_file), "set file for dumping fifo statistics (default: fifo_stats.dat)";
-"-preesm", Arg.Unit (do_preesm), "activate the Preesm backend";
-(* "-preesm_top_name", Arg.String (set_preesm_name), "set top level name for Preesm graph (default: base name of input file"; *)
-"-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network";
-"-xdf_package", Arg.String (set_xdf_package), "set package name for the generated XDF code";
-"-dif", Arg.Unit (do_dif), "generate .dif representation of the program";
+(* "-systemc", Arg.Unit (do_systemc), "activate the SystemC backend";
+ * "-sc_stop_time", Arg.Int (set_sc_stop_time), "stop after n ns";
+ * (\* "-sc_stop_when_idle", Arg.Int (set_sc_stop_idle_time), "stop when outputs have been inactive for n ns"; *\)
+ * "-sc_clock_period", Arg.Int (set_sc_clock_period), "set clock period (ns) (default: 10)";
+ * "-sc_default_fifo_capacity", Arg.Int (set_sc_fifo_capacity), "set default fifo capacity (systemc only) (default: 256)";
+ * "-sc_trace", Arg.Unit (set_sc_trace), "set trace mode";
+ * "-sc_dump_fifos", Arg.Unit (set_sc_dump_fifos), "dump fifo contents";
+ * "-sc_trace_fifos", Arg.Unit (set_sc_trace_fifos), "trace fifo usage in .vcd file";
+ * "-sc_dump_fifo_stats", Arg.Unit (set_sc_dump_fifo_stats), "dump fifo usage statistics after run";
+ * "-sc_fifo_stats_file", Arg.String (set_sc_fifo_stats_file), "set file for dumping fifo statistics (default: fifo_stats.dat)"; *)
+(* "-preesm", Arg.Unit (do_preesm), "activate the Preesm backend";
+ * (\* "-preesm_top_name", Arg.String (set_preesm_name), "set top level name for Preesm graph (default: base name of input file"; *\) *)
+(* "-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network";
+ * "-xdf_package", Arg.String (set_xdf_package), "set package name for the generated XDF code"; *)
+(* "-dif", Arg.Unit (do_dif), "generate .dif representation of the program"; *)
 (* "-vhdl", Arg.Unit (do_vhdl), "activate the VHDL backend"; *)
 ];

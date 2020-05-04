@@ -22,7 +22,7 @@ type type_expression =
     mutable te_typ: Types.typ }
 
 and type_expression_desc =
-  | Typeconstr of string
+  | Typeconstr of string * type_expression list 
   | Typevar of string
 
 type program = {
@@ -53,31 +53,23 @@ and node_desc =
 and node_intf = {
     n_id: string;
     n_isgraph: bool;
-    n_params: param_decl list;
     n_ins: io_decl list;
     n_outs: io_decl list
   }
 
-and param_decl =
-  { pm_desc: param_desc;
-    pm_loc: location;
-    mutable pm_typ: Types.typ }
-
-and param_desc = string * type_expression * expr option * io_annot list (* name, type, value for graph decls, annotations *)
-               
 and io_decl =
   { io_desc: io_desc;
     io_loc: location;
     mutable io_typ: Types.typ }
 
-and io_desc = string * type_expression * io_annot list
+and io_desc = string * type_expression * expr option * io_annot list
+  (* name, type, value (for toplevel graph params), annotations *)
 
 and io_annot = string * annot_val (* name, value *)
 
 and annot_val =
   AN_Expr of expr
 | AN_String of string
-             
 
 and node_impl = 
   | NM_Actor of actor_desc
@@ -137,6 +129,7 @@ and expr_desc =
    | EList of expr list
    | EListElem of expr * expr
    | EMatch of expr * binding list
+   | EQuote of expr
 
 and graph_struct_desc =
   { gs_wires: wire_decl list;
@@ -156,9 +149,10 @@ and box_decl_desc = string * box_desc
 
 and box_desc = 
   { bx_node: string; (* Name of the instanciated node *)
-    bx_params: expr list;
-    bx_ins: string list;
-    bx_outs: string list }
+    bx_ins: bx_io list;
+    bx_outs: bx_io list }
+
+and bx_io = expr
 
 (* Transformations *)
   
@@ -192,8 +186,10 @@ let add_program p1 p2 = { (* TODO : Flag redefinitions ? *)
 
 (* Printing *)
 
-let string_of_type_expr = function
-  | { te_desc=Typeconstr c } -> c
+let rec string_of_type_expr = function
+  | { te_desc=Typeconstr (c,[]) } -> c
+  | { te_desc=Typeconstr (c,[t]) } -> string_of_type_expr t ^ " " ^ c
+  | { te_desc=Typeconstr (c,ts) } -> "(" ^ Misc.string_of_list string_of_type_expr "," ts ^ ") " ^ c
   | { te_desc=Typevar v } -> v
 
 let rec string_of_expr_desc = function
@@ -213,6 +209,7 @@ let rec string_of_expr_desc = function
    | EList es -> "[" ^ Misc.string_of_list string_of_expr "," es ^ "]"
    | EListElem (e1,e2) -> string_of_expr e1 ^ "[" ^ string_of_expr e2 ^ "]"
    | EMatch (e1,bs) -> "match " ^ string_of_expr e1 ^ " with " ^ Misc.string_of_list string_of_binding " | " bs
+   | EQuote e -> "'" ^ string_of_expr e ^ "'"
 
 and string_of_expr e = string_of_expr_desc e.e_desc
 
@@ -250,9 +247,11 @@ and string_of_wire_decl { wr_desc = (id,t) } = "  wire " ^ id ^ " : " ^ string_o
 
 and string_of_box_decl { bx_desc = (id,b) } = 
   "  box " ^ id ^ " : " ^ b.bx_node
-  ^ "(" ^ Misc.string_of_list string_of_expr "," b.bx_params ^ ")" 
-  ^ "(" ^ Misc.string_of_list Fun.id "," b.bx_ins ^ ")"
-  ^ "(" ^ Misc.string_of_list Fun.id "," b.bx_outs ^ ")"
+  (* ^ "(" ^ Misc.string_of_list string_of_expr "," b.bx_params ^ ")"  *)
+  ^ "(" ^ Misc.string_of_list string_of_box_io "," b.bx_ins ^ ")"
+  ^ "(" ^ Misc.string_of_list string_of_box_io "," b.bx_outs ^ ")"
+
+and string_of_box_io io = string_of_expr io
 
 let string_of_node_impl i =
   match i with
@@ -263,22 +262,18 @@ let string_of_node_impl i =
 
 let string_of_expr e = string_of_expr_desc e.e_desc
 
-let string_of_node_io_desc (id,t,ann) = id ^ ":" ^ string_of_type_expr t
-
-let string_of_node_io io = string_of_node_io_desc io.io_desc
-
-let string_of_node_param_desc (id,t,e,anns) =
+let string_of_node_io_desc (id,t,e,ann) =
   let string_of_opt_exp = function None -> "" | Some e -> "=" ^ string_of_expr e in
   id ^ ":" ^ string_of_type_expr t ^ string_of_opt_exp e
 
-let string_of_node_param param = string_of_node_param_desc param.pm_desc
+let string_of_node_io io =
+  string_of_node_io_desc io.io_desc
 
 let string_of_type_decl (id,d) = match d with
   | TD_Abstract -> id 
                          
 let string_of_node_intf i =
   "node " ^ i.n_id
-    ^ " param (" ^ Misc.string_of_list string_of_node_param ", " i.n_params ^ ")"
     ^ " in (" ^ Misc.string_of_list string_of_node_io ", " i.n_ins ^ ")"
     ^ " out (" ^ Misc.string_of_list string_of_node_io ", " i.n_outs ^ ")"
 

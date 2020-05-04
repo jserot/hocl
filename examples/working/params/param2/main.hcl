@@ -1,11 +1,11 @@
 -- Example with an actor taking two single, local parameters
 
-node mult param (k1: int, k2: int) in (i: int) out (o: int)
+node mult in (k1: int param, k2: int param, i: int data) out (o: int data)
 actor
   systemc(loop_fn="mult", incl_file="./include/mult.h", src_file="./src/mult.cpp")
 end;
 
-graph top in (i: int) out (o: int)
+graph top in (i: int data) out (o: int data)
 fun
-  val o = mult (2,1) i
+  val o = mult ('2','1',i)
 end;

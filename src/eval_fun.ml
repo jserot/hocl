@@ -17,6 +17,94 @@ open Semval
 open Error
 open Eval
 
+(* Aux *)
+
+let copy_node n =
+(* Make a copy a a node description with fresh type variables when present *)
+  let open Types in
+  let ty =
+    TyProduct [
+        TyProduct (List.map (fun (_,ty,_,_) -> ty) n.sn_ins);
+        TyProduct (List.map (fun (_,ty,_,_) -> ty) n.sn_outs) ] in
+  match Types.type_copy ty with
+    TyProduct [TyProduct ts1; TyProduct ts2] ->
+      { n with sn_ins = List.map2 (fun (id,_,e,anns) ty -> id,ty,e,anns) n.sn_ins ts1;
+               sn_outs = List.map2 (fun (id,_,e,anns) ty -> id,ty,e,anns) n.sn_outs ts2 }
+  |  _ 
+  | exception Invalid_argument _ ->
+      Misc.fatal_error "Eval_fun.instanciate_node"
+
+(* let eval_param_const ty e v = 
+ *     let bid = new_bid () in
+ *     let e = let open Syntax in { e_desc = e; e_loc = no_loc; e_typ = ty } in
+ *     let bv = { bv_lit = e; bv_sub=e; bv_val = v } in
+ *     let name = "p" ^ string_of_int bid in
+ *     let b = new_box bid name LocalParamB [] ["o",[],ty,[]] bv in
+ *     (bid,0,ty),
+ *     [bid,b],
+ *     [] 
+ * 
+ * let rec eval_param_expr env boxes e =
+ *   let get_loc v =
+ *     match lookup env e.e_loc v with
+ *      | SVLoc ((src,_,_) as l) -> 
+ *         let b = List.assoc src boxes in
+ *         if b.b_tag=InParamB then Some l else None  (\* TO BE RELAXED ? *\)
+ *      | _ ->
+ *         None in
+ *   let extract_deps e =
+ *     let module LocSet = Set.Make(struct type t=string*sv_loc let compare=Stdlib.compare end) in
+ *     let rec scan e = match e.e_desc with
+ *     | EVar v ->
+ *        begin
+ *          match get_loc v with
+ *          | Some l -> LocSet.singleton (v,l)
+ *          | None -> LocSet.empty 
+ *        end
+ *     | EBinop (op,e1,e2) ->
+ *        scan e1 |> LocSet.union (scan e2)
+ *     | _ ->
+ *        LocSet.empty in
+ *     scan e |> LocSet.elements in
+ *   let ty = e.e_typ in
+ *   match e.e_desc with
+ *   | EInt n ->
+ *      eval_param_const ty (EInt n) (SVInt n)
+ *   | EBool n ->
+ *      eval_param_const ty (EBool n) (SVBool n)
+ *   | EVar v -> 
+ *      begin
+ *        match get_loc v with
+ *        | Some l -> l, [], []
+ *        | None -> illegal_param_expr e.e_loc
+ *      end
+ *   | EBinop (op,e1,e2) ->
+ *      let slocs = extract_deps e in
+ *      let bid = new_bid () in
+ *      let ws = List.mapi (fun i (_,l) -> new_wid (), (l,(bid,i,ty))) slocs in
+ *      let bins = List.mapi (fun i (wid,(l,((_,_,ty) as l'))) -> "i" ^ string_of_int (i+1), wid, ty, []) ws in
+ *      let name = "p" ^ string_of_int bid in
+ *      let bv = { bv_lit=e; bv_sub=subst_param_deps slocs e; bv_val=static_value env e } in 
+ *      let b = new_box bid name LocalParamB bins ["o",[],ty,[]] bv in
+ *      let bs' = List.map2 (fun (_,(l,s,_)) (wid,_) -> l, add_box_output boxes l s wid) slocs ws in
+ *      (bid,0,ty),
+ *      bs'++[bid,b], 
+ *      ws
+ *   | _ ->
+ *      illegal_param_expr e.e_loc
+ * 
+ * and subst_param_deps substs expr =
+ *   let rec subst e = match e.e_desc with
+ *     | EVar v ->
+ *        begin match Misc.assoc_pos v substs with
+ *        | 0 -> e (\* Not found *\)
+ *        | j -> { e with e_desc = EVar ("i" ^ string_of_int j) }
+ *        end
+ *     | EBinop (op,e1,e2) ->
+ *        { e with e_desc = EBinop (op, subst e1, subst e2) }
+ *     | _ -> e in
+ *   subst expr *)
+
 (* E, B |-p pat, v => E', B', W *)
 
 exception Matching_fail
@@ -98,29 +186,37 @@ let rec eval_expr env boxes expr =
   | EApp (fn, arg) ->
      let val_fn, bs_f, ws_f = eval_expr env boxes fn in
      begin match val_fn with
-     | SVNode n ->
-        if n.sn_req then (* Node [n] requires actual parameters *)
-          let val_params, bs_p, ws_p = eval_param_expr env boxes arg in
-          let n' = { n with sn_req=false;
-                            sn_params=List.map2 (fun (id,_,ty,anns) v -> (id,v,ty,anns)) n.sn_params val_params } in
-          SVNode n',
-          bs_f+++bs_p,
-          ws_f++ws_p
-        else  (* Node [n] does not require parameters, or already got them *)
-          let val_arg, bs_a, ws_a = eval_expr env boxes arg in
-          let v, bs', ws' = eval_application env (boxes+++bs_a+++bs_f) (ws_a++ws_f) expr.e_loc val_fn val_arg in
-          let ty = type_of_node_args n
-          and ty' = type_of_semval val_arg in
-          Typing.try_unify "application" ty ty' expr.e_loc; (* Late unification for polymorphic node application *)
-          v,
-          bs_a+++bs_f+++bs',
-          ws_a++ws_f++ws'
-     | _ -> 
+     | SVClos {cl_pat=pat; cl_exp=exp; cl_env=env'} ->
         let val_arg, bs_a, ws_a = eval_expr env boxes arg in
-        let v, bs', ws' = eval_application env (boxes+++bs_a+++bs_f) (ws_a++ws_f) expr.e_loc val_fn val_arg in
+        let env'', _, _ =
+          begin
+            try eval_match false [] [] pat val_arg
+            with Matching_fail -> binding_error pat.p_loc
+          end in
+        let v, bs', ws' = eval_expr (env'++env'') (boxes+++bs_a+++bs_f) exp in
         v,
         bs_a+++bs_f+++bs',
         ws_a++ws_f++ws'
+     | SVNode n ->
+        if n.sn_req then (* Node [n] requires actual parameters *)
+          not_implemented "Eval_fun: partial node application"
+          (* let val_params, bs_p, ws_p = eval_param_expr env boxes arg in
+           * let n' = { n with sn_req=false;
+           *                   sn_params=List.map2 (fun (id,_,ty,anns) v -> (id,v,ty,anns)) n.sn_params val_params } in
+           * SVNode n',
+           * bs_f+++bs_p,
+           * ws_f++ws_p *)
+        else  (* Node [n] does not require parameters, or already got them *)
+          let val_arg, bs_a, ws_a = eval_expr env boxes arg in
+          let v, bs', ws' = eval_node_application env (boxes+++bs_a+++bs_f) (ws_a++ws_f) expr.e_loc n val_arg in
+          let ty = type_of_node_args n
+          and ty' = type_of_semval val_arg in
+          Typing.try_unify ~relax:true "application" ty ty' expr.e_loc; (* Late unification for polymorphic node application *)
+          v,
+          bs_a+++bs_f+++bs',
+          ws_a++ws_f++ws'
+     | _ ->
+        illegal_application expr.e_loc
      end
   | EFun (pat,exp) ->
       SVClos {cl_pat=pat; cl_exp=exp; cl_env=env}, [], []
@@ -149,7 +245,7 @@ let rec eval_expr env boxes expr =
        begin match v1 with
        | SVBool true -> eval_expr env boxes e2
        | SVBool false -> eval_expr env boxes e3
-       | _ -> Misc.fatal_error "Static.eval_expression" (* should not happen thx to TC *)
+       | _ -> Misc.fatal_error "Eval_fun.eval_expression" (* should not happen thx to TC *)
        end in 
      v', bs1+++bs', ws1++ws'
   | ENil -> SVNil, [], []
@@ -176,6 +272,10 @@ let rec eval_expr env boxes expr =
               seq_match rest end in
       let v', bs'', ws'' = seq_match cases in
       v', bs'+++bs'', ws'++ws''
+  | EQuote e ->
+     SVQuote e,
+     [],
+     []
 
 and eval_definitions istop loc isrec (env,boxes) defns =
   let is_fun_definition = function {b_desc=({p_desc=Pat_var _}, {e_desc=EFun _})} -> true | _ -> false in
@@ -191,7 +291,7 @@ and eval_definitions istop loc isrec (env,boxes) defns =
         List.map
           (function
            | {b_desc={p_desc=Pat_var v}, {e_desc=EFun (p,e)}} -> v, {cl_pat=p; cl_exp=e; cl_env=[]}
-           | _ -> Misc.fatal_error "Static.eval_net_defns")  (* should not happen *)
+           | _ -> Misc.fatal_error "Eval_fun.eval_net_defns")  (* should not happen *)
           defns in
       let env' = List.map (function (v,cl) -> (v, SVClos cl)) rec_cls in
       List.iter (fun (v,cl) -> cl.cl_env <- env' @ env) rec_cls;
@@ -244,7 +344,7 @@ and shorten_rec_paths boxes wires =
     | [|_,k1,ty1,_|], [|_,[],ty2,_|] ->
        let l1,_ = List.assoc k1 wires in
        new_wires, k1::deleted_wires, substs
-    | _, _ -> Misc.fatal_error "Static.shorten_rec_paths" in
+    | _, _ -> Misc.fatal_error "Eval_fun.shorten_rec_paths" in
   let apply_substs substs (i,b) =
     let subst k = match List.assoc_opt k substs with Some k' -> k' | None -> k in
     i, { b with b_ins = Array.map (function (i,k,ty,anns) -> i, subst k, ty, anns)  b.b_ins;
@@ -262,7 +362,7 @@ and eval_list_access loc v1 v2 =
      else invalid_list_index k loc
   | SVCons _, SVInt _ ->
      eval_list_access loc (list_of_cons v1) v2
-  | _, _ -> Misc.fatal_error "Static.eval_list_access" (* should not happen thx to TC *)
+  | _, _ -> Misc.fatal_error "Eval_fun.eval_list_access" (* should not happen thx to TC *)
   
 (* |-r Pat => E, B *)
 
@@ -298,153 +398,56 @@ and eval_definition istop (env,boxes) {b_desc=(pat,exp); b_loc=loc} =
   boxes'+++boxes'',
   wires'++wires''
 
-and eval_application env boxes wires loc val_fn val_arg = 
-  let mk_wire dst i v =
-    match v with
-    | SVLoc src -> src, (dst,i)
-    | _ -> Misc.fatal_error "Static.eval_application.mk_wire" in
-  match val_fn with
-  | SVClos {cl_pat=pat; cl_exp=exp; cl_env=env} ->
-      let env', _, _ =
-        begin try eval_match false [] [] pat val_arg
-        with Matching_fail -> binding_error pat.p_loc
-        end in
-      eval_expr (env++env') boxes exp
-  | SVNode n ->
-     let args = 
-       let get_loc = function SVLoc l -> l | _ -> illegal_application loc in
-       match val_arg with
-       | SVUnit -> []
-       | SVLoc l -> [l]
-       | SVTuple vs when List.length vs = List.length n.sn_ins -> List.map get_loc vs
-       | _ -> illegal_application loc in
-     let params =
-       List.map
-         (function
-          | _, SVLoc l, _, _ -> l
-          | _, _, _, _ -> Misc.fatal_error "eval_application")
-        n.sn_params in
-     begin match eval_node_application boxes n params args with
-     | [], boxes', wires' -> SVUnit, boxes', wires'
-     | [v], boxes', wires' -> v, boxes', wires'
-     | vs, boxes', wires' -> SVTuple vs, boxes', wires'
-     end
-  | _ ->
-     illegal_application loc
+and eval_node_application env boxes wires loc n val_arg = 
+  let args, boxes_a, wires_a = eval_node_arguments loc env boxes n val_arg in
+  match instanciate_node (boxes+++boxes_a) n args with
+  | [], boxes', wires' -> SVUnit, boxes_a+++boxes', wires'++wires_a
+  | [v], boxes', wires' -> v, boxes_a+++boxes', wires'++wires_a
+  | vs, boxes', wires' -> SVTuple vs, boxes_a+++boxes', wires'++wires_a
 
-and copy_node n =
-(* Make a copy a a node description with fresh type variables when present *)
-  let open Types in
-  let ty =
-    TyProduct [
-        TyProduct (List.map (fun (_,_,ty,_) -> ty) n.sn_params);
-        TyProduct (List.map (fun (_,ty,_) -> ty) n.sn_ins);
-        TyProduct (List.map (fun (_,ty,_) -> ty) n.sn_outs) ] in
-  match Types.type_copy ty with
-    TyProduct [TyProduct ts1; TyProduct ts2; TyProduct ts3] ->
-      { n with sn_params = List.map2 (fun (id,v,_,anns) ty -> id,v,ty,anns) n.sn_params ts1;
-               sn_ins = List.map2 (fun (id,_,anns) ty -> id,ty,anns) n.sn_ins ts2;
-               sn_outs = List.map2 (fun (id,_,anns) ty -> id,ty,anns) n.sn_outs ts3 }
-  |  _ 
-  | exception Invalid_argument _ ->
-      Misc.fatal_error "Eval_fun.instanciate_node"
-         
-
-and eval_param_expr env boxes e =
-  let get_loc v =
-    match lookup env e.e_loc v with
-     | SVLoc ((src,_,_) as l) -> 
-        let b = List.assoc src boxes in
-        if b.b_tag=InParamB then Some l else None
-     | _ ->
-        None in
-  let extract_deps e =
-    let module LocSet = Set.Make(struct type t=string*sv_loc let compare=Stdlib.compare end) in
-    let rec scan e = match e.e_desc with
-    | EVar v ->
-       begin
-         match get_loc v with
-         | Some l -> LocSet.singleton (v,l)
-         | None -> LocSet.empty 
-       end
-    | EBinop (op,e1,e2) ->
-       scan e1 |> LocSet.union (scan e2)
-    | _ ->
-       LocSet.empty in
-    scan e |> LocSet.elements in
-  let ty = e.e_typ in
-  match e.e_desc with
-  | EInt n ->
-     let bid = new_bid () in
-     let bv = { bv_lit = e; bv_sub=e; bv_val = SVInt n } in
-     let name = "p" ^ string_of_int bid in
-     let b = new_box bid name LocalParamB [] ["o",[],ty,[]] bv in
-     [SVLoc (bid,0,ty)],
-     [bid,b], 
+and eval_node_arguments loc env boxes n val_arg = 
+  let get_loc = function
+    | SVLoc l -> l, [], []
+    | SVInt n -> eval_param_const Types.type_int (EInt n) (SVInt n)
+    | SVBool n -> eval_param_const Types.type_bool (EBool n) (SVBool n)
+    | SVQuote e -> eval_param_expr env boxes e
+    | _ -> illegal_application loc in
+  match val_arg with
+  | SVUnit ->
+     [],
+     [],
      []
-  | EBool n ->
-     let bid = new_bid () in
-     let bv = { bv_lit = e; bv_sub=e; bv_val = SVBool n } in
-     let name = "p" ^ string_of_int bid in
-     let b = new_box bid name LocalParamB [] ["o",[],ty,[]] bv in
-     [SVLoc (bid,0,ty)],
-     [bid,b], 
-     []
-  | EVar v -> 
-     begin
-       match get_loc v with
-       | Some l ->
-          [SVLoc l],
-          [],
-          []
-       | None ->
-          illegal_param_expr e.e_loc
-     end
-  | ETuple es ->
-    let vs, bss, wss = List.map (eval_param_expr env boxes) es |> Misc.list_split3 in
-    List.concat vs,
-    Misc.fold_left1 (+++) bss,
-    Misc.fold_left1 (++) wss
-  | EBinop (op,e1,e2) ->
-     let slocs = extract_deps e in
-     let bid = new_bid () in
-     let ws = List.mapi (fun i (_,l) -> new_wid (), (l,(bid,i,ty))) slocs in
-     let bins = List.mapi (fun i (wid,(l,((_,_,ty) as l'))) -> "i" ^ string_of_int (i+1), wid, ty, []) ws in
-     let name = "p" ^ string_of_int bid in
-     let bv = { bv_lit=e; bv_sub=subst_param_deps slocs e; bv_val=static_value env e } in 
-     let b = new_box bid name LocalParamB bins ["o",[],ty,[]] bv in
-     let bs' = List.map2 (fun (_,(l,s,_)) (wid,_) -> l, add_box_output boxes l s wid) slocs ws in
-     [SVLoc (bid,0,ty)],
-     bs'++[bid,b], 
-     ws
-  | _ ->
-     illegal_param_expr e.e_loc
+  | SVTuple vs when List.length vs = List.length n.sn_ins ->
+     let ls, bss, wss = List.map get_loc vs |> Misc.list_split3 in
+     ls,
+     Misc.fold_left1 (+++) bss,
+     Misc.fold_left1 (++) wss
+  | v ->
+     let l, boxes', wires' = get_loc v in
+     [l],
+     boxes',
+     wires'
 
-and subst_param_deps substs expr =
-  let rec subst e = match e.e_desc with
-    | EVar v ->
-       begin match Misc.assoc_pos v substs with
-       | 0 -> e (* Not found *)
-       | j -> { e with e_desc = EVar ("i" ^ string_of_int j) }
-       end
-    | EBinop (op,e1,e2) ->
-       { e with e_desc = EBinop (op, subst e1, subst e2) }
-    | _ -> e in
-  subst expr
-       
-and eval_node_application boxes n param_locs arg_locs = 
+and instanciate_node boxes n arg_locs = 
     let bid = new_bid () in
-    let ws = List.mapi (fun i ((_,_,ty) as l) -> new_wid (), (l,(bid,i,ty))) (param_locs @ arg_locs) in
+    let ws =
+      List.mapi
+        (fun i ((_,_,ty) as l) -> new_wid (), (l,(bid,i,ty)))
+        arg_locs in
+    (* let ws =
+     *   Misc.map2i
+     *     (fun i ((_,_,ty) as l) (id,ty',e,anns) -> new_wid (), (l,(bid,i,ty'))) (\* TO FIX ? [ty] or [ty'] here ? *\)
+     *     arg_locs
+     *     n.sn_ins in *)
     let bins =
       List.map2
-        (fun (id,anns) (wid,(_,(_,_,ty))) -> id,wid,ty,anns)
-          (List.map (fun (id,_,_,anns) -> id, anns) n.sn_params
-         @ List.map (fun (id,_,anns) -> id, anns) n.sn_ins)
+        (fun (id,ty,e,anns) (wid,(_,(_,_,ty'))) -> id,wid,ty',anns)
+        n.sn_ins
         ws in
-    let bouts = List.map (fun (id,ty,anns) -> id,[],ty,anns) n.sn_outs in 
+    let bouts = List.map (fun (id,ty,e,anns) -> id,[],ty,anns) n.sn_outs in 
     let tag = tag_of_kind n.sn_kind in
     let b = new_box bid n.sn_id tag bins bouts no_bval in
-    let bs' = List.map2 (fun (l,s,ty) (wid,_) -> l, add_box_output boxes l s wid) (param_locs @ arg_locs) ws in
+    let bs' = List.map2 (fun (l,s,ty) (wid,_) -> l, add_box_output boxes l s wid) arg_locs ws in
     let bs'' = match bs' with
       | [] -> []
       | _ -> bs' |> List.map (fun b -> [b]) |> Misc.fold_left1 (+++) in (* Merge updates to the same box *)

@@ -27,7 +27,7 @@ type dot_config = {
     mutable srcsnk_box_shape: string;
     mutable bcast_box_shape: string;
     mutable slotted_boxes: bool;
-    mutable show_wire_annots: bool;
+    mutable show_wire_types: bool;
     mutable show_io_rates: bool;
     mutable rank_dir: string
   }
@@ -43,7 +43,7 @@ let cfg = {
   srcsnk_box_shape = "cds";
   bcast_box_shape = "octagon";
   slotted_boxes = false;
-  show_wire_annots = false;
+  show_wire_types = true;
   show_io_rates = true;
   rank_dir = "LR"
 }
@@ -72,6 +72,13 @@ let output_box ch (i,b) =
     | BcastB -> cfg.bcast_box_shape
     | SourceB | SinkB -> cfg.srcsnk_box_shape
     | _ -> "box" in
+  let param_lbl b =
+    match Syntax.string_of_expr b.b_val.bv_sub with
+    | "" -> b.b_model 
+    | s -> s in
+    (* match b.b_val.bv_val with
+     * | SVUnit -> bid
+     * | v -> bid ^ "=" ^ Semval.string_of_semval v in *)
   match b.b_tag with
   | ActorB -> output_regular_box cfg.actor_box_style 
   | GraphB -> output_regular_box cfg.graph_box_style
@@ -82,33 +89,28 @@ let output_box ch (i,b) =
        bid
   | RecB -> output_regular_box cfg.rec_box_style 
   | InParamB -> 
-     let lbl =
-       begin match b.b_val.bv_val with
-       | SVUnit -> bid
-       | v -> bid ^ "=" ^ Semval.string_of_semval v
-       end in
      fprintf ch "n%d [shape=%s,style=\"dashed\",label=\"%s\"];\n"
        i
        cfg.input_param_box_shape
-       lbl
+       (param_lbl b)
   | LocalParamB -> 
-     let lbl = bid in
      fprintf ch "n%d [shape=%s,style=\"dashed\",label=\"%s\"];\n"
        i
        cfg.local_param_box_shape
-       lbl
+       (param_lbl b)
 
 let output_wire ch (wid,(((s,ss,ty),(d,ds,_)))) =
   let style = if Types.is_param_type ty then "dashed" else "plain" in
-  match cfg.labeled_edges, cfg.show_indexes, cfg.show_wire_annots with
-  | true, _, true ->
-     fprintf ch "n%d:s%d -> n%d:e%d [label=\" w%d\"; style=%s];\n" s ss d ds wid style
-  | true, true, false ->
-     fprintf ch "n%d:s%d -> n%d:e%d [label=\" %s\"; style=%s];\n" s ss d ds ("w" ^ string_of_int wid) style
-  | true, false, false ->
-     fprintf ch "n%d:s%d -> n%d:e%d [label=\" %s\"; style=%s];\n" s ss d ds "" style
-  | false, _, _ ->
+  match cfg.labeled_edges, cfg.show_wire_types, cfg.show_indexes with
+  | false, _, _
+    | true, false, false ->
      fprintf ch "n%d:s%d -> n%d:e%d [style=%s];\n" s ss d ds style
+  | true, true, false ->
+     fprintf ch "n%d:s%d -> n%d:e%d [label=\"%s\"; style=%s];\n" s ss d ds (Pr_type.string_of_type ty) style
+  | true, false, true ->
+     fprintf ch "n%d:s%d -> n%d:e%d [label=\"w%d\"; style=%s];\n" s ss d ds wid style
+  | true, true, true ->
+     fprintf ch "n%d:s%d -> n%d:e%d [label=\"w%d:%s\"; style=%s];\n" s ss d ds wid (Pr_type.string_of_type ty) style
 
 let output_graph oc boxes wires = 
   fprintf oc "digraph g {\n";

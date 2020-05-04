@@ -48,15 +48,16 @@ let output pfx ir =
   | NoOutput -> ()
   | Dot ->
      Dot.dump path pfx ir
-   | Systemc ->
-      Systemc.dump path pfx ir
-     (* if has_splitters ir then Systemc.dump_split_actors ir; *)
-  | Preesm ->
-     Preesm.dump path pfx ir
-  | Xdf ->
-     Xdf.dump path pfx ir
-  | Dif ->
-     Dif.dump path pfx ir
+  (* | Systemc ->
+   *     Systemc.dump path pfx ir
+   *    (\* if has_splitters ir then Systemc.dump_split_actors ir; *\)
+   * | Preesm ->
+   *    Preesm.dump path pfx ir
+   * | Xdf ->
+   *    Xdf.dump path pfx ir
+   * | Dif ->
+   *    Dif.dump path pfx ir *)
+  | _ -> ()
 
 let insert_bcasts ir = 
   if Interm.cfg.insert_bcasts then
@@ -78,6 +79,7 @@ let process_file p f =
 let process_files fs =
   let p = List.fold_left process_file Syntax.empty_program fs in
   (* Syntax.dump_program p; *)
+  let ir = p |> compile in
   let ir = p |> compile |> insert_bcasts in
   if Options.cfg.dump_ir then Interm.dump_ir ~typed:true ir;
   if Options.cfg.output_fmt <> NoOutput then begin

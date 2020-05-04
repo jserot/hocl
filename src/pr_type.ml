@@ -48,7 +48,7 @@ let rec output_typ b sch priority ty =
       if priority >= 1 then add_string b ")"
   | TyProduct ts ->
       if priority >= 2 then add_string b "(";
-      output_typ_list b sch 2 "*" ts;
+      output_typ_list b sch 2 " * " ts;
       if priority >= 2 then add_string b ")"
   | TyConstr (c, args) ->
       begin match args with

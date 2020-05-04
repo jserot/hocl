@@ -55,10 +55,14 @@ let builtin_primitives = [
 (* Initial typing environment *)
 
 let typing_env =
-  [ "int", type_int;
-    "bool", type_bool;
-    "unit", type_unit ],
-   List.map (fun (id,(ty,_)) -> id, ty) builtin_primitives
+ [ "int", 0;
+   "bool", 0;
+   "unit", 0;
+   "param", 1;
+   "data", 1 ],
+  List.map
+    (fun (id,(ty,_)) -> id, ty)
+    builtin_primitives
 
 (* Initial static environment *)
 

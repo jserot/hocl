@@ -39,7 +39,7 @@ let unbound_type name loc =
   raise Error
 
 let wrong_type_err site ty1 ty2 loc =
-  eprintf "%aAn error occured when typing this %s : types %s and %s cannot be unified.\n"
+  eprintf "%aAn error occured when typing this %s : types '%s' and '%s' cannot be unified.\n"
     output_location loc
     site
     (string_of_type ty1)
@@ -94,4 +94,10 @@ let illegal_interface what name msg =
 let illegal_type_var loc =
   eprintf "%aIllegal type expression. Type variables are not accepted here.\n"
     output_location loc;
+  raise Error
+
+let wrong_type_arity c arity nargs loc =
+  eprintf "%aThe type constructor %s expects %d type argument(s) but is here only given %d.\n"
+    output_location loc
+    c arity nargs;
   raise Error

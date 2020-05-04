@@ -41,7 +41,6 @@
 %token <string> INFIX1
 %token <string> INFIX2
 %token <string> INFIX3
-%token PARAM
 %token TYPE
 %token GRAPH
 %token LBRACKET
@@ -58,6 +57,7 @@
 %token LBRACE
 %token RBRACE
 %token <string> TYVAR
+%token QUOTE
 
 (* Precedences and associativities. Lower precedences first.*)
 
@@ -99,7 +99,6 @@ let mk_location (p1,p2) =
 
 let mk_type_expr l desc = { te_desc = desc; te_loc = mk_location l; te_typ = Types.no_type }
 let mk_type_decl l desc = { td_desc = desc; td_loc = mk_location l }
-let mk_param_decl l desc = { pm_desc = desc; pm_loc = mk_location l; pm_typ = Types.no_type }
 let mk_io_decl l desc = { io_desc = desc; io_loc = mk_location l; io_typ = Types.no_type }
 let mk_val_decl l desc = { vd_desc = desc; vd_loc = mk_location l }
 let mk_node_decl l desc = { nd_desc = desc; nd_loc = mk_location l }
@@ -147,15 +146,15 @@ type_decl:
 (* NODE and GRAPH DECLARATIONS *)
 
 node_decl:
-   NODE id=IDENT params=loption(node_param_decls) IN inps=io_decls OUT outps=io_decls impl=option(node_impl)
+   NODE id=IDENT IN inps=io_decls OUT outps=io_decls impl=option(node_impl)
      { mk_node_decl
        $sloc
-       (id, { n_intf={n_id=id; n_isgraph=false; n_params=params; n_ins=inps; n_outs=outps };
+       (id, { n_intf={n_id=id; n_isgraph=false; n_ins=inps; n_outs=outps };
             n_impl=match impl with None -> NM_Actor [] | Some im -> im }) }
-  | GRAPH id=IDENT params=loption(graph_param_decls) IN inps=io_decls OUT outps=io_decls impl=node_impl
+  | GRAPH id=IDENT IN inps=io_decls OUT outps=io_decls impl=node_impl
      { mk_node_decl
        $sloc
-       (id,{ n_intf={n_id=id; n_isgraph=true; n_params=params; n_ins=inps; n_outs=outps };
+       (id,{ n_intf={n_id=id; n_isgraph=true; n_ins=inps; n_outs=outps };
             n_impl=impl })}
 
 node_impl:
@@ -170,23 +169,14 @@ impl_attr:
   | name=IDENT EQUAL v=STRING { name, v }
   | name=IDENT { name, "" }
 
-node_param_decls:
-  | PARAM LPAREN ps=separated_list(COMMA,node_param_decl) RPAREN { ps }
-
-node_param_decl:
-  | id=IDENT COLON t=type_expr { mk_param_decl $sloc (id,t,None,[]) } (* TO ADD ? Parameter annotations *)
-
-graph_param_decls:
-  | PARAM LPAREN ps=separated_list(COMMA,graph_param_decl) RPAREN { ps }
-
-graph_param_decl:
-  | id=IDENT COLON t=type_expr EQUAL e=simple_expr { mk_param_decl $sloc (id,t,Some e,[]) }
-
 io_decls:
   | LPAREN ios=separated_list(COMMA,io_decl) RPAREN { ios }
 
 io_decl:
-  | id=IDENT COLON t=type_expr anns=io_annots { mk_io_decl $sloc (id,t,anns) }
+  | id=IDENT COLON t=type_expr e=option(io_expr) anns=io_annots { mk_io_decl $sloc (id,t,e,anns) }
+
+io_expr:
+  | EQUAL e=simple_expr { mk_expr $sloc (EQuote e) }
 
 io_annots:
   | (* Nothing *) { [] }
@@ -196,9 +186,13 @@ io_annots:
 io_annot:
   | name=IDENT EQUAL value=STRING { name, AN_String value }
 
-type_expr:
-      | id=IDENT { mk_type_expr $sloc (Typeconstr id) }
+simple_type_expr:
+      | c=IDENT { mk_type_expr $sloc (Typeconstr (c,[])) }
       | tv=TYVAR { mk_type_expr $sloc (Typevar tv) }
+
+type_expr:
+      | t=simple_type_expr { t }
+      | t=simple_type_expr c=IDENT { mk_type_expr $sloc (Typeconstr (c,[t])) }
                        
 (* VAL DECLARATIONS *)
 
@@ -263,6 +257,8 @@ simple_expr:
           { mk_expr $sloc (EList es) }
       | LBRACKET RBRACKET
           { mk_expr $sloc ENil }
+      | QUOTE e=basic_expr QUOTE
+          { mk_expr $sloc (EQuote e) }
 
 const_expr:      
       | n=INT
@@ -322,11 +318,32 @@ wire_decl:
      { List.map (fun id -> mk_wire_decl $sloc (id,t)) ids }
 
 box_decl:
-  | BOX id=IDENT COLON node=IDENT params=loption(box_params) inps=box_ios outps=box_ios
-     { mk_box_decl $sloc (id, { bx_node=node; bx_params=params; bx_ins=inps; bx_outs=outps }) }
+  | BOX id=IDENT COLON node=IDENT inps=box_inps outps=box_outps
+     { mk_box_decl $sloc (id, { bx_node=node; bx_ins=inps; bx_outs=outps }) }
 
-box_params:
-  | LBRACKET vs=separated_list(COMMA,basic_expr) RBRACKET { vs }
+box_inps:
+  | LPAREN ios=separated_list(COMMA,box_inp) RPAREN { ios }
+
+box_outps:
+  | LPAREN ios=separated_list(COMMA,box_outp) RPAREN { ios }
+
+box_inp:
+  | id=IDENT { mk_expr $sloc (EVar id) }
+  | QUOTE e=basic_expr QUOTE { e }
+
+box_outp:
+  | id=IDENT { mk_expr $sloc (EVar id) }
+                 
+(* box_decl:
+ *   | BOX id=IDENT COLON node=IDENT params=loption(box_params) inps=box_ios outps=box_ios
+ *      { mk_box_decl $sloc (id, { bx_node=node; bx_params=params; bx_ins=inps; bx_outs=outps }) }
+ * 
+ * box_params:
+ *   | LBRACKET vs=separated_list(COMMA,basic_expr) RBRACKET { vs } *)
+
+(* quoted_expr:
+ *       | LBRACE e=basic_expr RBRACE
+ *           { mk_expr $sloc (EQuote e) } *)
 
 basic_expr:
       | id=IDENT
@@ -340,7 +357,4 @@ basic_expr:
       | e1=basic_expr op=INFIX3 e2=basic_expr
           { mk_binop $sloc op e1 e2 }
 
-box_ios:
-  | LPAREN ios=separated_list(COMMA,IDENT) RPAREN { ios }
-      
 %%

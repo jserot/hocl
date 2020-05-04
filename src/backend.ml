@@ -64,12 +64,12 @@ type delay_spec = {
 
 let get_delay_spec name intf =
      let iv_name, ty =
-       match List.find_opt (fun (id,ty,e,anns) -> id = "ival") intf.sn_params with
+       match List.find_opt (fun (id,ty,e,anns) -> id = "ival") intf.sn_ins with
        | None -> Error.missing_ival_param name
        | Some (id,ty,_,_) -> id, ty in
      let get_io_spec ios =
        match ios with
-       | [(id,ty,annots)] -> id, get_rate_expr annots
+       | [(id,ty,e,annots)] -> id, get_rate_expr annots
        | _ -> Error.illegal_interface "delay" name " (should have exactly one input and one output)" in
      let i_name, i_rate = get_io_spec intf.sn_ins in
      let o_name, o_rate = get_io_spec intf.sn_outs in
@@ -104,7 +104,7 @@ let is_special_actor name =
   | "delay" | "bcast" | "switch" | "merge" -> true
   | _ -> false
 
-let is_data_wire (wid,((_,_,ty),_)) = Types.is_wire_type ty
+let is_data_wire (wid,((_,_,ty),_)) = Types.is_data_type ty
 let is_param_input (id,wid,ty,annots) = Types.is_param_type ty
 
 let get_src_box boxes ((s,ss,ty),_) = Eval.lookup_box s boxes

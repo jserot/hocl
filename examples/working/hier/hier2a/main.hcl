@@ -2,7 +2,7 @@
 -- The [sub] node included in the [top] toplevel graph  is itself a graph, here described functionally
 -- The [sub] node uses a local parameter
 
-node foo param (k: int) in (i: int) out (o: int)
+node foo in (k: int param, i: int) out (o: int)
 actor
   systemc(loop_fn="foo", incl_file="./include/foo.h", src_file="./src/foo.cpp")
 end;

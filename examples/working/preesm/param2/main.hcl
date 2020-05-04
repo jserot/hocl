@@ -10,7 +10,7 @@ actor
   preesm(loop_fn="output", incl_file="./include/output.h", src_file="./src/output.cpp")
 end;
 
-node mult param (k1: int, k2: int) in (i: int) out (o: int)
+node mult in (k1: int param, k2: int param, i: int) out (o: int)
 actor
   preesm(loop_fn="mult", incl_file="./include/mult.h", src_file="./src/mult.cpp")
 end;

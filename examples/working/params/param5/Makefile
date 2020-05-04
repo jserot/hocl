@@ -1,6 +1,6 @@
 SRCS=main.hcl
-GEN_OPTS=
-DOT_OPTS=-target_dir ./dot
+GEN_OPTS=-dump_ir
+DOT_OPTS=-target_dir ./dot -dot_slotted_boxes
 SYSTEMC_OPTS=-target_dir systemc
 PREESM_OPTS=-target_dir preesm
 XDF_OPTS=-target_dir xdf

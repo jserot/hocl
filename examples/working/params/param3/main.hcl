@@ -1,12 +1,12 @@
 -- Dependent parameters
 
-node mult param (k: int) in (i: int) out (o: int)
+node mult in (k: int param, i: int data) out (o: int data)
 actor
   systemc(loop_fn="mult", incl_file="./include/mult.h", src_file="./src/mult.cpp")
 end;
 
-graph top param (k: int = 1) in (i: int) out (o: int)
+graph top in (k: int param = 1, i: int data) out (o: int data)
 fun
-  val o = mult (k+1) i
+  val o = mult ('k+1',i)
 end;
 

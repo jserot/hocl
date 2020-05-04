@@ -39,7 +39,6 @@ let keyword_table = [
   "if", IF;
   "then", THEN;
   "else", ELSE;
-  "param", PARAM;
   "type", TYPE;
   "graph", GRAPH;
   "match", MATCH;
@@ -96,7 +95,7 @@ rule main = parse
     [' ' '\010' '\013' ] +
       { main lexbuf }
   | ['A'-'Z' 'a'-'z' ]
-    ( ['A'-'Z' 'a'-'z' '0'-'9' '\'' '_' ] ) *
+    ( ['A'-'Z' 'a'-'z' '0'-'9' '_' ] ) *
       { let s = Lexing.lexeme lexbuf in
           try
             List.assoc s keyword_table
@@ -114,6 +113,7 @@ rule main = parse
   | "{" { LBRACE }
   | "}" { RBRACE }
   | "," { COMMA }
+  | "'" { QUOTE }
   | "->" { ARROW }
   | ";" { SEMI }
   | "=" { EQUAL }
