@@ -2,7 +2,7 @@
 -- The [sub] node included in the [top] toplevel graph  is itself a graph, here described functionally
 -- The [sub] node uses a local parameter
 
-node foo param (k: int) in (i: int) out (o: int)
+node foo in (k: int param, i: int) out (o: int)
 actor
   preesm(loop_fn="foo", incl_file="./include/foo.h", src_file="./src/foo.cpp")
 end;
@@ -22,12 +22,12 @@ actor
   preesm(loop_fn="output", incl_file="./include/output.h", src_file="./src/output.cpp")
 end;
 
-node sub param (k: int) in (i: int) out (o: int)
+node sub in (k: int param, i: int) out (o: int)
 fun
-  val o = i |> foo k |> bar
+  val o = foo (k,i) |> bar
 end;
 
 graph top in () out ()
 fun
-  val _ = inp |-> sub 2 |> outp
+  val _ = sub ('2', inp ()) |> outp
 end;

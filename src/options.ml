@@ -73,14 +73,14 @@ let set_sc_trace_fifos () = Systemc.cfg.Systemc.sc_trace_fifos <- true
 let set_sc_dump_fifos () = Systemc.cfg.Systemc.sc_dump_fifos <- true
 let set_sc_dump_fifo_stats () = Systemc.cfg.Systemc.sc_dump_fifo_stats <- true
 let set_sc_fifo_stats_file f = Systemc.cfg.Systemc.sc_fifo_stats_file <- f
-(* (\* PREESM related options *\)
- * let do_preesm () = begin cfg.output_fmt <- Preesm; Interm.cfg.Interm.insert_bcasts <- true end
- * let set_preesm_name n = Preesm.cfg.Preesm.top_name <- n *)
-(* (\* XDF related options *\)
- * let do_xdf () = cfg.output_fmt <- Xdf
- * let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p *)
-(* (\* DIF related options *\)
- * let do_dif () = cfg.output_fmt <- Dif *)
+(* PREESM related options *)
+let do_preesm () = begin cfg.output_fmt <- Preesm; Interm.cfg.Interm.insert_bcasts <- true end
+let set_preesm_name n = Preesm.cfg.Preesm.top_name <- n
+(* XDF related options *)
+let do_xdf () = cfg.output_fmt <- Xdf
+let set_xdf_package p = Xdf.cfg.Xdf.target_package <- p
+(* DIF related options *)
+let do_dif () = cfg.output_fmt <- Dif
 (* VHDL related options *)
 (* let do_vhdl () = cfg.output_fmt <- Vhdl *)
 
@@ -116,10 +116,10 @@ let options_spec = [
 "-sc_trace_fifos", Arg.Unit (set_sc_trace_fifos), "trace fifo usage in .vcd file";
 "-sc_dump_fifo_stats", Arg.Unit (set_sc_dump_fifo_stats), "dump fifo usage statistics after run";
 "-sc_fifo_stats_file", Arg.String (set_sc_fifo_stats_file), "set file for dumping fifo statistics (default: fifo_stats.dat)";
-(* "-preesm", Arg.Unit (do_preesm), "activate the Preesm backend";
- * (\* "-preesm_top_name", Arg.String (set_preesm_name), "set top level name for Preesm graph (default: base name of input file"; *\) *)
-(* "-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network";
- * "-xdf_package", Arg.String (set_xdf_package), "set package name for the generated XDF code"; *)
-(* "-dif", Arg.Unit (do_dif), "generate .dif representation of the program"; *)
+"-preesm", Arg.Unit (do_preesm), "activate the Preesm backend";
+(* "-preesm_top_name", Arg.String (set_preesm_name), "set top level name for Preesm graph (default: base name of input file"; *)
+"-xdf", Arg.Unit (do_xdf), "generate .xdf representation of the network";
+"-xdf_package", Arg.String (set_xdf_package), "set package name for the generated XDF code";
+"-dif", Arg.Unit (do_dif), "generate .dif representation of the program";
 (* "-vhdl", Arg.Unit (do_vhdl), "activate the VHDL backend"; *)
 ];

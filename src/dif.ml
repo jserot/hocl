@@ -74,11 +74,12 @@ let dump_actor_decl oc g (name,n) =
   | NI_Actor _ ->
      if List.exists (fun (_,b) -> b.b_model = name) g.sg_boxes  then begin
          (* Do not declare actors which are not instantiated in the graph *)
+         let params, dins = List.partition (fun (id,ty,_,_) -> Types.is_param_type ty) n.sn_intf.sn_ins in
          fprintf oc "  actortype %s {\n" name;
-         fprintf oc "    input %s;\n" (Misc.string_of_list (function (i,ty,_) -> i) ", " n.sn_intf.sn_ins);
-         fprintf oc "    output %s;\n" (Misc.string_of_list (function (i,ty,_) -> i) ", " n.sn_intf.sn_outs);
-         if n.sn_intf.sn_params <> [] then
-           fprintf oc "    param %s;\n" (Misc.string_of_list (function (i,ty,_,_) -> i) ", " n.sn_intf.sn_params);
+         fprintf oc "    input %s;\n" (Misc.string_of_list (function (i,ty,_,_) -> i) ", " dins);
+         fprintf oc "    output %s;\n" (Misc.string_of_list (function (i,ty,_,_) -> i) ", " n.sn_intf.sn_outs);
+         if params <> [] then
+           fprintf oc "    param %s;\n" (Misc.string_of_list (function (i,ty,_,_) -> i) ", " params);
          fprintf oc "    }\n\n"
        end
      

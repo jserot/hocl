@@ -15,7 +15,7 @@ actor
   preesm(loop_fn="mult", incl_file="./include/mult.h", src_file="./src/mult.cpp")
 end;
 
-graph top param (k:int param=1) in () out ()
+graph top in (k:int param=1) out ()
 fun
-  val _ = inp |-> mult (k+1) |> outp
+  val _ = mult ('k+1',inp()) |> outp
 end;

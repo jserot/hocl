@@ -43,9 +43,15 @@ let rec string_of_type t  =
   match Types.real_type t with
   | TyConstr ("int", []) -> "int"
   | TyConstr ("bool", []) -> "bool"
-  | TyConstr("wire", [ty]) -> string_of_type ty 
+  | TyConstr("data", [ty]) -> string_of_type ty 
+  | TyConstr("param", [ty]) -> string_of_type ty 
   | TyConstr (n, []) -> n
   | _ -> Error.not_implemented ("PREESM translation of type " ^ Pr_type.string_of_type t)
+
+let string_of_expr e =
+  match e.Syntax.e_desc with
+  | Syntax.EQuote e -> Syntax.string_of_expr e (* Do not print "'" in SystemC code *)
+  | _ -> Syntax.string_of_expr e
 
 (* let string_of_val v = match v with  
  *     SVInt n -> string_of_int n
@@ -193,9 +199,9 @@ let dump_actor oc ir g (i,b)  =
 let dump_parameter oc ~toplevel (i,b) =
   match b.b_tag, b.b_val, toplevel with
   | LocalParamB, v, _ ->
-     fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (Syntax.string_of_expr v.bv_lit) b.b_model 
+     fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (string_of_expr v.bv_lit) b.b_model 
   | InParamB, v, true ->
-     fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (Syntax.string_of_expr v.bv_lit) b.b_model 
+     fprintf oc "    <node expr=\"%s\" id=\"%s\" kind=\"param\"/>\n" (string_of_expr v.bv_lit) b.b_model 
   | InParamB, _, false ->
      fprintf oc "    <node id=\"%s\" kind=\"cfg_in_iface\"/>\n" b.b_model 
   | _ -> ()
