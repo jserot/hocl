@@ -85,7 +85,8 @@ let localize_id s = "_" ^ s
 
 let rec string_of_type t  = match real_type t with (* TO REFINE *)
   | TyConstr(name, []) -> name
-  | TyConstr("wire", [ty]) -> string_of_type ty 
+  | TyConstr("data", [ty]) -> string_of_type ty 
+  | TyConstr("param", [ty]) -> string_of_type ty 
   (* | Tconstr({tc_name="array"}, [ty], [sz]) -> 
    *     "std::array" ^ "<" ^ string_of_type ty ^  "," ^ string_of_size sz ^ ">" *)
   | ty -> Error.not_implemented ("Systemc translation of type " ^ Pr_type.string_of_type t) 
@@ -128,15 +129,15 @@ let dump_module_intf oc name (intf: Interm.sn_intf) =
   let modname = String.capitalize_ascii name in
   fprintf oc "SC_MODULE(%s) {\n" modname;
   fprintf oc "  sc_in<bool> %s;\n" cfg.sc_mod_clock;
+  (* List.iter
+   *   (fun (id,ty,e,anns) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
+   *   intf.sn_params; *)
   List.iter
-    (fun (id,ty,e,anns) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
-    intf.sn_params;
-  List.iter
-    (fun (id,ty,anns) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
+    (fun (id,ty,_,anns) -> fprintf oc "  sc_fifo_in<%s > %s;\n" (string_of_type ty) id)
     (* intf.n_real_ins; *)
     intf.sn_ins;
   List.iter
-    (fun (id,ty,anns) -> fprintf oc "  sc_fifo_out<%s > %s;\n" (string_of_type ty) id)
+    (fun (id,ty,_,anns) -> fprintf oc "  sc_fifo_out<%s > %s;\n" (string_of_type ty) id)
     (* intf.n_real_outs *)
     intf.sn_outs
 
@@ -174,19 +175,22 @@ let rec dump_actor_intf prefix oc name (intf: Interm.sn_intf) attrs =
   fprintf oc "\n";
   fprintf oc "  private:\n";
   fprintf oc "    // Local variables\n";
+  (* let dump_local_var' (id,ty,e,anns) =
+   *   fprintf oc "    %s %s;\n" (string_of_type ty) (localize_id id) in *)
   let dump_local_var (id,ty,e,anns) =
-    fprintf oc "    %s %s;\n" (string_of_type ty) (localize_id id) in
-  let dump_local_var' (id,ty,anns) =
-    match get_rate_expr anns with
-    | Some { e_desc=EInt n } ->
-       fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) n (* Static allocation *)
-    | Some _ ->
-       fprintf oc "    %s *%s;\n" (string_of_type ty) (localize_id id) (* Dynamic allocation *)
-    | None -> (* No rate specified *)
-       fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) cfg.sc_default_io_rate in
-  List.iter dump_local_var intf.sn_params;
-  List.iter dump_local_var' intf.sn_ins;
-  List.iter dump_local_var' intf.sn_outs;
+    if is_param_type ty then 
+      fprintf oc "    %s %s;\n" (string_of_type ty) (localize_id id)
+    else
+      match get_rate_expr anns with
+      | Some { e_desc=EInt n } ->
+         fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) n (* Static allocation *)
+      | Some _ ->
+         fprintf oc "    %s *%s;\n" (string_of_type ty) (localize_id id) (* Dynamic allocation *)
+      | None -> (* No rate specified *)
+         fprintf oc "    %s %s[%d];\n" (string_of_type ty) (localize_id id) cfg.sc_default_io_rate in
+  (* List.iter dump_local_var' intf.sn_params; *)
+  List.iter dump_local_var intf.sn_ins;
+  List.iter dump_local_var intf.sn_outs;
   fprintf oc "    // Service\n";
   fprintf oc "    bool trace;\n";
   fprintf oc "    sc_module_name modname;\n";
@@ -195,7 +199,7 @@ let rec dump_actor_intf prefix oc name (intf: Interm.sn_intf) attrs =
 
 type io_kind = ParamIn | DataIn | DataOut
                                            
-let string_of_io (id,ty,kind) = localize_id id
+let string_of_io (id,ty,kind,anns) = localize_id id
   (* match kind with
    * | ParamIn -> localize_id id
    * | DataIn -> "&" ^ localize_id id
@@ -204,11 +208,15 @@ let string_of_io (id,ty,kind) = localize_id id
 let rec dump_actor_impl prefix oc name intf attrs =
   let modname = String.capitalize_ascii name in
   let incl_file, loop_fn, init_fn, is_delay, param_exec = get_impl_fns "systemc" name attrs in
-  let params = List.map (fun (id,ty,e,anns) -> id,ty,ParamIn) intf.sn_params in
-  let dinps = List.map (fun (id,ty,anns) -> id,ty,DataIn) intf.sn_ins in
-  let doutps = List.map (fun (id,ty,anns) -> id,ty,DataOut) intf.sn_outs in
+  (* let params = List.map (fun (id,ty,e,anns) -> id,ty,ParamIn) intf.sn_params in
+   * let dinps = List.map (fun (id,ty,e,anns) -> id,ty,DataIn) intf.sn_ins in *)
+  let params =
+    intf.sn_ins |> List.filter_map (fun (id,ty,_,anns) -> if is_param_type ty then Some (id,ty,ParamIn,anns) else None) in
+  let dinps =
+    intf.sn_ins |> List.filter_map (fun (id,ty,_,anns) -> if not (is_param_type ty) then Some (id,ty,DataIn,anns) else None) in
+  let doutps = List.map (fun (id,ty,_,anns) -> id,ty,DataOut,anns) intf.sn_outs in
   let clocked = intf.sn_ins = [] && params = [] in (* true for parameter-less, source actors *)
-  let local_params = List.map (function (id,_,_) -> id, localize_id id) params in
+  let local_params = List.map (function (id,_,_,_) -> id, localize_id id) params in
   let localize_rate_expr locals re =
     match re with
     | None -> None
@@ -222,7 +230,7 @@ let rec dump_actor_impl prefix oc name intf attrs =
       if  params <> [] then begin (* We need to wait for one clk event so that parameter values are available *)
         fprintf oc "    wait(%s.posedge_event());\n" cfg.sc_mod_clock;
         List.iter
-          (fun (id,_,_) -> fprintf oc "    %s = %s.read();\n" (localize_id id) id)
+          (fun (id,_,_,_) -> fprintf oc "    %s = %s.read();\n" (localize_id id) id)
           params
         end;
       if is_delay then begin
@@ -237,10 +245,10 @@ let rec dump_actor_impl prefix oc name intf attrs =
   if clocked then
     fprintf oc "      wait(%s.posedge_event());\n" cfg.sc_mod_clock;
   List.iter
-    (fun (id,_,_) -> fprintf oc "      %s = %s.read();\n" (localize_id id) id)
+    (fun (id,_,_,_) -> fprintf oc "      %s = %s.read();\n" (localize_id id) id)
     params;
-  List.iter  (* Dynamically allocate buffers for non-constant sized IOs *)
-    (fun (id,ty,anns) ->
+  List.iter  (* Dynamically allocate buffers for non-constant sized data IOs *)
+    (fun (id,ty,_,anns) ->
       match get_rate_expr anns with
      | Some e as e' when not (is_constant_expr e) ->
         fprintf oc "      %s = new %s[%s];\n" (localize_id id) (string_of_type ty) (string_of_io_rate' e')
@@ -249,9 +257,9 @@ let rec dump_actor_impl prefix oc name intf attrs =
       * | Some e as e' when not (Syntax.is_constant_core_expr e) ->
       *    fprintf oc "      %s = new %s[%s];\n" (localize_id id) (string_of_type ty) (string_of_io_rate' e')
       *  | _ -> ()) *)
-    (if is_delay then intf.sn_ins else intf.sn_ins @ intf.sn_outs); 
+    (if is_delay then dinps else dinps @ doutps); 
   List.iter
-    (fun (id,ty,anns) ->
+    (fun (id,ty,_,anns) ->
       let rate = get_rate_expr anns in
       fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s[__k] = %s.read();\n"
         (string_of_io_rate' rate) (localize_id id) id;
@@ -261,7 +269,7 @@ let rec dump_actor_impl prefix oc name intf attrs =
             (string_of_io_rate' rate) (localize_id id);
           fprintf oc "      cout << \" at \" << sc_time_stamp() << endl;\n"
         end)
-    intf.sn_ins;
+    dinps;
   if is_delay then begin
       let spec = get_delay_spec name intf in
       fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
@@ -273,7 +281,7 @@ let rec dump_actor_impl prefix oc name intf attrs =
        loop_fn
        (Misc.string_of_list string_of_io ", " ((if param_exec then [] else params) @ dinps @ doutps));
      List.iter
-       (fun (id,ty,anns) ->
+       (fun (id,ty,_,anns) ->
          let rate = get_rate_expr anns in
          fprintf oc "      for ( int __k=0; __k<%s; __k++ ) %s.write(%s[__k]);\n"
            (string_of_io_rate' rate) id (localize_id id);
@@ -283,15 +291,15 @@ let rec dump_actor_impl prefix oc name intf attrs =
                (string_of_io_rate' rate) (localize_id id);
              fprintf oc "      cout << \" at \" << sc_time_stamp() << endl;\n"
            end)
-       intf.sn_outs
+       doutps
     end;
   List.iter  (* Dynamically de-allocate buffers for non-constant sized IOs *)
-    (fun (id,ty,anns) ->
+    (fun (id,ty,_,anns) ->
       match get_rate_expr anns with 
      | Some e  when not (is_constant_expr e) ->
         fprintf oc "      delete [] %s;\n" (localize_id id)
      | _ -> ())
-    (if is_delay then intf.sn_ins else intf.sn_ins @ intf.sn_outs); 
+    (if is_delay then dinps else dinps @ doutps); 
   fprintf oc "    }\n";
   fprintf oc "}\n"
 

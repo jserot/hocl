@@ -48,10 +48,10 @@ let output pfx ir =
   | NoOutput -> ()
   | Dot ->
      Dot.dump path pfx ir
-  (* | Systemc ->
-   *     Systemc.dump path pfx ir
-   *    (\* if has_splitters ir then Systemc.dump_split_actors ir; *\)
-   * | Preesm ->
+  | Systemc ->
+      Systemc.dump path pfx ir
+     (* if has_splitters ir then Systemc.dump_split_actors ir; *)
+  (* | Preesm ->
    *    Preesm.dump path pfx ir
    * | Xdf ->
    *    Xdf.dump path pfx ir

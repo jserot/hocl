@@ -68,9 +68,9 @@ let get_delay_spec name intf =
        | None -> Error.missing_ival_param name
        | Some (id,ty,_,_) -> id, ty in
      let get_io_spec ios =
-       match ios with
-       | [(id,ty,e,annots)] -> id, get_rate_expr annots
-       | _ -> Error.illegal_interface "delay" name " (should have exactly one input and one output)" in
+       match List.find_opt (fun (id,ty,_,_) -> not (Types.is_param_type ty)) ios with
+       | Some (id,ty,e,annots) -> id, get_rate_expr annots
+       | None -> Error.illegal_interface "delay" name " (cannot find data input)" in
      let i_name, i_rate = get_io_spec intf.sn_ins in
      let o_name, o_rate = get_io_spec intf.sn_outs in
      let rate_expr_eq e1 e2 = match e1, e2 with
@@ -86,6 +86,7 @@ let rec string_of_basic_expr ?(localize_id=Fun.id) e =
   | EBool b -> string_of_bool b
   | EVar v -> localize_id v
   | EBinop (op, e1, e2) -> string_of_basic_expr' ~localize_id e1 ^ op ^ string_of_basic_expr' ~localize_id e2
+  | EQuote e -> string_of_basic_expr ~localize_id e
   | _ -> Misc.fatal_error "Backend.string_of_basic_expr"
 
 and string_of_basic_expr' ?(localize_id=Fun.id) e =
