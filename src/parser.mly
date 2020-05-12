@@ -356,5 +356,7 @@ basic_expr:
           { mk_binop $sloc op e1 e2 }
       | e1=basic_expr op=INFIX3 e2=basic_expr
           { mk_binop $sloc op e1 e2 }
+      | LPAREN e=basic_expr RPAREN
+          { e }
 
 %%
