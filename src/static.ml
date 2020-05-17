@@ -56,12 +56,12 @@ let eval_node_decl (env,nodes) {nd_desc=(id,n)} =
   let n = {
       sn_id = id;
       sn_kind =  (match impl with | NI_Actor _ -> ActorN | NI_Graph _ -> GraphN);
-      sn_req = false; (* TO FIX ! *)
       sn_ins =
-        List.map (fun {io_desc=id,_,e,anns; io_typ=ty} -> id, ty, eval_param_expr ty e, anns)
+        List.map (fun {io_desc=id,_,e,anns; io_typ=ty} -> id, ty, e, anns)
           n.n_intf.n_ins;
+      sn_supplied_ins = []; (* TO FIX ? Should we consider that expressions attached to _graph_ inputs provided values ? *)
       sn_outs =
-        List.map (fun {io_desc=id,_,e,anns; io_typ=ty} -> id, ty, eval_param_expr ty e, anns)
+        List.map (fun {io_desc=id,_,e,anns; io_typ=ty} -> id, ty, anns)
           n.n_intf.n_outs
       } in
   (id, SVNode n) :: env,

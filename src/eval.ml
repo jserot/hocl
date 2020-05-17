@@ -152,14 +152,14 @@ let type_of_semval v =
 let type_of_node n = 
   let open Types in
   let type_of = function [] -> type_unit | [t] -> t | ts -> TyProduct ts in 
-  let ty_ins = List.map (fun (_,ty,_,_) -> ty) n.sn_ins |> type_of in
-  let ty_outs = List.map (fun (_,ty,_,_) -> ty) n.sn_outs |> type_of in
+  let ty_ins = n.sn_ins |> List.map (fun (_,ty,_,_) -> ty) |> type_of in
+  let ty_outs = n.sn_outs |> List.map (fun (_,ty,_) -> ty) |> type_of in
   type_arrow ty_ins ty_outs
 
 let type_of_node_args n = 
   let open Types in
   let type_of = function [] -> type_unit | [t] -> t | ts -> TyProduct ts in 
-  let ty_ins = List.map (fun (_,ty,_,_) -> ty) n.sn_ins |> type_of in
+  let ty_ins = n.sn_ins |> List.map (fun (_,ty,_,_) -> ty) |> type_of in
   ty_ins
 
 let eval_param_const ty e v = 

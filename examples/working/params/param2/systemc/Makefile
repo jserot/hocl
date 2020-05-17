@@ -6,8 +6,8 @@ SC_CXXFLAGS  += -I../../../../../lib/systemc -I./include -I$(SC_DIR)/include -Wn
 LDFLAGS	    = -L$(SC_DIR)/lib-macosx64
 
 C_SRCS = mult.c 
-CPP_SRCS = p16_prm.cpp p17_prm.cpp mult_act.cpp main.cpp
-CPP_HDRS = p16_prm.h p17_prm.h mult_act.h param.h top_gph.h
+CPP_SRCS = p21_prm.cpp p22_prm.cpp p26_prm.cpp p27_prm.cpp mult_act.cpp main.cpp
+CPP_HDRS = p21_prm.h p22_prm.h p26_prm.h p27_prm.h mult_act.h param.h top_gph.h
 OBJS = $(C_SRCS:.c=.o) $(CPP_SRCS:.cpp=.o)
 GEN_SRCS = $(CPP_SRCS) $(CPP_HDRS)
 GEN_DATA = top_o.dat
@@ -31,8 +31,10 @@ run: ./main_sc
 	./main_sc
 
 mult_act.o: mult_act.cpp
-p16_prm.o: p16_prm.cpp
-p17_prm.o: p17_prm.cpp
+p21_prm.o: p21_prm.cpp
+p22_prm.o: p22_prm.cpp
+p26_prm.o: p26_prm.cpp
+p27_prm.o: p27_prm.cpp
 main.o: main.cpp
 input.o: input.c
 output.o: output.c

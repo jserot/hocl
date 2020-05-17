@@ -8,5 +8,5 @@ end;
 
 graph top in (n:int param=3, i: int) out (o: int)
 fun
-  val o = foo(n,i)
+  val o = foo n i
 end;

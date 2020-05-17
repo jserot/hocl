@@ -32,7 +32,7 @@ let name_box_ios env b =
   let n = get_node_desc env b.bx_node in
   { sb_node = b.bx_node;
     sb_ins = List.map2 (fun (n,ty,e,anns) io -> n,io,ty,anns) n.sn_ins b.bx_ins;
-    sb_outs = List.map2 (fun (n,ty,e,anns) io -> n,io,ty,anns) n.sn_outs b.bx_outs; }
+    sb_outs = List.map2 (fun (n,ty,anns) io -> n,io,ty,anns) n.sn_outs b.bx_outs; }
 
 (* |- WireDecl => E, W *)
 

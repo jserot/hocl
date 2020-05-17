@@ -30,7 +30,7 @@ graph main
   in (width: int param = 352, height: int param = 288, index: int param = 0)
   out () 
 fun
-  val (yi,u,v) = ReadYUV (width,height)
-  val yo = Sobel (width,height,yi) 
-  val _ = DisplayYUV (index,width,height,yo,u,v)
+  val (yi,u,v) = ReadYUV width height
+  val yo = Sobel width height yi 
+  val _ = DisplayYUV index width height yo u v
 end;

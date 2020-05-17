@@ -11,6 +11,6 @@ fun
       f x
     else
       let x1,x2 = qmf x in
-      qmfp (f x1, fb (d-1) x2)
+      qmfp (f x1) (fb (d-1) x2)
   val o = i |> fb 3
 end;

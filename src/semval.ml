@@ -28,7 +28,7 @@ type sem_val =
   | SVQuote of Syntax.expr
 
 and sv_clos = {
-  cl_pat: Syntax.pattern;
+  cl_pat: Syntax.pattern;  (* Always [Pat_var v] *)
   cl_exp: Syntax.expr;
   mutable cl_env: (string * sem_val) list
   }
@@ -44,9 +44,9 @@ and sv_loc = bid * sel * Types.typ (* box index, slot number, typ *) (** ell *)
 and sv_node = {
   sn_id: string;
   sn_kind: node_kind;
-  sn_req: bool; (* [true] if node requests parameters and these have not been supplied *)
-  sn_ins: (string * Types.typ * sem_val option * Syntax.io_annot list) list;
-  sn_outs: (string * Types.typ * sem_val option * Syntax.io_annot list) list;
+  sn_ins: (string * Types.typ * Syntax.expr option * Syntax.io_annot list) list;
+  sn_supplied_ins: (string * Types.typ * sem_val * Syntax.io_annot list ) list; (* Initially empty *)
+  sn_outs: (string * Types.typ * Syntax.io_annot list) list;
   }
 
 and node_kind = ActorN | GraphN
@@ -92,17 +92,18 @@ and wire_env = (wid * sv_wire) list (** W *)
 
 let string_of_node_kind = function | ActorN -> "actor" | GraphN -> "graph"
 
-let string_of_node_io (id,ty,e,anns) = id
+let string_of_node_inp (id,ty,e,anns) = id
+let string_of_node_outp (id,ty,anns) = id
 
 let string_of_svloc (l,s) =  "(" ^ string_of_int l ^ "," ^ string_of_int s ^ ")"
 
-let string_of_node n =
+let rec string_of_node n =
   "Node("
   ^ string_of_node_kind n.sn_kind ^ ","
-  ^ "[" ^ Misc.string_of_list string_of_node_io "," n.sn_ins ^ "]," 
-  ^ "[" ^ Misc.string_of_list string_of_node_io "," n.sn_outs ^ "])"
+  ^ "[" ^ Misc.string_of_list string_of_node_inp "," n.sn_ins ^ "]," 
+  ^ "[" ^ Misc.string_of_list string_of_node_outp "," n.sn_outs ^ "])"
 
-let rec  string_of_semval v = match v with
+let rec string_of_semval v = match v with
   | SVInt v -> string_of_int v
   | SVBool v -> string_of_bool v
   | SVUnit -> "()"

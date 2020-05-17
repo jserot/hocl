@@ -17,5 +17,5 @@ end;
 
 graph top in () out ()
 fun
-  val _ = mult ('2','1',inp ()) |> outp
+  val _ = inp |-> mult '2' '1' |> outp
 end;

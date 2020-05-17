@@ -21,18 +21,24 @@ open Eval
 
 let copy_node n =
 (* Make a copy a a node description with fresh type variables when present *)
-  let open Types in
-  let ty =
-    TyProduct [
-        TyProduct (List.map (fun (_,ty,_,_) -> ty) n.sn_ins);
-        TyProduct (List.map (fun (_,ty,_,_) -> ty) n.sn_outs) ] in
-  match Types.type_copy ty with
-    TyProduct [TyProduct ts1; TyProduct ts2] ->
-      { n with sn_ins = List.map2 (fun (id,_,e,anns) ty -> id,ty,e,anns) n.sn_ins ts1;
-               sn_outs = List.map2 (fun (id,_,e,anns) ty -> id,ty,e,anns) n.sn_outs ts2 }
-  |  _ 
-  | exception Invalid_argument _ ->
-      Misc.fatal_error "Eval_fun.instanciate_node"
+  match n.sn_supplied_ins with
+  | [] ->
+     let open Types in
+     let ty =
+       TyProduct [
+           TyProduct (List.map (fun (_,ty,_,_) -> ty) n.sn_ins);
+           TyProduct (List.map (fun (_,ty,_) -> ty) n.sn_outs) ] in
+     begin match Types.type_copy ty with
+       TyProduct [TyProduct ts1; TyProduct ts2] ->
+        { n with sn_ins = List.map2 (fun (id,ty,e,anns) ty -> id,ty,e,anns) n.sn_ins ts1;
+                 sn_supplied_ins = [];
+                 sn_outs = List.map2 (fun (id,ty,anns) ty' -> id,ty',anns) n.sn_outs ts2 }
+     |  _ 
+        | exception Invalid_argument _ ->
+         Misc.fatal_error "Eval_fun.instanciate_node"
+     end
+  | _ -> (* Copy has already be done *)
+     n
 
 (* let eval_param_const ty e v = 
  *     let bid = new_bid () in
@@ -193,28 +199,32 @@ let rec eval_expr env boxes expr =
             try eval_match false [] [] pat val_arg
             with Matching_fail -> binding_error pat.p_loc
           end in
-        let v, bs', ws' = eval_expr (env'++env'') (boxes+++bs_a+++bs_f) exp in
-        v,
+        let v', bs', ws' = eval_expr (env'++env'') (boxes+++bs_a+++bs_f) exp in
+        v',
         bs_a+++bs_f+++bs',
         ws_a++ws_f++ws'
      | SVNode n ->
-        if n.sn_req then (* Node [n] requires actual parameters *)
-          not_implemented "Eval_fun: partial node application"
-          (* let val_params, bs_p, ws_p = eval_param_expr env boxes arg in
-           * let n' = { n with sn_req=false;
-           *                   sn_params=List.map2 (fun (id,_,ty,anns) v -> (id,v,ty,anns)) n.sn_params val_params } in
-           * SVNode n',
-           * bs_f+++bs_p,
-           * ws_f++ws_p *)
-        else  (* Node [n] does not require parameters, or already got them *)
-          let val_arg, bs_a, ws_a = eval_expr env boxes arg in
-          let v, bs', ws' = eval_node_application env (boxes+++bs_a+++bs_f) (ws_a++ws_f) expr.e_loc n val_arg in
-          let ty = type_of_node_args n
-          and ty' = type_of_semval val_arg in
-          Typing.try_unify ~relax:true "application" ty ty' expr.e_loc; (* Late unification for polymorphic node application *)
+        let val_arg, bs_a, ws_a = eval_expr env boxes arg in
+        let m = List.length n.sn_ins in
+        let k = List.length n.sn_supplied_ins in
+        let n' =
+          if m > 0 then
+            let id,ty,e,anns = List.nth n.sn_ins k in   (* TO FIX : [e] is ignored here ! *)
+            { n with sn_supplied_ins = n.sn_supplied_ins @ [id,ty,val_arg,anns] }
+          else (* input-less node *)
+            n in
+        if m = 0 || k = m-1 then                        (* The supplied arg was the last missing one *)
+          let v, bs', ws' = eval_node_application env (boxes+++bs_a+++bs_f) (ws_a++ws_f) expr.e_loc n' in
+          (* let ty = type_of_node_args n
+           * and ty' = type_of_semval val_arg in
+           * Typing.try_unify ~relax:true "application" ty ty' expr.e_loc;  (\* Late unification for polymorphic node application *\) *)
           v,
           bs_a+++bs_f+++bs',
           ws_a++ws_f++ws'
+        else                                                             (* Still missing some extra arguments *)
+          SVNode n',
+          bs_a+++bs_f,
+          ws_a++ws_f
      | _ ->
         illegal_application expr.e_loc
      end
@@ -273,9 +283,14 @@ let rec eval_expr env boxes expr =
       let v', bs'', ws'' = seq_match cases in
       v', bs'+++bs'', ws'++ws''
   | EQuote e ->
-     SVQuote e,
-     [],
-     []
+     let l, bs_p, ws_p = eval_param_expr env boxes e in
+     SVLoc l,
+     bs_p,
+     ws_p
+  (* | EQuote e ->
+   *    SVQuote e,
+   *    [],
+   *    [] *)
 
 and eval_definitions istop loc isrec (env,boxes) defns =
   let is_fun_definition = function {b_desc=({p_desc=Pat_var _}, {e_desc=EFun _})} -> true | _ -> false in
@@ -398,37 +413,47 @@ and eval_definition istop (env,boxes) {b_desc=(pat,exp); b_loc=loc} =
   boxes'+++boxes'',
   wires'++wires''
 
-and eval_node_application env boxes wires loc n val_arg = 
-  let args, boxes_a, wires_a = eval_node_arguments loc env boxes n val_arg in
-  match instanciate_node (boxes+++boxes_a) n args with
-  | [], boxes', wires' -> SVUnit, boxes_a+++boxes', wires'++wires_a
-  | [v], boxes', wires' -> v, boxes_a+++boxes', wires'++wires_a
-  | vs, boxes', wires' -> SVTuple vs, boxes_a+++boxes', wires'++wires_a
+and eval_node_application env boxes wires loc n = 
+  (* let args, boxes_a, wires_a = eval_node_arguments loc env boxes n val_arg in *)
+  match instanciate_node loc boxes n with
+  | [], boxes', wires' -> SVUnit, boxes', wires'
+  | [v], boxes', wires' -> v, boxes', wires'
+  | vs, boxes', wires' -> SVTuple vs, boxes', wires'
 
-and eval_node_arguments loc env boxes n val_arg = 
-  let get_loc = function
-    | SVLoc l -> l, [], []
-    | SVInt n -> eval_param_const Types.type_int (EInt n) (SVInt n)
-    | SVBool n -> eval_param_const Types.type_bool (EBool n) (SVBool n)
-    | SVQuote e -> eval_param_expr env boxes e
-    | _ -> illegal_application loc in
-  match val_arg with
-  | SVUnit ->
-     [],
-     [],
-     []
-  | SVTuple vs when List.length vs = List.length n.sn_ins ->
-     let ls, bss, wss = List.map get_loc vs |> Misc.list_split3 in
-     ls,
-     Misc.fold_left1 (+++) bss,
-     Misc.fold_left1 (++) wss
-  | v ->
-     let l, boxes', wires' = get_loc v in
-     [l],
-     boxes',
-     wires'
+(* and eval_node_arguments loc env boxes n val_arg = 
+ *   let get_loc = function
+ *     | SVLoc l -> l, [], []
+ *     | SVInt n -> eval_param_const Types.type_int (EInt n) (SVInt n)
+ *     | SVBool n -> eval_param_const Types.type_bool (EBool n) (SVBool n)
+ *     | SVQuote e -> eval_param_expr env boxes e
+ *     | _ -> illegal_application loc in
+ *   match val_arg with
+ *   | SVUnit ->
+ *      [],
+ *      [],
+ *      []
+ *   | SVTuple vs when List.length vs = List.length n.sn_ins ->
+ *      let ls, bss, wss = List.map get_loc vs |> Misc.list_split3 in
+ *      ls,
+ *      Misc.fold_left1 (+++) bss,
+ *      Misc.fold_left1 (++) wss
+ *   | v ->
+ *      let l, boxes', wires' = get_loc v in
+ *      [l],
+ *      boxes',
+ *      wires' *)
 
-and instanciate_node boxes n arg_locs = 
+and instanciate_node loc boxes n = 
+  let arg_locs =
+    List.map
+      (fun (_,ty,v,_) ->
+        match v with
+        | SVLoc ((src,sel,ty') as l) ->
+           Typing.try_unify ~relax:true "application" ty ty' loc;  (* Late unification for polymorphic node application *)
+           l
+        | _ ->
+           Misc.fatal_error "Eval_fun.instanciate_node")
+      n.sn_supplied_ins in
     let bid = new_bid () in
     let ws =
       List.mapi
@@ -441,10 +466,10 @@ and instanciate_node boxes n arg_locs =
      *     n.sn_ins in *)
     let bins =
       List.map2
-        (fun (id,ty,e,anns) (wid,(_,(_,_,ty'))) -> id,wid,ty',anns)
-        n.sn_ins
+        (fun (id,ty,v,anns) (wid,(_,(_,_,ty'))) -> id,wid,ty',anns)
+        n.sn_supplied_ins
         ws in
-    let bouts = List.map (fun (id,ty,e,anns) -> id,[],ty,anns) n.sn_outs in 
+    let bouts = List.map (fun (id,ty,anns) -> id,[],ty,anns) n.sn_outs in 
     let tag = tag_of_kind n.sn_kind in
     let b = new_box bid n.sn_id tag bins bouts no_bval in
     let bs' = List.map2 (fun (l,s,ty) (wid,_) -> l, add_box_output boxes l s wid) arg_locs ws in

@@ -312,13 +312,23 @@ let type_node_io (tenv,venv) ({io_desc=(id,te,e,_); io_loc=loc} as io) =
   
 (* TE |- NodeIOs => \tau, VE' *)
 
-let type_node_ios tenv ios =
-  let (tenv',venv'), ts = Misc.fold_left_map type_node_io (tenv,[]) ios in
+let type_node_outps tenv outps =
+  (* [... out (o1:t1, ..., on:tn] gives [t1 * ... * tn] *)
+  let (tenv',venv'), ts = Misc.fold_left_map type_node_io (tenv,[]) outps in
   let ty = 
   match ts with
   | [] -> type_unit (* should not happen in this version *)
   | [t] -> t
   | _ -> type_product ts in
+  ty, tenv', venv'
+
+let type_node_ios tenv tr inps =
+  (* [... in (i1:t1, ..., im:tm] gives [t1 -> ... -> tm -> tr] *)
+  let (tenv',venv'), ts = Misc.fold_left_map type_node_io (tenv,[]) inps in
+  let ty = 
+  match ts with
+  | [] -> type_arrow type_unit tr (* should not happen in this version *)
+  | _ ->  List.fold_right (fun t t' -> type_arrow t t') ts tr in
   ty, tenv', venv'
 
 (* let type_node_intf_components type_component tenv ios =
@@ -354,23 +364,16 @@ let rec type_box_decl tenv venv { bx_desc = (id,b); bx_loc = loc } =
   let lookup io = match io.e_desc with
     | EVar id -> type_instance (lookup_value venv loc id)
     | _ -> type_expression ~relax:true tenv venv io in
-  let ty_ins = List.map lookup b.bx_ins in
+  let ty_ins = match b.bx_ins with
+    | [] -> [type_unit]
+    | _ -> List.map lookup b.bx_ins in
   let ty_outs = List.map lookup b.bx_outs in
-  (* let ty_params = List.map (type_expression tenv venv) b.bx_params in
-   * let ty =
-   *   match ty_params with
-   *   | [] -> type_arrow (type_product ty_ins) (type_product ty_outs)
-   *   | _ -> type_arrow2 (type_product ty_params) (type_product ty_ins) (type_product ty_outs) in *)
-  let ty = type_arrow (type_product ty_ins) (type_product ty_outs) in
+  (* let ty = type_arrow (type_product ty_ins) (type_product ty_outs) in *)
+  let ty = List.fold_right type_arrow ty_ins (type_product ty_outs) in
   let ty_f = type_instance (lookup_value venv loc b.bx_node) in
   try_unify ~relax:true "box declaration" ty_f ty loc;
   let type_io io ty = match io.e_desc with EVar id -> id, ty | _ -> Misc.fatal_error "Typing.eval_node_decl" in
   List.map2 type_io b.bx_outs ty_outs
-
-(* and type_sig ty_params ty_ins ty_outs = 
- *  match ty_params with
- *     | [] -> type_arrow (type_product ty_ins) (type_product ty_outs)
- *     | _ -> type_arrow2 (type_product ty_params) (type_product ty_ins) (type_product ty_outs) *)
 
 (* TE,VE |- BoxDecls => VE' *)
 
@@ -380,9 +383,9 @@ let type_box_decls tenv venv decls =
 (* TE, VE |- NodeDecl => VE' *)
      
 let rec type_node_decl tenv (venv,nodes) {nd_desc=(id,n); nd_loc=loc} =
-  let t_i, tenv', ve_i = type_node_ios tenv n.n_intf.n_ins in
-  let t_o, tenv'', ve_o = type_node_ios tenv' n.n_intf.n_outs in
-  let t = Types.generalize [] (type_arrow t_i t_o) in
+  let t_o, tenv', ve_o = type_node_outps tenv n.n_intf.n_outs in
+  let tr, tenv'', ve_i = type_node_ios tenv' t_o n.n_intf.n_ins in
+  let t = Types.generalize [] tr in
   let ts =
     begin match n.n_impl with
     | NM_Actor _ -> []

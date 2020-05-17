@@ -84,18 +84,18 @@ val rec map2f fs xs = match (fs,xs) with
 ;
 
 -- The [foldl] higher-order wiring function
--- has type [($t1 * $t2 -> $t1) -> $t1 -> $t2 list -> $t1]
+-- has type [($t1 -> $t2 -> $t1) -> $t1 -> $t2 list -> $t1]
 -- and can be defined as : [foldl f z [x1, ..., xn] = f (... (f (z,x1), x2), ..., xn)
   
 val rec foldl f z xs =
   match xs with 
   [] -> z
-| x::xs -> foldl f (f (z,x)) xs
+| x::xs -> foldl f (f z x) xs
 ;
 
 -- [foldl1] is a variant of [foldl] operating on non empty lists and not requiring
 -- an initial [z] value
--- It has type [($t * $t -> $t) -> $t list -> $t]
+-- It has type [($t -> $t -> $t) -> $t list -> $t]
 -- and can be defined as : [foldl1 f [x1, x2, ..., xn] = foldl f x1 [x2, ..., xn]]
   
 val rec foldl1 f l =
@@ -104,11 +104,11 @@ val rec foldl1 f l =
 ;
 
 -- The [foldr] higher-order wiring function
--- has type [($t1 * $t2 -> $t2) -> $t2 -> $t1 list -> $t2]
+-- has type [($t1 -> $t2 -> $t2) -> $t2 -> $t1 list -> $t2]
 -- and can be defined as : [foldr f [x1, ..., xn] z = f (x1, ... (f (xn,z), xn-1), ...)]
   
 val rec foldr f z xs =
   match xs with
     [] -> z
-  | x::xs -> f (x, foldr f z xs)
+  | x::xs -> f x (foldr f z xs)
 ;

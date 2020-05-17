@@ -12,7 +12,7 @@ fun
     if n=0 then x
     else
       let zz = iter (double n) g z in
-      let xx = f (x,zz) in
+      let xx = f x zz in
       chain (n-1) f g z xx
   val o = i |> chain 3 f g (z())
 end;

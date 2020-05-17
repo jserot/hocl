@@ -1,6 +1,6 @@
 -- This example shows how to define polymorphic actors
 -- The notation "$t" means "any type" and can be instanciated with any given type 
--- The interpretation of these actors will obviously be backend-dependent
+-- The interpretation of these actors is backend-dependent
 
 node ident in (i: $t) out (o: $t);
 

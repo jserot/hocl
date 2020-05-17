@@ -89,7 +89,6 @@
         <th><span class="nonterminal">node_decl</span></th>
         <td>NODE
         IDENT
-        <span class="option"><span class="nonterminal">node_param_decls</span></span>
         IN
         <span class="nonterminal">io_decls</span>
         OUT
@@ -100,7 +99,6 @@
         <th class="bar"></th>
         <td>GRAPH
         IDENT
-        <span class="option"><span class="nonterminal">graph_param_decls</span></span>
         IN
         <span class="nonterminal">io_decls</span>
         OUT
@@ -147,38 +145,6 @@
       </tr>
       
       <tr class="rule">
-        <th><span class="nonterminal">node_param_decls</span></th>
-        <td>PARAM
-        LPAREN
-        <span class="nonterminal">node_param_decl</span><sup>*</sup><sub>COMMA</sub>
-        RPAREN</td>
-      </tr>
-      
-      <tr class="rule">
-        <th><span class="nonterminal">node_param_decl</span></th>
-        <td>IDENT
-        COLON
-        <span class="nonterminal">type_expr</span></td>
-      </tr>
-      
-      <tr class="rule">
-        <th><span class="nonterminal">graph_param_decls</span></th>
-        <td>PARAM
-        LPAREN
-        <span class="nonterminal">graph_param_decl</span><sup>*</sup><sub>COMMA</sub>
-        RPAREN</td>
-      </tr>
-      
-      <tr class="rule">
-        <th><span class="nonterminal">graph_param_decl</span></th>
-        <td>IDENT
-        COLON
-        <span class="nonterminal">type_expr</span>
-        EQUAL
-        <span class="nonterminal">simple_expr</span></td>
-      </tr>
-      
-      <tr class="rule">
         <th><span class="nonterminal">io_decls</span></th>
         <td>LPAREN
         <span class="nonterminal">io_decl</span><sup>*</sup><sub>COMMA</sub>
@@ -190,7 +156,14 @@
         <td>IDENT
         COLON
         <span class="nonterminal">type_expr</span>
+        <span class="option"><span class="nonterminal">io_expr</span></span>
         <span class="nonterminal">io_annots</span></td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">io_expr</span></th>
+        <td>EQUAL
+        <span class="nonterminal">simple_expr</span></td>
       </tr>
       
       <tr class="rule">
@@ -219,8 +192,22 @@
       </tr>
       
       <tr class="rule">
-        <th><span class="nonterminal">type_expr</span></th>
+        <th><span class="nonterminal">simple_type_expr</span></th>
         <td>IDENT</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td>TYVAR</td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">type_expr</span></th>
+        <td><span class="nonterminal">simple_type_expr</span></td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td><span class="nonterminal">simple_type_expr</span>
+        IDENT</td>
       </tr>
       
       <tr class="rule">
@@ -239,7 +226,7 @@
       <tr>
         <th class="bar"></th>
         <td><span class="nonterminal">binding_name</span>
-        nonempty_list(<span class="nonterminal">simple_pattern</span>)
+        nonempty_list(<span class="nonterminal">fun_pattern</span>)
         EQUAL
         <span class="nonterminal">expr</span></td>
       </tr>
@@ -271,7 +258,7 @@
       <tr>
         <th class="bar"></th>
         <td>FUN
-        <span class="nonterminal">pattern</span>
+        nonempty_list(<span class="nonterminal">fun_pattern</span>)
         ARROW
         <span class="nonterminal">expr</span></td>
       </tr>
@@ -380,6 +367,12 @@
         <td>LBRACKET
         RBRACKET</td>
       </tr>
+      <tr>
+        <th class="bar"></th>
+        <td>QUOTE
+        <span class="nonterminal">basic_expr</span>
+        QUOTE</td>
+      </tr>
       
       <tr class="rule">
         <th><span class="nonterminal">const_expr</span></th>
@@ -426,6 +419,11 @@
         <td>LBRACKET
         <span class="nonterminal">simple_pattern</span><sup>+</sup><sub>SEMI</sub>
         RBRACKET</td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">fun_pattern</span></th>
+        <td>IDENT</td>
       </tr>
       
       <tr class="rule">
@@ -494,16 +492,38 @@
         IDENT
         COLON
         IDENT
-        <span class="option"><span class="nonterminal">box_params</span></span>
-        <span class="nonterminal">box_ios</span>
-        <span class="nonterminal">box_ios</span></td>
+        <span class="nonterminal">box_inps</span>
+        <span class="nonterminal">box_outps</span></td>
       </tr>
       
       <tr class="rule">
-        <th><span class="nonterminal">box_params</span></th>
-        <td>LBRACKET
-        <span class="nonterminal">basic_expr</span><sup>*</sup><sub>COMMA</sub>
-        RBRACKET</td>
+        <th><span class="nonterminal">box_inps</span></th>
+        <td>LPAREN
+        <span class="nonterminal">box_inp</span><sup>*</sup><sub>COMMA</sub>
+        RPAREN</td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">box_outps</span></th>
+        <td>LPAREN
+        <span class="nonterminal">box_outp</span><sup>*</sup><sub>COMMA</sub>
+        RPAREN</td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">box_inp</span></th>
+        <td>IDENT</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td>QUOTE
+        <span class="nonterminal">basic_expr</span>
+        QUOTE</td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">box_outp</span></th>
+        <td>IDENT</td>
       </tr>
       
       <tr class="rule">
@@ -532,11 +552,10 @@
         INFIX3
         <span class="nonterminal">basic_expr</span></td>
       </tr>
-      
-      <tr class="rule">
-        <th><span class="nonterminal">box_ios</span></th>
+      <tr>
+        <th class="bar"></th>
         <td>LPAREN
-        IDENT<sup>*</sup><sub>COMMA</sub>
+        <span class="nonterminal">basic_expr</span>
         RPAREN</td>
       </tr>
       

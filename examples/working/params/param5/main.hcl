@@ -23,10 +23,10 @@ graph top_f
       i1: t data, i2: t data, i3:t data, i4:t data, i5: t data, i6: t data)
   out (o1: t data, o2: t data, o3: t data, o4: t data, o5: t data, o6: t data)
 fun
-  val o1 = foo ('2',i1)       -- first case: local parameter
-  val o2 = foo ('1+2',i2)   -- second case: local parameter expression
-  val o3 = foo (u3,i3)    -- third case: input parameter
-  val o4 = foo ('u4*2',i4)  -- fourth case: dependency on input parameter
-  val o5 = bar ('u5/4','true',i5) 
-  val o6 = bar ('4*2+1',u6,i6) 
+  val o1 = foo '2' i1       -- first case: local parameter
+  val o2 = foo '1+2' i2   -- second case: local parameter expression
+  val o3 = foo u3 i3    -- third case: input parameter
+  val o4 = foo 'u4*2' i4  -- fourth case: dependency on input parameter
+  val o5 = bar 'u5/4' 'true' i5 
+  val o6 = bar '4*2+1' u6 i6 
 end;

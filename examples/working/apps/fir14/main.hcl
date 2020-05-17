@@ -9,5 +9,5 @@ graph top in (i: sint16) out (o: sint16)
 fun
   val shift n x = x :: miter (n-1) d x
   val x = i |> shift 4
-  val o = comb4 (x[0],x[1],x[2],x[3])
+  val o = comb4 (x[0]) (x[1]) (x[2]) (x[3])
 end;

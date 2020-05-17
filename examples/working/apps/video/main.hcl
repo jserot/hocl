@@ -21,7 +21,6 @@ graph top
   in (width: int param=352, height: int param=288, index: int param=0)
   out () 
 fun
-  -- val _ = ReadYUV (width,height) |> DisplayYUV (index,width,height)
-  val y,u,v = ReadYUV (width,height)
-  val _ = DisplayYUV (index,width,height,y,u,v)
+  val y,u,v = ReadYUV width height
+  val _ = DisplayYUV index width height y u v
 end;

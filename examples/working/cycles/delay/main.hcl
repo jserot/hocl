@@ -15,5 +15,5 @@ end;
 
 graph top in (i: int) out (o: int)
 fun
-  val rec (o,z) = foo (i, delay('0',z))
+  val rec (o,z) = foo i (delay '0' z)
 end;

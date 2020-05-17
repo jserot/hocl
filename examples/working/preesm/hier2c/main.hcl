@@ -22,10 +22,10 @@ end;
 
 node sub in (k: int param, i: int) out (o: int)
 fun
-  val o = foo (k,i) |> bar
+  val o = i |> foo k |> bar
 end;
 
 graph top in (k: int param = 2) out ()
 fun
-  val _ = sub (k, inp ()) |> outp
+  val _ = inp |-> sub k |> outp
 end;

@@ -203,7 +203,7 @@ val_decl:
 binding:
   | p=pattern EQUAL e=expr  (*%prec prec_define*)
       { mk_binding $sloc (p,e) }
-  | id=binding_name ps=nonempty_list(simple_pattern) EQUAL e=expr
+  | id=binding_name ps=nonempty_list(fun_pattern) EQUAL e=expr
       { mk_binding $sloc (mk_pat $sloc (Pat_var id), mk_fun $sloc ps e) }
 
 binding_name:
@@ -217,8 +217,8 @@ expr:
           { mk_apply $sloc f args }
       | es=expr_comma_list
           { mk_expr $sloc (ETuple (List.rev es)) }
-      | FUN p=pattern ARROW e=expr
-          { mk_expr $sloc (EFun (p,e)) }
+      | FUN ps=nonempty_list(fun_pattern) ARROW e=expr
+          { mk_fun $sloc ps e }
       | LET r=boption(REC) bs=separated_nonempty_list(AND,binding) IN e=expr
           { mk_expr $sloc (ELet (r,bs,e)) }
       | IF e1=expr THEN e2=expr ELSE e3=expr
@@ -283,6 +283,10 @@ pattern:
           { mk_pat $sloc (Pat_cons(p1,p2)) }
       | LBRACKET ps=separated_nonempty_list(SEMI,simple_pattern) RBRACKET
           { mk_pat $sloc (Pat_list ps) }
+
+fun_pattern:
+      | id=IDENT
+          { mk_pat $sloc (Pat_var id) }
 
 simple_pattern:
       | id=IDENT

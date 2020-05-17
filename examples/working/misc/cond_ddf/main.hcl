@@ -27,7 +27,7 @@ graph top in (i: int) out (o: int)
 fun
   val cond p f g x = 
     let b = p x in
-    let (x1,x2) = switch (b,x) in
-    merge (b, f x1, g x2)
+    let (x1,x2) = switch b x in
+    merge b (f x1) (g x2)
   val o = cond is_even incr double i
 end;

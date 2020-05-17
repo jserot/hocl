@@ -41,9 +41,9 @@ graph top
  in (width: int param = 352, height: int param = 288, ival: int param = 0, index: int param = 0)
  out () 
 fun
-  val (yi,u,v) = ReadYUV (width,height)
+  val (yi,u,v) = ReadYUV width height
   val yo =
-    let rec (output,result) = ImDiff (width, height, yi, ImDelay (width,height,ival,output)) in
+    let rec (output,result) = ImDiff width height yi (ImDelay width height ival output) in
     result
-  val _ = DisplayYUV (index,width,height,yo,u,v)
+  val _ = DisplayYUV index width height yo u v
 end;
