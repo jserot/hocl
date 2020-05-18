@@ -77,12 +77,6 @@ let string_of_type ty =
   output_typ b false 0 ty;
   Buffer.contents b
 
-(* let string_of_one_type ty = *)
-(*   reset_type_var_name(); *)
-(*   let b = Buffer.create 16 in *)
-(*   output_typ b false 0 ty; *)
-(*   Buffer.contents b *)
-
 let string_of_type_scheme sch =
   reset_type_var_names ();
   let b = Buffer.create 16 in

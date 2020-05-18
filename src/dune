@@ -18,7 +18,7 @@
   (action (run obelisk html -i -o %{targets} %{deps})))
 
 (rule
-  (targets grammar.tex)
+  (targets grammar.tex grammar-defns.sty)
   (deps parser.mly)
   (mode promote)
   (action (run obelisk latex -i -o grammar.tex -package grammar-defns parser.mly)))

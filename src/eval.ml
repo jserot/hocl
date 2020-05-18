@@ -244,26 +244,6 @@ let no_bval =
   let no_expr = {e_desc=EVar ""; e_loc=Location.no_location; e_typ=Types.no_type } in
   { bv_lit=no_expr; bv_sub=no_expr; bv_val=SVUnit }
        
-
-(* let eval_param_value e =  match e with
- *     | None -> SVUnit
- *     | Some e' -> eval_static_const e' *)
-
-(* let eval_node_param {pm_desc=(id,t,e,_)} =
- *   let l = new_bid () in
- *   let ty = t.te_typ in
- *   let bv = match e with
- *     | None -> no_bval
- *     | Some e' -> { bv_lit=e'; bv_sub=e'; bv_val=eval_static_const e' } in
- *   let b = new_box l id InParamB [] ["o",[],ty,[]] bv in
- *   (id, SVLoc (l,0,ty)),
- *   (l, b) *)
-
-(* |- NodeParams => E', B *)
-
-(* let eval_node_params params =
- *   params |> List.map eval_node_param |> List.split *)
-
 (* |- NodeInput => E', B *)
 
 let eval_node_input {io_desc=(id,t,e,anns)} =

@@ -272,29 +272,13 @@ and type_val_decl tenv venv venv' {vd_desc=(isrec,defns); vd_loc=loc} =
   let venv'' = type_definitions loc isrec tenv (venv'@venv) defns in
   venv' @ venv''
 
-(* TE |- NodeParam => \tau, VE' *)
+(* TE |- NodeIO => \tau, VE' *)
 
 let rec type_const_expression tenv expr = match expr.e_desc with
   | EInt _ ->  type_int
   | EBool _ ->  type_bool
   | EQuote e -> type_param (type_const_expression tenv e)
   | _ -> Misc.fatal_error "Typing.type_const_expr"
-
-(* let type_node_param tenv ({pm_desc=(id,te,e,_); pm_loc=loc} as p) = 
- *   let ty, tenv' = type_of_full_type_expression tenv te in
- *   begin match e with
- *   | Some e' ->
- *      let ty' = type_const_expression tenv e' in
- *      try_unify "constant expression" ty ty' loc
- *   | None ->
- *      ()
- *   end;
- *   p.pm_typ <- Types.real_type ty;
- *   ty,
- *   tenv',
- *   [id,ty] *)
-
-(* TE |- NodeIO => \tau, VE' *)
 
 let type_node_io (tenv,venv) ({io_desc=(id,te,e,_); io_loc=loc} as io) = 
   let tenv', ty = type_of_full_type_expression tenv te in
@@ -330,16 +314,6 @@ let type_node_ios tenv tr inps =
   | [] -> type_arrow type_unit tr (* should not happen in this version *)
   | _ ->  List.fold_right (fun t t' -> type_arrow t t') ts tr in
   ty, tenv', venv'
-
-(* let type_node_intf_components type_component tenv ios =
- *   let ts, tenvs, venvs = List.map (type_component tenv) ios |> Misc.list_split3 in
- *   match ts, tenvs, venvs with
- *   | [], _, [] -> type_unit, [], [] (\* should not happen in this version *\)
- *   | [t], _, [ve] -> t, List.concat tenvs, ve
- *   | _, _, _ -> type_product ts, List.concat tenvs, List.concat venvs
- * 
- * let type_node_ios tenv ios = type_node_intf_components type_node_io tenv ios
- * let type_node_params tenv params = type_node_intf_components type_node_param tenv params *)
 
 (* TE, VE |- ValDecls => VE' *)
 

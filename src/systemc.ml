@@ -208,8 +208,6 @@ let string_of_io (id,ty,kind,anns) = localize_id id
 let rec dump_actor_impl prefix oc name intf attrs =
   let modname = String.capitalize_ascii name in
   let incl_file, loop_fn, init_fn, is_delay, param_exec = get_impl_fns "systemc" name attrs in
-  (* let params = List.map (fun (id,ty,e,anns) -> id,ty,ParamIn) intf.sn_params in
-   * let dinps = List.map (fun (id,ty,e,anns) -> id,ty,DataIn) intf.sn_ins in *)
   let params =
     intf.sn_ins |> List.filter_map (fun (id,ty,_,anns) -> if is_param_type ty then Some (id,ty,ParamIn,anns) else None) in
   let dinps =
@@ -253,10 +251,6 @@ let rec dump_actor_impl prefix oc name intf attrs =
      | Some e as e' when not (is_constant_expr e) ->
         fprintf oc "      %s = new %s[%s];\n" (localize_id id) (string_of_type ty) (string_of_io_rate' e')
       | _ -> ())
-     (*  match get_rate_expr anns with
-      * | Some e as e' when not (Syntax.is_constant_core_expr e) ->
-      *    fprintf oc "      %s = new %s[%s];\n" (localize_id id) (string_of_type ty) (string_of_io_rate' e')
-      *  | _ -> ()) *)
     (if is_delay then dinps else dinps @ doutps); 
   List.iter
     (fun (id,ty,_,anns) ->

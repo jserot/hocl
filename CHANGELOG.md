@@ -1,6 +1,11 @@
 # Changes
 
-# 1.1a (May 3, 2020)
+# 1.2 (May 18, 2020)
+
+* type-based handling of parameters (allow parameters also on outputs)
+* Revised formal semantics and updated implementation accordingly
+
+# 1.1 (May 3, 2020)
 
 * Complete source code recrafting, now phased with the provided formal semantics
 * Added documentation (BNF syntax, formal semantics, compiler usage, tutorial)

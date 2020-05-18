@@ -44,59 +44,6 @@ let eval_wire_decl { wr_desc=(id,t) } =
   (id,SVWire wid),
   (wid,w)
   
-(* E, B, W |-> BoxParam => B', W', M *)
-
-(* let eval_box_param loc env dst sel' (boxes,wires,bindings) (slot,expr,ty,anns) =
- *   let rec extract_param_deps expr = match expr.e_desc with
- *     (\* Scan a parameter expression and returns a list of set of boxes pointing to the
- *        input parameters occuring in it *\)
- *     (\* TO FIX ? Mutualize this with [StaticFun.eval_param_expr] *\)
- *     | EInt _ ->
- *        []
- *     | EBool _ ->
- *        []
- *     | EVar v -> 
- *          begin match lookup env expr.e_loc v with
- *          | SVLoc l -> [l] (\* [v] denotes an input of the enclosing graph *\)
- *          | _ -> illegal_param_expr expr.e_loc
- *          end
- *     | EBinop (_,e1,e2) ->
- *        extract_param_deps e1 @ extract_param_deps e2
- *     | _ ->
- *        illegal_param_expr expr.e_loc in
- *   let mk_wire dst sel' (boxes,wires) (src,sel,ty) =
- *      let k = new_wid () in
- *      let w = ((src,sel,ty),(dst,sel',ty)) in (\* Make a new wire starting at the src box ... *\)
- *      let b' = add_box_output boxes src sel k in      
- *      Misc.replace_assoc boxes src b',          (\* ... and add it to its outputs *\)
- *      (k,w)::wires in
- *   match expr.e_desc, extract_param_deps expr with
- *   | EVar v, [src,sel,ty] ->
- *      let boxes', wires' = mk_wire dst sel' (boxes,wires) (src,sel,ty) in
- *      let (k,w) = List.hd wires' in
- *      boxes',
- *      wires',
- *      bindings@[slot,k,ty,anns]
- *   | EInt _, deps 
- *   | EBool _, deps 
- *   | EBinop _, deps ->
- *      let k = new_wid () in
- *      let l = new_bid () in
- *      let ty = expr.e_typ in
- *      let w = ((l,0,ty),(dst,sel',ty)) in
- *      let boxes', wires' = Misc.fold_lefti (mk_wire l) (boxes,wires) deps in
- *      let bins = List.mapi (fun i (k,(l,((d,ds,ty) as l'))) -> "i" ^ string_of_int i, k, ty, []) wires' in
- *      let b = new_box l (string_of_expr expr) LocalParamB bins ["o",[k],expr.e_typ,[]] no_bval in
- *      (l,b)::boxes',
- *      (k,w)::wires',
- *      bindings@[slot,k,ty,anns]
- *   | _, _ ->
- *      Misc.fatal_error "Eval_struct.eval_box_param" *)
-
-(* E, W |-> BoxParams => B, M *)
-
-(* let eval_box_params loc env boxes wires dst params =
- *   Misc.fold_lefti (eval_box_param loc env dst) (boxes,wires,[]) params *)
 
 (* E, B, W |-> BoxInp => B', W', M *)
 

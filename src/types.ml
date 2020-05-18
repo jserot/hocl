@@ -189,9 +189,5 @@ let full_type_instance ty_sch =
 
 let type_instance ty_sch = fst (full_type_instance ty_sch)
 
-let type_copy t = type_instance (generalize [] t)  (* tofix ? *)
+let type_copy t = type_instance (generalize [] t) 
 
-(* let list_of_types ty = match real_type ty with
- *   TyProduct ts -> List.map real_type ts
- * | TyConstr ("unit", []) -> []
- * | _ -> [real_type ty] *)
