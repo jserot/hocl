@@ -38,11 +38,11 @@ let name_of_type_var sch var =
 let rec output_typ b sch priority ty =
   match real_type ty with
     (TyVar {stamp=s}) as t ->
-      add_string b "'";
+      add_string b "$";
       add_string b ((name_of_type_var sch t)) (* ^"_"^(string_of_int s)) *)
   | TyArrow(ty1, ty2) ->
       if priority >= 1 then add_string b "(";
-      output_typ b sch 1 ty1;
+      output_labeled_typ b sch 1 ty1;
       add_string b " -> ";
       output_typ b sch 0 ty2;
       if priority >= 1 then add_string b ")"
@@ -61,6 +61,15 @@ let rec output_typ b sch priority ty =
           add_string b ") "
       end;
       add_string b c
+
+and output_labeled_typ b sch priority (lbl,ty) =
+  match lbl with
+    | "" ->
+       output_typ b sch priority ty
+    | l ->
+       add_string b l;
+       add_string b ":";
+       output_typ b sch priority ty
 
 and output_typ_list b sch priority sep = function
     [] ->

@@ -12,7 +12,7 @@
 
 type typ =
    | TyVar of typ var
-   | TyArrow of typ * typ
+   | TyArrow of labeled_typ * typ
    | TyProduct of typ list         
    | TyConstr of string * typ list
 
@@ -23,6 +23,10 @@ and 'a var =
 and 'a value =
   | Unknown
   | Known of 'a
+
+and label = string (* ""  for none *)
+
+and labeled_typ = label * typ
 
 type typ_scheme =
   { ts_params: (typ var) list;
@@ -40,7 +44,7 @@ let rec type_repr = function
 
 let rec real_type ty = 
   match type_repr ty with
-  | TyArrow (ty1,ty2) -> TyArrow (real_type ty1, real_type ty2)
+  | TyArrow ((l,ty1),ty2) -> TyArrow ((l,real_type ty1), real_type ty2)
   | TyProduct ts  -> TyProduct (List.map real_type ts)        
   | TyVar { value=Known ty'} -> ty'
   | ty -> ty
@@ -56,8 +60,8 @@ let is_bool_type = is_constr_type (fun n -> n="bool")
 let is_data_type = is_constr_type (fun n -> n="data")
 let is_param_type = is_constr_type (fun n -> n="param")
 
-let type_arrow t1 t2 = TyArrow (t1,t2)
-let type_arrow2 t1 t2 t3 = TyArrow (t1,TyArrow (t2,t3))
+let type_arrow ?(lbl="") t1 t2 = TyArrow ((lbl,t1), t2)
+let type_arrow2 ?(lbl1="") ?(lbl2="") t1 t2 t3 = TyArrow ((lbl1,t1), type_arrow ~lbl:lbl2 t2 t3)
 let type_constr c ts = TyConstr(c, ts)
 let type_pair t1 t2 = TyProduct [t1;t2]
 let type_list t = TyConstr("list", [t])
@@ -77,7 +81,7 @@ let occur_check var ty =
     match type_repr t with
     | TyVar var' ->
         if var == var' then raise(TypeCircularity(TyVar var, ty))
-    | TyArrow (ty1,ty2) ->
+    | TyArrow ((l,ty1),ty2) ->
         test ty1;
         test ty2
     | TyProduct ts ->
@@ -99,7 +103,7 @@ let rec unify ~relax ty1 ty2 =
   | ty, TyVar var ->
       occur_check var ty;
       var.value <- Known ty
-  | TyArrow(ty1, ty2), TyArrow(ty1', ty2') ->
+  | TyArrow((l,ty1), ty2), TyArrow((l',ty1'), ty2') when l="" || l'="" || l=l' ->
       unify ~relax ty1 ty1';
       unify ~relax ty2 ty2'
   | TyProduct ts1, TyProduct ts2 when List.length ts1 = List.length ts2 ->
@@ -138,7 +142,7 @@ let generalize env ty =
       | TyVar var ->
           if not (List.memq var !tvars) && not (List.memq var tvars') 
           then tvars := var :: !tvars
-      | TyArrow (t1, t2) ->
+      | TyArrow ((l,t1), t2) ->
           scan_ty t1;
           scan_ty t2
       | TyProduct ts ->
@@ -171,8 +175,8 @@ let rec copy_type tvbs ty =
         with Not_found ->
             ty
         end
-    | TyArrow (ty1, ty2) ->
-        TyArrow (copy ty1, copy ty2)
+    | TyArrow ((l,ty1), ty2) ->
+        TyArrow ((l,copy ty1), copy ty2)
     | TyProduct ts ->
         TyProduct (List.map copy ts)
     | TyConstr (c, args) ->
@@ -191,3 +195,16 @@ let type_instance ty_sch = fst (full_type_instance ty_sch)
 
 let type_copy t = type_instance (generalize [] t) 
 
+exception Unknown_label of string * typ
+                         
+let get_label l ty = (* This is fn [A_l(\tau)] in Garrigue and Furuse paper *) 
+  let rec get ty = match ty with
+  | TyArrow ((l',ty'), ts) -> if l="" || l=l' then ty' else get ts
+  | _ -> raise (Unknown_label (l,ty)) in
+  get ty
+
+let remove_label l ty = (* This is fn [R_l(\tau)] in Garrigue and Furuse paper *) 
+  let rec remove ty = match ty with
+  | TyArrow (((l',ty') as ty1), ts) -> if l="" || l=l' then ts else TyArrow (ty1, remove ts)
+  | _ -> ty in
+  remove ty

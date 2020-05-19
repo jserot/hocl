@@ -78,7 +78,6 @@ let process_file p f =
 let process_files fs =
   let p = List.fold_left process_file Syntax.empty_program fs in
   (* Syntax.dump_program p; *)
-  let ir = p |> compile in
   let ir = p |> compile |> insert_bcasts in
   if Options.cfg.dump_ir then Interm.dump_ir ~typed:true ir;
   if Options.cfg.output_fmt <> NoOutput then begin

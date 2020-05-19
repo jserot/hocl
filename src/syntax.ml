@@ -115,9 +115,9 @@ and expr =
 
 and expr_desc =
    | EVar of string
-   | EApp of expr * expr
+   | EApp of expr * labeled_expr
    | ETuple of expr list
-   | EFun of pattern * expr (* single match here ! *)
+   | EFun of fun_pattern * expr (* single match here ! *)
    | ELet of bool * binding list * expr 
    | EUnit
    | EInt of int
@@ -130,6 +130,17 @@ and expr_desc =
    | EListElem of expr * expr
    | EMatch of expr * binding list
    | EQuote of expr
+
+and labeled_expr = label * expr
+  
+and label = string (* "" for none *)
+
+and fun_pattern =
+  { fp_desc: fun_pattern_desc;
+    fp_loc: location;
+    mutable fp_typ: Types.typ }
+
+and fun_pattern_desc = label * string (* label, id *)
 
 and graph_struct_desc =
   { gs_wires: wire_decl list;
@@ -194,7 +205,7 @@ let rec string_of_type_expr = function
 
 let rec string_of_expr_desc = function
    | EVar v -> v
-   | EApp (e1,e2) -> string_of_expr e1 ^ " " ^ string_of_expr e2
+   | EApp (e1,e2) -> string_of_expr e1 ^ " " ^ string_of_labeled_expr e2
    | ETuple es -> "(" ^ Misc.string_of_list string_of_expr "," es ^ ")"
    | EFun (p,e) -> "<fun>"
    | ELet (isrec, bs,e) ->
@@ -212,6 +223,10 @@ let rec string_of_expr_desc = function
    | EQuote e -> "'" ^ string_of_expr e ^ "'"
 
 and string_of_expr e = string_of_expr_desc e.e_desc
+
+and string_of_labeled_expr (lbl,e) = match lbl with
+  | "" -> string_of_expr e
+  | l -> l ^ ":" ^ string_of_expr e
 
 and string_of_bindings bs = Misc.string_of_list string_of_binding " and " bs
                           

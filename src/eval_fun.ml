@@ -37,8 +37,24 @@ let copy_node n =
         | exception Invalid_argument _ ->
          Misc.fatal_error "Eval_fun.instanciate_node"
      end
-  | _ -> (* Copy has already be done *)
+  | _ -> (* Copy has already been done *)
      n
+
+let remove_label l expr =
+    (* Ex: [remove_label "l2" (Fun ~l1:x -> Fun ~l2:y -> (x,y)]
+         = [(Fun ~l1:x -> (x,x), "y")] *)
+    let rec remove e = match e.e_desc with
+    | EFun ({fp_desc=(l',id)} as pat, e') ->
+       if l="" || l=l'
+       then
+         e', id
+       else
+         let e'', id = remove e' in
+         { e_desc=EFun (pat, e''); e_loc=e.e_loc; e_typ=Types.remove_label l expr.e_typ (* TO FIX ? *)  },
+         id
+    | _ ->
+       Misc.fatal_error "Eval_fun.remove_label" (* should not happen *) in
+    remove expr
 
 (* E, B |-p pat, v => E', B', W *)
 
@@ -118,44 +134,46 @@ let rec eval_expr env boxes expr =
   | ETuple es ->
      let vs, bs, ws = List.map (eval_expr env boxes) es |> Misc.list_split3 in
      SVTuple vs, Misc.fold_left1 (+++) bs, Misc.fold_left1 (++) ws
-  | EApp (fn, arg) ->
+  | EApp (fn, (lbl,arg)) ->
      let val_fn, bs_f, ws_f = eval_expr env boxes fn in
+     let val_arg, bs_a, ws_a = eval_expr env boxes arg in
      begin match val_fn with
-     | SVClos {cl_pat=pat; cl_exp=exp; cl_env=env'} ->
-        let val_arg, bs_a, ws_a = eval_expr env boxes arg in
-        let env'', _, _ =
-          begin
-            try eval_match false [] [] pat val_arg
-            with Matching_fail -> binding_error pat.p_loc
-          end in
-        let v', bs', ws' = eval_expr (env'++env'') (boxes+++bs_a+++bs_f) exp in
-        v',
-        bs_a+++bs_f+++bs',
-        ws_a++ws_f++ws'
+     | SVClos {cl_pat=(lbl',id,_) as pat; cl_exp=exp; cl_env=env'} ->
+         if lbl = "" || lbl = lbl' then
+           let env'' = (id,val_arg)::env' in
+           let v', bs', ws' = eval_expr env'' (boxes+++bs_a+++bs_f) exp in
+           v',
+           bs_a+++bs_f+++bs',
+           ws_a++ws_f++ws'
+         else
+           let exp', id' = remove_label lbl exp in
+           SVClos { cl_pat=pat; cl_exp=exp'; cl_env = (id',val_arg)::env' },
+           bs_a+++bs_f,
+           ws_a++ws_f
      | SVNode n ->
-        let val_arg, bs_a, ws_a = eval_expr env boxes arg in
-        let m = List.length n.sn_ins in
-        let k = List.length n.sn_supplied_ins in
+        (* let m = List.length n.sn_ins in
+         * let k = List.length n.sn_supplied_ins in *)
         let n' =
-          if m > 0 then
-            let id,ty,e,anns = List.nth n.sn_ins k in   (* TO FIX : [e] is ignored here ! *)
-            { n with sn_supplied_ins = n.sn_supplied_ins @ [id,ty,val_arg,anns] }
-          else (* input-less node *)
-            n in
-        if m = 0 || k = m-1 then                        (* The supplied arg was the last missing one *)
+          begin
+            match n.sn_ins with
+              [] -> n (* input-less node *)
+            | _ -> set_node_input lbl val_arg n
+          end in
+        (* if m = 0 || k = m-1 then                        (\* The supplied arg was the last missing one *\) *)
+        if n'.sn_ins = [] then                             (* All arguments have been supplied *)
           let v, bs', ws' = eval_node_application env (boxes+++bs_a+++bs_f) (ws_a++ws_f) expr.e_loc n' in
           v,
           bs_a+++bs_f+++bs',
           ws_a++ws_f++ws'
-        else                                                             (* Still missing some extra arguments *)
+        else                                               (* Some argument(s) are still missing *)
           SVNode n',
           bs_a+++bs_f,
           ws_a++ws_f
      | _ ->
         illegal_application expr.e_loc
      end
-  | EFun (pat,exp) ->
-      SVClos {cl_pat=pat; cl_exp=exp; cl_env=env}, [], []
+  | EFun ({fp_desc=lbl,id; fp_typ=ty}, exp) ->
+      SVClos {cl_pat=lbl,id,ty; cl_exp=exp; cl_env=env}, [], []
   | ELet (isrec, defns, body) ->
      let env', boxes', wires' = eval_definitions false expr.e_loc isrec (env,boxes) defns in
      let v, boxes'', wires'' = eval_expr (env++env') (boxes+++boxes') body in
@@ -214,6 +232,14 @@ let rec eval_expr env boxes expr =
      bs_p,
      ws_p
 
+and set_node_input lbl v n = 
+  let supplied, remains =
+    match Misc.list_extract (fun (id,_,_,_) -> lbl="" || lbl=id) n.sn_ins with
+    | Some (id,ty,e,anns), rest -> [id,ty,v,anns], rest   (* TO FIX : [e] is ignored here ! *)
+    | None, _ -> Misc.fatal_error "Eval_fun.set_node_input" in (* should not happen *)
+  { n with sn_supplied_ins = n.sn_supplied_ins @ supplied;
+           sn_ins = remains }
+
 and eval_definitions istop loc isrec (env,boxes) defns =
   let is_fun_definition = function {b_desc=({p_desc=Pat_var _}, {e_desc=EFun _})} -> true | _ -> false in
   if not isrec then                                        (* NON RECURSIVE CASE *)
@@ -227,8 +253,10 @@ and eval_definitions istop loc isrec (env,boxes) defns =
       let rec_cls =
         List.map
           (function
-           | {b_desc={p_desc=Pat_var v}, {e_desc=EFun (p,e)}} -> v, {cl_pat=p; cl_exp=e; cl_env=[]}
-           | _ -> Misc.fatal_error "Eval_fun.eval_net_defns")  (* should not happen *)
+           | {b_desc={p_desc=Pat_var v}, {e_desc=EFun ({fp_desc=lbl,id; fp_typ=ty},e)}} ->
+              v, {cl_pat=lbl,id,ty; cl_exp=e; cl_env=[]}
+           | _ ->
+              Misc.fatal_error "Eval_fun.eval_net_defns")  (* should not happen *)
           defns in
       let env' = List.map (function (v,cl) -> (v, SVClos cl)) rec_cls in
       List.iter (fun (v,cl) -> cl.cl_env <- env' @ env) rec_cls;

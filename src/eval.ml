@@ -144,7 +144,7 @@ let type_of_semval v =
   | SVTuple vs -> type_product (List.map type_of vs)
   | SVList [] -> type_list (new_type_var ())
   | SVList (v::_) -> type_list (type_of v)
-  | SVClos cl -> type_arrow cl.cl_pat.p_typ cl.cl_exp.e_typ
+  | SVClos cl -> let l,p,ty = cl.cl_pat in type_arrow ~lbl:l ty cl.cl_exp.e_typ
   | SVQuote e -> type_param e.e_typ
   | _ -> raise Type_of_semval in
   type_of v

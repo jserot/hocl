@@ -101,3 +101,8 @@ let wrong_type_arity c arity nargs loc =
     output_location loc
     c arity nargs;
   raise Error
+
+let unbound_type_label lbl loc =
+  eprintf "%aThe label \"%s\" is unbound in this context.\n" 
+    output_location loc lbl;
+  raise Error

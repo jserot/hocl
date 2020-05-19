@@ -144,25 +144,33 @@ let rec type_pattern p =
 (* TE, VE |- NExp => tau *)
   
 let rec type_expression ?(relax=false) tenv venv expr =
+  let get_label l ty loc =
+    try Some (Types.get_label l ty)
+    with Types.Unknown_label (l,ty) -> None in
   let ty = match expr.e_desc with
   | EVar id ->
      type_instance (lookup_value venv expr.e_loc id)
   | ETuple es ->
      type_product (List.map (type_expression tenv venv) es)
-  | EApp(fn, arg) ->
+  | EApp(fn, (l,arg)) ->
       let ty_fn = type_expression tenv venv fn in
       let ty_arg = type_expression tenv venv arg in
-      let ty_result = new_type_var () in
-      try_unify "expression" ~relax:false ty_fn (type_arrow ty_arg ty_result) expr.e_loc;
+      let ty_result =
+        begin match get_label l ty_fn arg.e_loc with
+        | Some ty' ->
+           try_unify "application" ty' ty_arg arg.e_loc;
+           remove_label l ty_fn
+        | None ->
+           let ty_result = new_type_var () in
+           try_unify "expression" ~relax:false ty_fn (type_arrow ty_arg ty_result) expr.e_loc;
+           ty_result
+        end in
       ty_result
-  | EFun (pat,exp) ->
-      let ty_argument = new_type_var ()
-      and ty_result = new_type_var () in
-      let ty_pat, bindings = type_pattern pat in
-      try_unify "pattern" ty_pat ty_argument pat.p_loc;
-      let ty_expr = type_expression tenv (bindings @ venv) exp in
-      try_unify "expression" ty_expr ty_result expr.e_loc;
-      type_arrow ty_argument ty_result
+  | EFun ({fp_desc=l,id},exp) ->
+      let ty_pat = new_type_var () in
+      let env' = [id, trivial_scheme ty_pat] in
+      let ty_expr = type_expression tenv (env' @ venv) exp in
+      type_arrow ~lbl:l ty_pat ty_expr
   | ELet (isrec, defns, body) ->
      let venv' = type_definitions expr.e_loc isrec tenv venv defns in
      type_expression tenv (venv' @ venv) body
@@ -292,7 +300,7 @@ let type_node_io (tenv,venv) ({io_desc=(id,te,e,_); io_loc=loc} as io) =
   (* let ty' = type_wire t in *)
   io.io_typ <- Types.real_type ty;
   (tenv', venv@[id,ty]),
-  ty
+  (id,ty)
   
 (* TE |- NodeIOs => \tau, VE' *)
 
@@ -302,17 +310,17 @@ let type_node_outps tenv outps =
   let ty = 
   match ts with
   | [] -> type_unit (* should not happen in this version *)
-  | [t] -> t
-  | _ -> type_product ts in
+  | [_,t] -> t
+  | _ -> List.map snd ts |> type_product in
   ty, tenv', venv'
 
 let type_node_ios tenv tr inps =
-  (* [... in (i1:t1, ..., im:tm] gives [t1 -> ... -> tm -> tr] *)
+  (* [... in (i1:t1, ..., im:tm] gives [~i1:t1 -> ... -> ~im:tm -> tr] *)
   let (tenv',venv'), ts = Misc.fold_left_map type_node_io (tenv,[]) inps in
   let ty = 
   match ts with
   | [] -> type_arrow type_unit tr (* should not happen in this version *)
-  | _ ->  List.fold_right (fun t t' -> type_arrow t t') ts tr in
+  | _ ->  List.fold_right (fun (l,t) t' -> type_arrow ~lbl:l t t') ts tr in
   ty, tenv', venv'
 
 (* TE, VE |- ValDecls => VE' *)

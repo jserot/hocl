@@ -104,6 +104,7 @@ let mk_val_decl l desc = { vd_desc = desc; vd_loc = mk_location l }
 let mk_node_decl l desc = { nd_desc = desc; nd_loc = mk_location l }
 let mk_expr l desc = { e_desc = desc; e_loc = mk_location l; e_typ = Types.no_type }
 let mk_pat l desc = { p_desc = desc; p_loc = mk_location l; p_typ = Types.no_type }
+let mk_fun_pat l desc = { fp_desc = desc; fp_loc = mk_location l; fp_typ = Types.no_type }
 let mk_binding l desc = { b_desc = desc; b_loc = mk_location l}
 let mk_wire_decl l desc = { wr_desc = desc; wr_loc = mk_location l }
 let mk_box_decl l desc = { bx_desc = desc; bx_loc = mk_location l }
@@ -116,7 +117,7 @@ let rec mk_fun l pats e = match pats with
   | [p] -> mk_expr l (EFun (p,e))
   | p::ps -> mk_expr l (EFun (p, mk_fun l ps e)) (* TO FIX: location *)
 let mk_binop l op e1 e2 = mk_expr l (EBinop (op,e1,e2))
-let mk_infix l (op,l') e1 e2 = mk_apply l (mk_expr l' (EVar op)) [e1; e2]
+let mk_infix l (op,l') e1 e2 = mk_apply l (mk_expr l' (EVar op)) ["",e1; "",e2]
 
 %}
 
@@ -213,7 +214,7 @@ binding_name:
 expr:
         e=simple_expr
           { e }
-      | f=simple_expr args=nonempty_list(simple_expr)   (*%prec prec_app*)
+      | f=simple_expr args=nonempty_list(simple_labeled_expr)   (*%prec prec_app*)
           { mk_apply $sloc f args }
       | es=expr_comma_list
           { mk_expr $sloc (ETuple (List.rev es)) }
@@ -239,6 +240,10 @@ expr:
           { mk_expr $sloc (EListElem (e,i)) }
       | MATCH e=expr WITH cs=separated_nonempty_list(BAR,match_case) 
           { mk_expr $sloc (EMatch (e,cs)) }
+
+simple_labeled_expr:
+      | l=IDENT COLON e=simple_expr { l,e}
+      | e=simple_expr { "",e }
 
 match_case: 
       p=pattern ARROW e=expr
@@ -286,7 +291,7 @@ pattern:
 
 fun_pattern:
       | id=IDENT
-          { mk_pat $sloc (Pat_var id) }
+             { mk_fun_pat $sloc ("", id) } (* label=id *)
 
 simple_pattern:
       | id=IDENT
