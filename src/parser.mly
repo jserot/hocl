@@ -58,6 +58,7 @@
 %token RBRACE
 %token <string> TYVAR
 %token QUOTE
+%token TILDE
 
 (* Precedences and associativities. Lower precedences first.*)
 
@@ -242,8 +243,9 @@ expr:
           { mk_expr $sloc (EMatch (e,cs)) }
 
 simple_labeled_expr:
-      | l=IDENT COLON e=simple_expr { l,e}
-      | e=simple_expr { "",e }
+      | l=IDENT COLON e=simple_expr { l, e}
+      | e=simple_expr { "", e }
+      | TILDE id=IDENT { id, mk_expr $sloc (EVar id) }
 
 match_case: 
       p=pattern ARROW e=expr

@@ -9,7 +9,7 @@ node dataProvider in (dataSize: int param) out (o: t);
 node selector in () out (value: int param);
 
 node forwardDatabis
-   in (size: int param, select: int param, input: t) 
+   in (dataSize: int param, select: int param, input: t) 
   out (out0:  t[size*(1-select)], out1: t[size*select]);
 
 node branchZero in (select: int param, dataSize: int param, data: t) out ();
@@ -34,10 +34,10 @@ val ifthenelse sel fork f0 f1 x =
 graph top2 in (dataSize: int param = 4) out ()
 fun
   val _ = 
-       dataProvider dataSize       -- source
+       dataProvider dataSize        -- source
     |> ifthenelse
-         (selector ())                      -- condition
-         (forwardDatabis size:dataSize)     -- fork
-         (branchZero dataSize:dataSize)     -- 'false' subgraph
-         (branchOne dataSize:dataSize)      -- 'true' subgraph
+         (selector ())              -- condition
+         (forwardDatabis ~dataSize) -- fork
+         (branchZero ~dataSize)     -- 'false' subgraph
+         (branchOne ~dataSize)      -- 'true' subgraph
 end;
