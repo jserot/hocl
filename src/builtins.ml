@@ -68,4 +68,3 @@ let typing_env =
 
 let static_env =
   List.map (function (n,(t,v)) -> n,v) builtin_primitives
-  (* Values such as [map], [pipe], ... will be defined explicitely in the prelude file *)

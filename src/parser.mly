@@ -345,17 +345,6 @@ box_inp:
 box_outp:
   | id=IDENT { mk_expr $sloc (EVar id) }
                  
-(* box_decl:
- *   | BOX id=IDENT COLON node=IDENT params=loption(box_params) inps=box_ios outps=box_ios
- *      { mk_box_decl $sloc (id, { bx_node=node; bx_params=params; bx_ins=inps; bx_outs=outps }) }
- * 
- * box_params:
- *   | LBRACKET vs=separated_list(COMMA,basic_expr) RBRACKET { vs } *)
-
-(* quoted_expr:
- *       | LBRACE e=basic_expr RBRACE
- *           { mk_expr $sloc (EQuote e) } *)
-
 basic_expr:
       | id=IDENT
           { mk_expr $sloc (EVar id) }

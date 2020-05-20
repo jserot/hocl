@@ -262,7 +262,6 @@ and string_of_wire_decl { wr_desc = (id,t) } = "  wire " ^ id ^ " : " ^ string_o
 
 and string_of_box_decl { bx_desc = (id,b) } = 
   "  box " ^ id ^ " : " ^ b.bx_node
-  (* ^ "(" ^ Misc.string_of_list string_of_expr "," b.bx_params ^ ")"  *)
   ^ "(" ^ Misc.string_of_list string_of_box_io "," b.bx_ins ^ ")"
   ^ "(" ^ Misc.string_of_list string_of_box_io "," b.bx_outs ^ ")"
 
@@ -291,8 +290,6 @@ let string_of_node_intf i =
   "node " ^ i.n_id
     ^ " in (" ^ Misc.string_of_list string_of_node_io ", " i.n_ins ^ ")"
     ^ " out (" ^ Misc.string_of_list string_of_node_io ", " i.n_outs ^ ")"
-
-(* let string_of_node_intf intf = string_of_node_intf_desc intf.ni_desc *)
 
 let dump_node {nd_desc=(id,n)} = Printf.printf "%s = %s\n" (string_of_node_intf n.n_intf) (string_of_node_impl n.n_impl)
 let dump_type d = Printf.printf "type %s\n" (string_of_type_decl d.td_desc)

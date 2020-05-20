@@ -266,6 +266,7 @@ let eval_node_input {io_desc=(id,t,e,anns)} =
 
 let eval_node_inputs inps =
   inps |> List.map eval_node_input |> List.split
+
 (* |- NodeOutput => E', B *)
 
 let eval_node_output {io_desc=(id,t,e,anns)} =

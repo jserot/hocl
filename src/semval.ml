@@ -28,7 +28,6 @@ type sem_val =
   | SVQuote of Syntax.expr
 
 and sv_clos = {
-  (* cl_pat: Syntax.label * Syntax.pattern;  (\* Always [Pat_var v] *\) *)
   cl_pat: string * string * Types.typ; (* label, id, typ *)
   cl_exp: Syntax.expr;
   mutable cl_env: (string * sem_val) list

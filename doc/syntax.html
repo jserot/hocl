@@ -249,7 +249,7 @@
       <tr>
         <th class="bar"></th>
         <td><span class="nonterminal">simple_expr</span>
-        nonempty_list(<span class="nonterminal">simple_expr</span>)</td>
+        nonempty_list(<span class="nonterminal">simple_labeled_expr</span>)</td>
       </tr>
       <tr>
         <th class="bar"></th>
@@ -328,6 +328,22 @@
         <span class="nonterminal">expr</span>
         WITH
         <span class="nonterminal">match_case</span><sup>+</sup><sub>BAR</sub></td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">simple_labeled_expr</span></th>
+        <td>IDENT
+        COLON
+        <span class="nonterminal">simple_expr</span></td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td><span class="nonterminal">simple_expr</span></td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td>TILDE
+        IDENT</td>
       </tr>
       
       <tr class="rule">

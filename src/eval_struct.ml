@@ -43,7 +43,6 @@ let eval_wire_decl { wr_desc=(id,t) } =
   let w = new_wire ty in
   (id,SVWire wid),
   (wid,w)
-  
 
 (* E, B, W |-> BoxInp => B', W', M *)
 

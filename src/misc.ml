@@ -140,7 +140,7 @@ let dump_banner ?(source="") ?(generator="") comment oc =
 let list_extract p l =
   (* If [l] contains an element [x] such as [p x] is true, then [list_extract p l] returns a pair [(Some x,l')]
      where [l'] is the list obtained by removing [x] from [l].
-     Otherwise, [list_extract p l] is the pair [(None,l)].
+     Otherwise, [list_extract p l] returns the pair [(None,l)].
      If [l] contains several elements [x] such as [p x] is true, only the first element is returned (resp. removed) *)
   let rec scan acc l = match l with
     | [] -> None, acc

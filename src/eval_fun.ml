@@ -151,15 +151,12 @@ let rec eval_expr env boxes expr =
            bs_a+++bs_f,
            ws_a++ws_f
      | SVNode n ->
-        (* let m = List.length n.sn_ins in
-         * let k = List.length n.sn_supplied_ins in *)
         let n' =
           begin
             match n.sn_ins with
               [] -> n (* input-less node *)
             | _ -> set_node_input lbl val_arg n
           end in
-        (* if m = 0 || k = m-1 then                        (\* The supplied arg was the last missing one *\) *)
         if n'.sn_ins = [] then                             (* All arguments have been supplied *)
           let v, bs', ws' = eval_node_application env (boxes+++bs_a+++bs_f) (ws_a++ws_f) expr.e_loc n' in
           v,
