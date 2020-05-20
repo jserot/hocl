@@ -1,8 +1,10 @@
 # Changes
 
-# 1.2 (May 18, 2020)
+# 1.2 (May 24, 2020)
 
-* type-based handling of parameters (allow parameters also on outputs)
+* Type-based handling of parameters (allow parameters also on outputs)
+* Support for labeled arguments in function definition and application
+  (see for ex. `examples/working/labels`) 
 * Revised formal semantics and updated implementation accordingly
 
 # 1.1 (May 3, 2020)
