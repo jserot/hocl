@@ -41,6 +41,9 @@ A short [tutorial](https://github.com/jserot/hocl/blob/master/doc/tutorial.pdf) 
 A minimal [user manual](https://github.com/jserot/hocl/blob/master/doc/using.pdf) describing how to
 invoke the compiler.
 
+A [gentle introduction](https://github.com/jserot/hocl/blob/master/doc/fgd.pdf) to the concepts of
+_functional graph description_.
+
 A BNF description of the syntax, in [pdf](https://github.com/jserot/hocl/blob/master/doc/syntax.pdf)
 and [html](https://github.com/jserot/hocl/blob/master/doc/syntax.html)
 
