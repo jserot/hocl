@@ -47,6 +47,8 @@ let keyword_table = [
   "wire", WIRE;
   "box", BOX;
   "actor", ACTOR;
+  "input", INPUT; (* Only for interactive toplevel *)
+  "output", OUTPUT; (* Only for interactive toplevel *)
 ]
 
 (* To buffer string literals *)
@@ -120,6 +122,7 @@ rule main = parse
   | "=" { EQUAL }
   | ":" { COLON }
   | "::" { COLONCOLON }
+  | "#" { HASH }
   | "@@"    { INFIX0 "@@" }
   | "|>"    { INFIX0 "|>" }
   | "|->"    { INFIX0 "|->" }

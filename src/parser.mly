@@ -59,6 +59,9 @@
 %token <string> TYVAR
 %token QUOTE
 %token TILDE
+%token HASH  (* Only for interactive toplevel *)
+%token INPUT (* Only for interactive toplevel *)
+%token OUTPUT (* Only for interactive toplevel *)
 
 (* Precedences and associativities. Lower precedences first.*)
 
@@ -71,8 +74,9 @@
 
 (* Entry points*)
 
-%start program
+%start program phrase
 %type <Syntax.program> program
+%type <Syntax.phrase> phrase
 
 %{
 open Syntax
@@ -124,6 +128,33 @@ let mk_infix l (op,l') e1 e2 = mk_apply l (mk_expr l' (EVar op)) ["",e1; "",e2]
 
 %%
 
+(* TOPLEVEL PHASE *)
+  
+phrase:
+    | d = type_decl SEMI { Syntax.TypeDecl d }
+    | d = top_node_decl SEMI { Syntax.NodeDecl d }
+    | d = val_decl SEMI { Syntax.ValDecl d }
+    | d = top_inp_decl SEMI { Syntax.InpDecl d }
+    | d = top_outp_decl SEMI { Syntax.OutpDecl d }
+    | HASH d=directive SEMI { Syntax.Directive (fst d, snd d) }
+    | EOF { EoF }
+
+directive:
+    | n=IDENT { (n, "") }
+    | n=IDENT s=STRING { (n, s) }
+
+top_node_decl:
+   NODE id=IDENT IN inps=io_decls OUT outps=io_decls
+     { mk_node_decl
+       $sloc
+       (id, { n_intf={n_id=id; n_isgraph=false; n_ins=inps; n_outs=outps }; n_impl=NM_Actor []}) }
+
+top_inp_decl:
+  | INPUT id=IDENT COLON t=type_expr { mk_io_decl $sloc (id,t,None,[]) }
+            
+top_outp_decl:
+  | OUTPUT id=IDENT COLON t=type_expr { mk_io_decl $sloc (id,t,None,[]) }
+            
 (* PROGRAM *)
 
 program:

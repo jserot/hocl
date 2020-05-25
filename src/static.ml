@@ -70,7 +70,7 @@ let eval_node_decl (env,nodes) {nd_desc=(id,n)} =
 (* E |- NodeDecls => E', N *)
   
 let eval_node_decls env node_decls = 
-  List.fold_left eval_node_decl(env,[]) node_decls
+  List.fold_left eval_node_decl (env,[]) node_decls
 
 (* E |-> Program => E', N *)
     
@@ -80,3 +80,16 @@ let build_static env p =
   let graphs, nodes' = List.partition (fun (_,n) -> n.sn_intf.sn_isgraph) nodes in
   { ir_nodes = nodes'; ir_graphs = graphs }
 
+(* Printing *)
+
+let dump_static_value tenv (id,v) =
+  let ty =
+    try List.assoc id tenv
+    with Not_found -> Misc.fatal_error "Static.dump_static_value" in
+  Printf.printf "val %s : %s = %s\n" id (Pr_type.string_of_type_scheme ty) (string_of_semval v)
+
+let dump_static_env title tenv senv =
+  Printf.printf "%s ---------------\n" title;
+  List.iter (dump_static_value tenv) senv;
+  Printf.printf "----------------------------------\n"
+    

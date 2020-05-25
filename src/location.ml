@@ -161,24 +161,21 @@ let output_location oc ((Loc (filename,c1,c2)) as loc) =
       oc (fun () -> input_char chan) (seek_in chan) true
       loc;
     seek_in !input_chan p
-  end else begin
-    Printf.fprintf oc "Toplevel input:\n";
-    let curr_pos = ref 0 in
-    let input () =
-      let c =
-        if !curr_pos >= 2048 then
-          raise End_of_file
-        else if !curr_pos >= 0 then
-          Bytes.get !input_lexbuf.lex_buffer !curr_pos
-        else
-          '.'
-      in
-        incr curr_pos; c
-    and seek pos =
-      curr_pos := pos - !input_lexbuf.lex_abs_pos
-    in
-      output_loc oc input seek false loc
-  end
+    end else begin (* Toplevel input *)
+          let curr_pos = ref 0 in
+          let input () =
+            let c =
+              if !curr_pos >= 2048 then
+                raise End_of_file
+              else if !curr_pos >= 0 then
+                Bytes.get !input_lexbuf.lex_buffer !curr_pos
+              else
+                '.'
+            in
+            incr curr_pos; c
+          and seek pos = curr_pos := pos - !input_lexbuf.lex_abs_pos in
+          output_loc oc input seek false loc
+        end
 
 let output_input_name oc =
   Printf.fprintf oc "File \"%s\", line 1:\n" !input_name

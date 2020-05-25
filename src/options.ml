@@ -17,6 +17,7 @@ type output_format = NoOutput | Dot | Systemc | Preesm | Xdf | Dif (* | Vhdl *)
 
 type cfg = {
     mutable stdlib: string;
+    mutable builtins: bool;
     mutable output_fmt: output_format;
     mutable output_prefix: string;
     mutable prefix: string;
@@ -25,11 +26,13 @@ type cfg = {
     mutable dump_typed: bool;
     mutable dump_ir: bool;
     mutable dump_boxes: bool;
-    mutable target_dir: string
+    mutable target_dir: string;
+    mutable interactive:bool
   }
 
 let cfg = {
   stdlib = "";
+  builtins = true;
   output_fmt = NoOutput;
   output_prefix = "";
   prefix = "";
@@ -39,10 +42,12 @@ let cfg = {
   dump_ir = false;
   dump_boxes = false;
   target_dir = ".";
+  interactive = false
   }
 
 let set_stdlib path = cfg.stdlib <- path
 let no_stdlib () = cfg.stdlib <- "none"
+let no_builtins () = cfg.builtins <- false
 let set_output_prefix name = cfg.output_prefix <- name
 (* let add_include_path path = Lexer.include_path <- !Lexer.include_path @ [path] *)
 let set_prefix p = cfg.prefix <- p
@@ -54,6 +59,7 @@ let do_dump_ir () = cfg.dump_ir <- true
 let do_dump_boxes () = cfg.dump_boxes <- true
 let do_insert_bcasts () = Interm.cfg.Interm.insert_bcasts <- true
 (* let do_insert_fifos () = Static.cfg.Static.insert_fifos <- true *)
+let do_interactive () = cfg.interactive <- true
 (* DOT related options *)
 let do_dot () = cfg.output_fmt <- Dot
 let do_dot_unlabeled_edges () = Dot.cfg.Dot.labeled_edges <- false
@@ -87,6 +93,7 @@ let do_dif () = cfg.output_fmt <- Dif
 let options_spec = [
  "-stdlib", Arg.String (set_stdlib), "set location of the standard library file (default: " ^ Version.stdlib ^ ")";
  "-no_stdlib", Arg.Unit (no_stdlib), "do not use the standard library";
+ "-no_builtins", Arg.Unit (no_builtins), "do not use standard builtin types and operations (\"int\", \"+\", ...)";
 "-prefix", Arg.String (set_output_prefix), "set prefix output file names (default is main source file basename)";
 (* "-I", Arg.String (add_include_path), "add path to the list of dirs to search for include"; *)
 "-target_dir", Arg.String (set_target_dir), "set target directory for generated files (default is current directory)";
@@ -99,6 +106,7 @@ let options_spec = [
 "-version", Arg.Unit (print_version), "print version of the compiler";
 "--v", Arg.Unit (print_version), "print version of the compiler";
 (* "-insert_fifos", Arg.Unit (do_insert_fifos), "insert fifos between actors"; *)
+"-interactive", Arg.Unit (do_interactive), "start interactive toplevel instead of compiling file(s)";
 "-dot", Arg.Unit (do_dot), "generate .dot representation of the program";
 "-dot_rank_dir", Arg.String (set_dot_rank_dir), "set rank direction for DOT output graph (default: LR)";
 "-dot_unlabeled_edges", Arg.Unit (do_dot_unlabeled_edges), "do not annotate graph edges";

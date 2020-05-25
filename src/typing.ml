@@ -365,9 +365,7 @@ let type_box_decls tenv venv decls =
 (* TE, VE |- NodeDecl => VE' *)
      
 let rec type_node_decl tenv (venv,nodes) {nd_desc=(id,n); nd_loc=loc} =
-  let t_o, tenv', ve_o = type_node_outps tenv n.n_intf.n_outs in
-  let tr, tenv'', ve_i = type_node_ios tenv' t_o n.n_intf.n_ins in
-  let t = Types.generalize [] tr in
+  let t, ve_i, ve_o = type_node_intf tenv n.n_intf in
   let ts =
     begin match n.n_impl with
     | NM_Actor _ -> []
@@ -385,6 +383,12 @@ let rec type_node_decl tenv (venv,nodes) {nd_desc=(id,n); nd_loc=loc} =
   (id,t)::venv,
   (id,{tn_sig=t; tn_defns=ts})::nodes
 
+and type_node_intf tenv intf =
+  let t_o, tenv', ve_o = type_node_outps tenv intf.n_outs in
+  let tr, tenv'', ve_i = type_node_ios tenv' t_o intf.n_ins in
+  let t = Types.generalize [] tr in
+  t, ve_i, ve_o
+ 
 (* VE' \subset VE *)
   
 and check_output_types loc ve' ve =
@@ -443,7 +447,10 @@ and dump_typed_node (name, n) =
   List.iter (fun (id,ty) -> Printf.printf "  val %s: %s\n" id (Pr_type.string_of_type_scheme ty)) n.tn_defns;
   flush stdout
 
+let dump_tycon (id, arity) = Printf.printf "type %s\n" id
+                           
 let dump_typing_environment title (tenv,venv) = 
   Printf.printf "%s ---------------\n" title;
+  List.iter dump_tycon tenv;
   List.iter dump_typed_value venv;
   Printf.printf "----------------------------------\n"

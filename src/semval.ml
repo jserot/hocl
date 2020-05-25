@@ -109,7 +109,7 @@ let rec string_of_semval v = match v with
   | SVUnit -> "()"
   | SVNil -> "[]"
   | SVCons (v1,v2) -> string_of_semval v1 ^ "::" ^ string_of_semval v2
-  | SVLoc (l,s,ty) -> "Loc(" ^ string_of_int l ^ "," ^ string_of_int s 
+  | SVLoc (l,s,ty) -> "Loc(" ^ string_of_int l ^ "," ^ string_of_int s  ^ ")"
   | SVPrim p -> "Prim(...)"
   | SVNode _ -> "Node(...)"
   | SVClos _ -> "Clos(...)"

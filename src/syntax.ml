@@ -25,6 +25,8 @@ and type_expression_desc =
   | Typeconstr of string * type_expression list 
   | Typevar of string
 
+(* Programs *)
+             
 type program = {
     types: type_decl list;
     values: val_decl list;
@@ -195,6 +197,22 @@ let add_program p1 p2 = { (* TODO : Flag redefinitions ? *)
     nodes= p1.nodes @ p2.nodes;
   }
 
+(* Toplevel phrases *)
+             
+type inp_decl = {
+  id_desc: string * type_expression;
+  id_loc: location;
+  }
+
+type phrase =
+  | TypeDecl of type_decl
+  | NodeDecl of node_decl
+  | ValDecl of val_decl
+  | InpDecl of io_decl 
+  | OutpDecl of io_decl 
+  | Directive of string * string (* name, arg *)
+  | EoF
+
 (* Printing *)
 
 let rec string_of_type_expr = function
@@ -306,3 +324,11 @@ let rec dump_program p =
   List.iter dump_node nodes;
   Printf.printf "- Graphs ---------------\n";
   List.iter dump_node graphs
+
+(* let string_of_phrase p = match p with
+ *   | TypeDecl d -> Printf.sprintf "type %s" (string_of_type_decl d.td_desc)
+ *   | NodeDecl { nd_desc=id,n } -> Printf.sprintf "node %s" (string_of_node_intf n.n_intf)
+ *   | ValDecl { vd_desc=d } -> Printf.sprintf "val %s" (string_of_val_desc d)
+ *   | Directive d -> Printf.sprintf "directive %s" d
+ *   | EoF -> "<EoF>" *)
+
