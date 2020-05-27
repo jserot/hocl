@@ -22,6 +22,23 @@ type ctx = {
   mutable dot_output: bool;
   }
 
+let print_banner () = 
+  Printf.printf "Welcome to the HoCL interpreter version %s\n" Version.version;
+  Printf.printf "Type \"#help\" to get help\n";
+  flush stdout
+
+let help () = 
+  Printf.printf "\"> type <name>;\" to define a type\n";
+  Printf.printf "\"> node <name> in (<id>:<type>, ...) out (<id>:<type>,...);\" to define an actor\n";
+  Printf.printf "\"> input <name> : <type;\" to define a graph input\n";
+  Printf.printf "\"> val <name> = <expr>;\" to define a value\n";
+  Printf.printf "\"> #print_tenv;\" to print the typing environment\n";
+  Printf.printf "\"> #print_senv;\" to print the static (eval) environment\n";
+  Printf.printf "\"> #display;\" to write the current graph in file for display with Graphviz\n";
+  Printf.printf "\"> #clear_graph;\" to clear the current graph (deleting all nodes and wires)\n";
+  Printf.printf "\"> #clear_all;\" to clear current graph and all environments\n";
+  Printf.printf "\"> #help;\" to get this help\n"
+
 let parse () = 
   let lexbuf = !Location.input_lexbuf in
   Parser.phrase Lexer.main lexbuf
@@ -123,6 +140,7 @@ let compile_phrase ctx =
          end;
        ctx.boxes <- [];
        ctx.wires <- []
+    | Directive ("help", _) -> help ()
     | Directive ("use", fname) -> Error.not_implemented "Toplevel #use directive"
     | Directive (s,_) -> raise (Invalid_directive s)
     | EoF -> raise End_of_file
@@ -145,6 +163,7 @@ let run () =
         wires = [];
         dot_output = false } in
   Location.input_lexbuf := lexbuf;
+  print_banner ();
   while true do
     try
       print_string "# "; flush stdout;
