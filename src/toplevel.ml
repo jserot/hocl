@@ -4,6 +4,7 @@ open Syntax
 
 exception Toplevel
 exception Invalid_directive of string
+exception NestedUse
 
 type cfg = {
   dot_file: string;
@@ -20,6 +21,8 @@ type ctx = {
   mutable boxes: Semval.box_env;
   mutable wires: Semval.wire_env;
   mutable dot_output: bool;
+  mutable lexbuf: Lexing.lexbuf;
+  mutable in_use: bool
   }
 
 let print_banner () = 
@@ -37,11 +40,8 @@ let help () =
   Printf.printf "\"> #display;\" to write the current graph in file for display with Graphviz\n";
   Printf.printf "\"> #clear_graph;\" to clear the current graph (deleting all nodes and wires)\n";
   Printf.printf "\"> #clear_all;\" to clear current graph and all environments\n";
+  Printf.printf "\"> #use <fname>;\" to load phrases from a file\n";
   Printf.printf "\"> #help;\" to get this help\n"
-
-let parse () = 
-  let lexbuf = !Location.input_lexbuf in
-  Parser.phrase Lexer.main lexbuf
 
 (* let print_phrase p =
  *   Printf.printf "> %s\n" (Syntax.string_of_phrase p);
@@ -91,7 +91,7 @@ let eval_io_decl eval_fn ctx ({ io_desc = id,t,_,_ } as d)  =
        ctx.boxes <- ctx.boxes @ [boxes']
   
 let compile_phrase ctx =
-    let p = parse () in
+    let p = Parser.phrase Lexer.main ctx.lexbuf in
     (* print_phrase p; *)
     match p with
     | TypeDecl d ->
@@ -141,12 +141,31 @@ let compile_phrase ctx =
        ctx.boxes <- [];
        ctx.wires <- []
     | Directive ("help", _) -> help ()
-    | Directive ("use", fname) -> Error.not_implemented "Toplevel #use directive"
+    | Directive ("use", fname) ->
+       if ctx.in_use then
+         raise NestedUse
+       else begin
+           let ic = open_in fname in
+           let lexbuf = Lexing.from_channel ic in
+           Location.input_chan := ic;
+           Location.input_lexbuf := lexbuf;
+           ctx.lexbuf <- lexbuf;
+           ctx.in_use <- true
+         end
     | Directive (s,_) -> raise (Invalid_directive s)
-    | EoF -> raise End_of_file
+    | EoF ->
+       if ctx.in_use then begin
+         ctx.lexbuf <- Lexing.from_channel stdin;
+         close_in !Location.input_chan;
+         Location.input_chan := stdin;
+         Location.input_lexbuf := ctx.lexbuf;
+         ctx.in_use <- false
+         end
+       else
+         raise End_of_file
 
 let run () =
-  let lexbuf = Lexing.from_channel !Location.input_chan in
+  let lexbuf = Lexing.from_channel stdin in
   let ctx = 
     if Options.cfg.Options.builtins then
       { tenv = { te_cons = fst Builtins.typing_env; te_vars = []};
@@ -154,15 +173,19 @@ let run () =
         senv = Builtins.static_env;
         boxes = [];
         wires = [];
-        dot_output = false }
+        dot_output = false;
+        in_use = false;
+        lexbuf = lexbuf }
     else
       { tenv = { te_cons = []; te_vars = [] };
         venv = [];
         senv = [];
         boxes = [];
         wires = [];
-        dot_output = false } in
-  Location.input_lexbuf := lexbuf;
+        dot_output = false;
+        in_use = false;
+        lexbuf = lexbuf  } in
+  Location.input_lexbuf := ctx.lexbuf;
   print_banner ();
   while true do
     try
@@ -174,6 +197,7 @@ let run () =
     | Lexer.Lexical_error (errcode,pos1,pos2) -> Compiler.lexical_error (errcode,pos1,pos2)
     | Misc.Error -> flush stderr
     | Invalid_directive s -> Printf.printf "Unknown directive: #%s\n" s; flush stdout
+    | NestedUse -> Printf.printf "Not implemented: nested #use directive\n"; flush stdout
     | e -> raise e
   done
   
