@@ -50,6 +50,8 @@ and [html](https://github.com/jserot/hocl/blob/master/doc/syntax.html)
 The [formal semantics](https://github.com/jserot/hocl/blob/master/doc/semantics.pdf) of the
 language.
 
+A short [video](https://youtu.be/WQSacRxYgGM) illustrating the use of the toplevel interpreter.
+
 INSTALLATION
 ------------
 
