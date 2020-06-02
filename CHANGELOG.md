@@ -1,5 +1,9 @@
 # Changes
 
+# 1.2.1 (Jun 2, 2020)
+
+* Toplevel interpreter for a subset of the language (see corresp. chapter in `doc/using.pdf`)
+
 # 1.2 (May 24, 2020)
 
 * Type-based handling of parameters (allow parameters also on outputs)
