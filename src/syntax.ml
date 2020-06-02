@@ -210,8 +210,13 @@ type phrase =
   | ValDecl of val_decl
   | InpDecl of io_decl 
   | OutpDecl of io_decl 
-  | Directive of string * string (* name, arg *)
+  | Directive of string * dir_arg (* name, arg *)
   | EoF
+
+and dir_arg =
+  DA_String of string
+| DA_Int of int
+| DA_None 
 
 (* Printing *)
 

@@ -140,8 +140,9 @@ phrase:
     | EOF { EoF }
 
 directive:
-    | n=IDENT { (n, "") }
-    | n=IDENT s=STRING { (n, s) }
+    | n=IDENT { (n, DA_None) }
+    | n=IDENT s=STRING { (n, DA_String s) }
+    | n=IDENT s=INT { (n, DA_Int s) }
 
 top_node_decl:
    NODE id=IDENT IN inps=io_decls OUT outps=io_decls
