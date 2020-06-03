@@ -17,13 +17,13 @@
           white-space: nowrap;
       }
       .specification th::after {
-          content: "::=";
+          content: "\a0::=\a0";
       }
       .specification th.bar {
           text-align: right;
       }
       .specification th.bar::after {
-          content: "|";
+          content: "|\a0";
       }
       .rule th, td {
           padding-top: .5em;
@@ -59,12 +59,12 @@
       
       <tr class="rule">
         <th><span class="nonterminal">program</span></th>
-        <td><span class="list"><span class="nonterminal">top_decl</span></span>
+        <td><span class="list"><span class="nonterminal">declaration</span></span>
         EOF</td>
       </tr>
       
       <tr class="rule">
-        <th><span class="nonterminal">top_decl</span></th>
+        <th><span class="nonterminal">declaration</span></th>
         <td><span class="nonterminal">type_decl</span>
         SEMI</td>
       </tr>
@@ -168,8 +168,7 @@
       
       <tr class="rule">
         <th><span class="nonterminal">io_annots</span></th>
-        <td>epsilon
-        </td>
+        <td>&epsilon;</td>
       </tr>
       <tr>
         <th class="bar"></th>
@@ -226,7 +225,7 @@
       <tr>
         <th class="bar"></th>
         <td><span class="nonterminal">binding_name</span>
-        nonempty_list(<span class="nonterminal">fun_pattern</span>)
+        <span class="ne_list"><span class="nonterminal">fun_pattern</span></span>
         EQUAL
         <span class="nonterminal">expr</span></td>
       </tr>
@@ -249,7 +248,7 @@
       <tr>
         <th class="bar"></th>
         <td><span class="nonterminal">simple_expr</span>
-        nonempty_list(<span class="nonterminal">simple_labeled_expr</span>)</td>
+        <span class="ne_list"><span class="nonterminal">simple_labeled_expr</span></span></td>
       </tr>
       <tr>
         <th class="bar"></th>
@@ -258,7 +257,7 @@
       <tr>
         <th class="bar"></th>
         <td>FUN
-        nonempty_list(<span class="nonterminal">fun_pattern</span>)
+        <span class="ne_list"><span class="nonterminal">fun_pattern</span></span>
         ARROW
         <span class="nonterminal">expr</span></td>
       </tr>
@@ -573,6 +572,83 @@
         <td>LPAREN
         <span class="nonterminal">basic_expr</span>
         RPAREN</td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">toplevel_phrase</span></th>
+        <td><span class="nonterminal">type_decl</span>
+        SEMI</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td><span class="nonterminal">toplevel_node_decl</span>
+        SEMI</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td><span class="nonterminal">val_decl</span>
+        SEMI</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td><span class="nonterminal">toplevel_inp_decl</span>
+        SEMI</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td><span class="nonterminal">toplevel_outp_decl</span>
+        SEMI</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td>HASH
+        <span class="nonterminal">toplevel_directive</span>
+        SEMI</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td>EOF</td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">toplevel_directive</span></th>
+        <td>IDENT</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td>IDENT
+        STRING</td>
+      </tr>
+      <tr>
+        <th class="bar"></th>
+        <td>IDENT
+        INT</td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">toplevel_node_decl</span></th>
+        <td>NODE
+        IDENT
+        IN
+        <span class="nonterminal">io_decls</span>
+        OUT
+        <span class="nonterminal">io_decls</span></td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">toplevel_inp_decl</span></th>
+        <td>INPUT
+        IDENT
+        COLON
+        <span class="nonterminal">type_expr</span></td>
+      </tr>
+      
+      <tr class="rule">
+        <th><span class="nonterminal">toplevel_outp_decl</span></th>
+        <td>OUTPUT
+        IDENT
+        COLON
+        <span class="nonterminal">type_expr</span></td>
       </tr>
       
       

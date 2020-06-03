@@ -74,9 +74,9 @@
 
 (* Entry points*)
 
-%start program phrase
+%start program toplevel_phrase
 %type <Syntax.program> program
-%type <Syntax.phrase> phrase
+%type <Syntax.phrase> toplevel_phrase
 
 %{
 open Syntax
@@ -123,50 +123,18 @@ let rec mk_fun l pats e = match pats with
   | p::ps -> mk_expr l (EFun (p, mk_fun l ps e)) (* TO FIX: location *)
 let mk_binop l op e1 e2 = mk_expr l (EBinop (op,e1,e2))
 let mk_infix l (op,l') e1 e2 = mk_apply l (mk_expr l' (EVar op)) ["",e1; "",e2]
-
 %}
 
 %%
-
-(* TOPLEVEL PHASE *)
-  
-phrase:
-    | d = type_decl SEMI { Syntax.TypeDecl d }
-    | d = top_node_decl SEMI { Syntax.NodeDecl d }
-    | d = val_decl SEMI { Syntax.ValDecl d }
-    | d = top_inp_decl SEMI { Syntax.InpDecl d }
-    | d = top_outp_decl SEMI { Syntax.OutpDecl d }
-    | HASH d=directive SEMI { Syntax.Directive (fst d, snd d) }
-    | EOF { EoF }
-
-directive:
-    | n=IDENT { (n, DA_None) }
-    | n=IDENT s=STRING { (n, DA_String s) }
-    | n=IDENT s=INT { (n, DA_Int s) }
-
-top_node_decl:
-   NODE id=IDENT IN inps=io_decls OUT outps=io_decls
-     { mk_node_decl
-       $sloc
-       (id, { n_intf={n_id=id; n_isgraph=false; n_ins=inps; n_outs=outps }; n_impl=NM_Actor []}) }
-
-top_inp_decl:
-  | INPUT id=IDENT COLON t=type_expr { mk_io_decl $sloc (id,t,None,[]) }
-            
-top_outp_decl:
-  | OUTPUT id=IDENT COLON t=type_expr { mk_io_decl $sloc (id,t,None,[]) }
-            
 (* PROGRAM *)
 
 program:
-  | decls = list(top_decl) EOF
+  | decls = list(declaration) EOF
               { { types = decls |> List.fold_left get_type_decl [] |> List.rev;
                   values = decls |> List.fold_left get_value_decl [] |> List.rev; 
                   nodes = decls |> List.fold_left get_node_decl [] |> List.rev; } }
 
-(* TOP DECLARATIONS *)
-
-top_decl:
+declaration:
     d = type_decl SEMI { TypeDecl d }
   | d = val_decl SEMI { ValueDecl d }
   | d = node_decl SEMI { NodeDecl d }
@@ -391,4 +359,32 @@ basic_expr:
       | LPAREN e=basic_expr RPAREN
           { e }
 
+(* TOPLEVEL PHRASES *)
+  
+toplevel_phrase:
+    | d = type_decl SEMI { Syntax.TypeDecl d }
+    | d = toplevel_node_decl SEMI { Syntax.NodeDecl d }
+    | d = val_decl SEMI { Syntax.ValDecl d }
+    | d = toplevel_inp_decl SEMI { Syntax.InpDecl d }
+    | d = toplevel_outp_decl SEMI { Syntax.OutpDecl d }
+    | HASH d=toplevel_directive SEMI { Syntax.Directive (fst d, snd d) }
+    | EOF { EoF }
+
+toplevel_directive:
+    | n=IDENT { (n, DA_None) }
+    | n=IDENT s=STRING { (n, DA_String s) }
+    | n=IDENT s=INT { (n, DA_Int s) }
+
+toplevel_node_decl:
+   NODE id=IDENT IN inps=io_decls OUT outps=io_decls
+     { mk_node_decl
+       $sloc
+       (id, { n_intf={n_id=id; n_isgraph=false; n_ins=inps; n_outs=outps }; n_impl=NM_Actor []}) }
+
+toplevel_inp_decl:
+  | INPUT id=IDENT COLON t=type_expr { mk_io_decl $sloc (id,t,None,[]) }
+            
+toplevel_outp_decl:
+  | OUTPUT id=IDENT COLON t=type_expr { mk_io_decl $sloc (id,t,None,[]) }
+            
 %%

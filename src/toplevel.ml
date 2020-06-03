@@ -97,7 +97,7 @@ let eval_io_decl eval_fn ctx ({ io_desc = id,t,_,_ } as d)  =
        ctx.boxes <- ctx.boxes @ [boxes']
   
 let compile_phrase ctx =
-    let p = Parser.phrase Lexer.main ctx.lexbuf in
+    let p = Parser.toplevel_phrase Lexer.main ctx.lexbuf in
     (* print_phrase p; *)
     match p with
     | TypeDecl d ->
