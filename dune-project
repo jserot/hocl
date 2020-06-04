@@ -1,5 +1,5 @@
-(lang dune 1.6)
+(lang dune 2.5)
 (name hocl)
-(version 0.2)
+(version 1.2.1)
 (using menhir 2.0)
 
