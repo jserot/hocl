@@ -200,9 +200,15 @@ let rec eval_param_expr env boxes e =
   | EBool n -> eval_param_const e.e_typ (EBool n) (SVBool n)
   | EVar v -> 
      begin
-       match get_loc v with
-       | Some l -> l, [], []
-       | None -> illegal_param_expr e.e_loc
+       match lookup env e.e_loc v with
+       | SVInt n -> eval_param_const e.e_typ (EInt n) (SVInt n)
+       | SVBool n -> eval_param_const e.e_typ (EBool n) (SVBool n)
+       | _ -> 
+          begin
+            match get_loc v with
+            | Some l -> l, [], []
+            | None -> illegal_param_expr e.e_loc
+          end
      end
   | EBinop (op,e1,e2) ->
      let slocs = extract_deps e in
