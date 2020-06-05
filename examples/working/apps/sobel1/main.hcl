@@ -19,8 +19,8 @@ end;
 
 node Sobel
   in (width: int param, height: int param,
-      input: uchar[height*width])
-  out (output: uchar[height*width])
+      inp: uchar[height*width])
+  out (outp: uchar[height*width])
 actor
   systemc(loop_fn="sobel", incl_file="include/sobel.h", src_file="src/sobel.c")
   preesm(loop_fn="sobel", incl_file="include/sobel.h", src_file="src/sobel.c")

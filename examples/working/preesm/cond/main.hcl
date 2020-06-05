@@ -9,7 +9,7 @@ node dataProvider in (dataSize: int param) out (o: t);
 node selector in () out (value: int param);
 
 node forwardDatabis
-   in (dataSize: int param, select: int param, input: t) 
+   in (dataSize: int param, select: int param, inp: t) 
   out (out0:  t[size*(1-select)], out1: t[size*select]);
 
 node branchZero in (select: int param, dataSize: int param, data: t) out ();

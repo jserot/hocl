@@ -21,8 +21,8 @@ end
 
 node ImDiff
   in (width: int param, height: int param,
-      input: uchar[height*width], previous: uchar[height*width])
-  out (output: uchar[height*width], result: uchar[height*width])
+      inp: uchar[height*width], previous: uchar[height*width])
+  out (outp: uchar[height*width], result: uchar[height*width])
 actor
   systemc(loop_fn="im_diff", incl_file="include/im_diff.h", src_file="src/im_diff.c")
   preesm(loop_fn="im_diff", incl_file="include/im_diff.h", src_file="src/im_diff.c")
@@ -30,8 +30,8 @@ end;
 
 node ImDelay
   in (width: int param, height: int param, ival: int param,
-      input: uchar[height*width])
-  out (output: uchar[height*width])
+      inp: uchar[height*width])
+  out (outp: uchar[height*width])
 actor
   systemc(loop_fn="im_delay", init_fn="im_delay_init", incl_file="include/im_delay.h", src_file="src/im_delay.c", is_delay)
   preesm(loop_fn="im_delay", init_fn="im_delay_init", incl_file="include/im_delay.h", src_file="src/im_delay.c", is_delay)
@@ -43,7 +43,7 @@ graph top
 fun
   val (yi,u,v) = ReadYUV width height
   val yo =
-    let rec (output,result) = ImDiff width height yi (ImDelay width height ival output) in
+    let rec (outp,result) = ImDiff width height yi (ImDelay width height ival outp) in
     result
   val _ = DisplayYUV index width height yo u v
 end;
