@@ -3,6 +3,7 @@
 # 1.2.1 (Jun 2, 2020)
 
 * Toplevel interpreter for a subset of the language (see corresp. chapter in `doc/using.pdf`)
+* Added `shuffle` HOWF in `stdlib` (see example in `examples/working/misc/shuffle`)
 
 # 1.2 (May 24, 2020)
 

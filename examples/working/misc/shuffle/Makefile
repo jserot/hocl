@@ -1,4 +1,4 @@
-SRCS=shuffle.hcl main.hcl
+SRCS=main.hcl
 GEN_OPTS=
 DOT_OPTS=-target_dir ./dot
 

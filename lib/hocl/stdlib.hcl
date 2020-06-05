@@ -112,3 +112,12 @@ val rec foldr f z xs =
     [] -> z
   | x::xs -> f x (foldr f z xs)
 ;
+
+-- The [shuffle] wiring function
+-- has type [int list -> $t list -> $t list]
+-- and can be defined as : [shuffle [k1, ..., kn]  [x1, ..., xn] = [x_{k1}, ..., x_{kn}]]
+
+val rec shuffle ks xs = match ks with
+    [] -> []
+  | k::ks -> xs[k] :: shuffle ks xs
+;
