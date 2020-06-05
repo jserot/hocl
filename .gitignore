@@ -30,6 +30,7 @@ src/old/
 src/obsolete/
 examples/tofix/
 examples/tosee/
+examples/greg/
 .merlin
 tools/pi2hcl/examples/*.hcl
 tools/pi2hcl/examples/*.dot
