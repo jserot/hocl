@@ -8,6 +8,7 @@
 
 (executable
   (name main)
+  (modes byte native)
   (flags (:standard -w -9-26-27-35-39) (-bin-annot))
   (libraries ezxmlm unix))
 

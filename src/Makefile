@@ -2,7 +2,7 @@ all: byte
 
 byte: 		
 	dune build main.bc
-	cp ../_build/default/src/main.bc ../bin/hoclc
+#	cp ../_build/default/src/main.bc ../bin/hoclc
 
 native: 		
 	dune build main.exe
