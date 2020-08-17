@@ -31,6 +31,8 @@ src/obsolete/
 examples/tofix/
 examples/tosee/
 examples/greg/
+examples/mlir/
+examples/deprecated/
 .merlin
 tools/pi2hcl/examples/*.hcl
 tools/pi2hcl/examples/*.dot
