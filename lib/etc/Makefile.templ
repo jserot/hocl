@@ -6,7 +6,7 @@ dot: $(SRCS)
 dot.show: dot
 	@for f in *.dot; do $(DOTVIEWER) $$f; done
 
-.PHONY: preesm systemc preesm.proj
+.PHONY: dot preesm systemc preesm.proj
 
 preesm: $(SRCS)
 	$(HOCLC) $(HOCL_OPTS) $(GEN_OPTS) -preesm $(PREESM_OPTS) $(SRCS)

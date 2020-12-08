@@ -43,3 +43,7 @@ examples/working/*/*/systemc/main_sc
 examples/working/*/*/dot/*.pdf
 examples/working/*/*/xdf/
 examples/working/*/*/dif/
+config
+platform
+lib/etc/Makefile.app
+src/version.ml
