@@ -1,16 +1,16 @@
-node f in (i1: int, i2: int) out (o1: int, o2: int);
-node delay in (i: $a) out (o: $a);
+type t;
+  
+node f in (i:t) out (o1:t, o2:t);
+node k in (i:t) out (o:t);
+node h in (i1:t, i2:t) out (o:t);
 
-graph delayed_cycle
-   in (i: int)
-  out (o: int)
+node g in (i: t) out (o: t)
 fun
-  val rec (o,z) = f i (delay z)
+  val o = i |> k |> k
 end;
 
-graph undelayed_cycle
-   in (i: int)
-  out (o: int)
+graph top in (i: t) out (o: t)
 fun
-  val rec (o,z) = f i z
+  val (x1,x2) = f i
+  val o = h (g x1) (g x2)
 end;

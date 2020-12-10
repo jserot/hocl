@@ -1,13 +1,9 @@
-node mult in (k: int param, i: int) out (o: int);
-
-node sub
-  in (k:int param, i:int) out (o:int)
-fun
-  val o = i |> mult k  |> mult 'k+1'
-end;
+node f in (i1: int, i2: int) out (o1: int, o2: int);
+node delay in (init: $a param, i: $a) out (o: $a);
 
 graph top
-  in (n:int param=2, i:int) out (o:int)
+   in (i: int)
+  out (o: int)
 fun
-  val o = i |> sub n
+  val rec (o,z) = f i (delay '0' z)
 end;
