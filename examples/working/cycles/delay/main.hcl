@@ -6,7 +6,7 @@
 -- The polymorphic [delay] actor defined here is to be  interpreted specifically by the dedicated backends
 -- The SystemC library in the current distribution provides default ones.
 
-node delay in (iv: $t param, i: $t) out (o: $t);
+node delay in (iv: 't param, i: 't) out (o: 't);
 
 node foo in (i1: int, i2: int) out (o1: int, o2: int)
 actor

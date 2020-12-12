@@ -1,5 +1,5 @@
 node f in (i1: int, i2: int) out (o1: int, o2: int);
-node delay in (init: $a param, i: $a) out (o: $a);
+node delay in (init: 'a param, i: 'a) out (o: 'a);
 
 graph top
    in (i: int)

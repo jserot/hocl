@@ -4,9 +4,9 @@
 --
 -- In this example, even input tokens are incremented and odd ones doubled
 
-node switch in (sel: bool, i: $t) out (o1: $t, o2: $t);
+node switch in (sel: bool, i: 't) out (o1: 't, o2: 't);
 
-node merge in (sel: bool, i1: $t, i2: $t) out (o: $t);
+node merge in (sel: bool, i1: 't, i2: 't) out (o: 't);
 
 node is_even in (i: int) out (o: bool)
 actor

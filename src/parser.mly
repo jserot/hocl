@@ -56,7 +56,7 @@
 %token ACTOR
 %token LBRACE
 %token RBRACE
-%token <string> TYVAR
+(* %token <string> TYVAR *)
 %token QUOTE
 %token TILDE
 %token HASH  (* Only for interactive toplevel *)
@@ -190,7 +190,7 @@ io_annot:
 
 simple_type_expr:
       | c=IDENT { mk_type_expr $sloc (Typeconstr (c,[])) }
-      | tv=TYVAR { mk_type_expr $sloc (Typevar tv) }
+      | QUOTE v=IDENT { mk_type_expr $sloc (Typevar v) }
 
 type_expr:
       | t=simple_type_expr { t }

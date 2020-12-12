@@ -105,7 +105,6 @@ rule main = parse
             IDENT s }
   | ['0'-'9']+
       { INT (int_of_string(Lexing.lexeme lexbuf)) }
-  | "$" ['a'-'z'] { TYVAR (Lexing.lexeme lexbuf) }
   | "~" { TILDE }
   | "|" { BAR }
   | "_" { UNDERSCORE }

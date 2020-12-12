@@ -1,5 +1,10 @@
 # Changes
 
+# 1.2.2 (Dec 12, 2020)
+
+* Syntax change : type variables in IO decls are not denoted "'t" instead of "$t" (as in OCaml)
+* Several bug fixes
+
 # 1.2.1 (Jun 2, 2020)
 
 * Toplevel interpreter for a subset of the language (see corresp. chapter in `doc/using.pdf`)
