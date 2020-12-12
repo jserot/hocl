@@ -1,3 +1,4 @@
 (executable
   (name main)
+  (modes byte native)
   (libraries ezxmlm))

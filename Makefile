@@ -5,18 +5,12 @@ include config
 all: compiler tools #doc
 
 compiler:
-#ifeq ($(BUILD_NATIVE),yes)
 	dune build src/main.exe
-# else
-# 	dune build src/main.bc
-# endif
+	dune build src/main.bc
 
 tools:
-# ifeq ($(BUILD_NATIVE),yes)
 	dune build tools/pi2hcl/main.exe
-# else
-# 	dune build tools/pi2hcl/main.bc
-# endif
+	dune build tools/pi2hcl/main.bc
 
 doc: 
 	(cd src; make doc)
