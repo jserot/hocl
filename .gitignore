@@ -47,3 +47,5 @@ config
 platform
 lib/etc/Makefile.app
 src/version.ml
+extra-docs/
+./config

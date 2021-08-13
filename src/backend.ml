@@ -113,5 +113,6 @@ let get_dst_box boxes (_,(d,ds,ty)) = Eval.lookup_box d boxes
 
 let get_param_value backend g wid =
   match get_src_box g.sg_boxes (Eval.lookup_wire wid g.sg_wires) with
-  | { b_tag=LocalParamB; b_val={bv_val=v} } -> v
+  | { b_tag=LocalParamB; b_val={bv_val=v} } 
+  | { b_tag=InParamB; b_val={bv_val=v} } -> v
   | _ -> Misc.fatal_error (backend ^ " backend cannot retrieve parameter value")
